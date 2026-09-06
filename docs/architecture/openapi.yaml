@@ -1,0 +1,60 @@
+openapi: 3.1.0
+info:
+  title: Maricho API
+  description: Backend API for the Maricho skilled work platform.
+  version: 1.0.0
+servers:
+  - url: http://localhost:8000
+    description: Local development server
+paths:
+  /health/live:
+    get:
+      summary: Liveness probe
+      description: Verifies the API process is running.
+      responses:
+        '200':
+          description: API is alive
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: alive
+  /health/ready:
+    get:
+      summary: Readiness probe
+      description: Verifies downstream dependencies (PostgreSQL, Redis).
+      responses:
+        '200':
+          description: System is ready to accept traffic
+        '503':
+          description: Dependencies are unreachable
+  /jobs/request:
+    post:
+      summary: Create a Quick Hire job request
+      description: Buyer submits a problem description (text/audio).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - buyer_id
+                - description
+                - suburb
+              properties:
+                buyer_id:
+                  type: string
+                  format: uuid
+                description:
+                  type: string
+                suburb:
+                  type: string
+      responses:
+        '201':
+          description: Job requested successfully
+        '400':
+          description: Invalid input

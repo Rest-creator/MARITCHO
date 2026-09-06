@@ -1,0 +1,1214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Maricho — Product Design Document</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#0B152E; --royal:#1F3A93; --royal-deep:#152A6E; --cyan:#1CA9E0; --cyan-pale:#E4F3FB;
+  --paper:#F4F7FB; --white:#fff; --rule:#D3DDEA; --muted:#5D6B85;
+  --amber:#D98218; --amber-pale:#FCF1E0; --red:#B33A2B; --red-pale:#FBEBE8;
+  --green:#1E7A5E; --green-pale:#E3F2EC; --grid:rgba(255,255,255,.09); --maxw:1120px;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:"IBM Plex Sans",system-ui,sans-serif;font-size:16.5px;line-height:1.62;-webkit-font-smoothing:antialiased}
+h1,h2,h3,h4{font-family:"Bricolage Grotesque","IBM Plex Sans",sans-serif;font-weight:800;line-height:1.08;letter-spacing:-.02em;margin:0}
+.mono{font-family:"IBM Plex Mono",monospace}
+.wrap{max-width:var(--maxw);margin:0 auto;padding:0 28px}
+p{margin:0 0 1em}
+a{color:var(--royal)}
+.eyebrow{font-family:"IBM Plex Mono",monospace;font-size:11.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--cyan);font-weight:600;margin-bottom:14px;display:flex;align-items:center;gap:10px}
+.eyebrow::after{content:"";flex:1;height:1px;background:var(--rule)}
+.dark .eyebrow::after{background:rgba(255,255,255,.16)}
+section{padding:74px 0;border-top:1px solid var(--rule)}
+section.dark{background:linear-gradient(var(--grid) 1px,transparent 1px) 0 0/34px 34px,linear-gradient(90deg,var(--grid) 1px,transparent 1px) 0 0/34px 34px,linear-gradient(160deg,var(--royal-deep),var(--ink) 70%);color:#EAF1FA;border-top:none}
+.dark h2,.dark h3,.dark h4{color:#fff}
+.dark p{color:#C3D2E8}
+.lede{font-size:20px;line-height:1.5;color:var(--muted);max-width:66ch}
+.dark .lede{color:#A9BEDC}
+h2{font-size:clamp(30px,4.2vw,44px);margin-bottom:16px}
+h3{font-size:21px;margin:36px 0 10px}
+h4{font-size:15px;letter-spacing:0;margin-bottom:6px}
+
+.cover{background:linear-gradient(var(--grid) 1px,transparent 1px) 0 0/34px 34px,linear-gradient(90deg,var(--grid) 1px,transparent 1px) 0 0/34px 34px,radial-gradient(1100px 620px at 76% -8%,#2F6FD6 0%,transparent 58%),linear-gradient(155deg,var(--royal-deep),var(--ink) 72%);color:#fff;padding:64px 0 74px;position:relative;overflow:hidden}
+.cover .arcs{position:absolute;right:-140px;top:-90px;width:640px;opacity:.3;pointer-events:none}
+.brandline{display:flex;align-items:baseline;gap:14px;margin-bottom:76px;position:relative;z-index:2}
+.wordmark{font-family:"Bricolage Grotesque",sans-serif;font-weight:800;font-size:30px;letter-spacing:-.03em}
+.brandline .tag{font-family:"IBM Plex Mono",monospace;font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;color:#7FC8EC}
+.cover h1{font-size:clamp(40px,6.6vw,74px);max-width:17ch;position:relative;z-index:2}
+.cover h1 em{font-style:normal;color:#7FC8EC}
+.cover .sub{font-size:19px;color:#B7CBE6;max-width:58ch;margin-top:24px;position:relative;z-index:2}
+.covermeta{display:flex;flex-wrap:wrap;gap:34px;margin-top:54px;padding-top:24px;border-top:1px solid rgba(255,255,255,.18);font-family:"IBM Plex Mono",monospace;font-size:11.5px;letter-spacing:.09em;text-transform:uppercase;color:#8FA9CC;position:relative;z-index:2}
+.covermeta b{display:block;color:#fff;font-family:"IBM Plex Sans",sans-serif;font-size:14px;letter-spacing:0;text-transform:none;font-weight:600;margin-top:4px}
+
+.grid{display:grid;gap:20px}
+.g2{grid-template-columns:repeat(2,1fr)}
+.g3{grid-template-columns:repeat(3,1fr)}
+.g4{grid-template-columns:repeat(4,1fr)}
+.card{background:var(--white);border:1px solid var(--rule);border-radius:14px;padding:24px}
+.dark .card{background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.14)}
+.card.flat{background:transparent;border-style:dashed}
+.pill{display:inline-block;font-family:"IBM Plex Mono",monospace;font-size:10.5px;letter-spacing:.11em;text-transform:uppercase;padding:4px 10px;border-radius:999px;font-weight:600;background:var(--cyan-pale);color:var(--royal)}
+table{width:100%;border-collapse:collapse;margin:18px 0;font-size:14.5px}
+th{text-align:left;font-family:"IBM Plex Mono",monospace;font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:600;padding:10px 12px;border-bottom:2px solid var(--ink)}
+td{padding:12px;border-bottom:1px solid var(--rule);vertical-align:top}
+tbody tr:hover{background:#EDF3FA}
+td.k{font-weight:600}
+.callout{border-left:4px solid var(--cyan);background:var(--cyan-pale);padding:18px 22px;border-radius:0 10px 10px 0;margin:22px 0}
+.callout p:last-child{margin-bottom:0}
+.callout .lbl{font-family:"IBM Plex Mono",monospace;font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;font-weight:600;display:block;margin-bottom:6px;color:var(--royal)}
+ul.tick{list-style:none;padding:0;margin:12px 0}
+ul.tick li{padding-left:26px;position:relative;margin-bottom:9px}
+ul.tick li::before{content:"→";position:absolute;left:0;color:var(--cyan);font-weight:700}
+.stat{font-family:"Bricolage Grotesque",sans-serif;font-weight:800;font-size:40px;line-height:1;letter-spacing:-.03em;color:var(--royal)}
+.dark .stat{color:#7FC8EC}
+figure{margin:26px 0}
+figcaption{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.08em;color:var(--muted);text-transform:uppercase;margin-top:12px}
+.dark figcaption{color:#8FA9CC}
+svg{max-width:100%;height:auto;display:block}
+
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin:26px 0 20px}
+.tab{font-family:"IBM Plex Mono",monospace;font-size:12px;letter-spacing:.07em;text-transform:uppercase;padding:11px 18px;border-radius:9px;border:1px solid var(--rule);background:var(--white);cursor:pointer;color:var(--muted);font-weight:600;transition:.15s}
+.tab:hover{border-color:var(--cyan)}
+.tab[aria-selected="true"]{background:var(--royal);color:#fff;border-color:var(--royal)}
+.panel[hidden]{display:none}
+
+.persona{background:var(--white);border:1px solid var(--rule);border-radius:16px;overflow:hidden}
+.persona .top{padding:22px 24px;background:linear-gradient(120deg,var(--royal-deep),var(--royal));color:#fff}
+.persona .top .nm{font-family:"Bricolage Grotesque",sans-serif;font-weight:800;font-size:22px}
+.persona .top .rl{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.11em;text-transform:uppercase;color:#9FD4EE;margin-top:5px}
+.persona .body{padding:22px 24px}
+.quote{font-size:17px;line-height:1.5;font-style:italic;border-left:3px solid var(--cyan);padding-left:15px;margin:0 0 18px}
+.kv{display:grid;grid-template-columns:124px 1fr;gap:6px 14px;font-size:14.5px}
+.kv dt{font-family:"IBM Plex Mono",monospace;font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);padding-top:3px}
+.kv dd{margin:0}
+
+.phone{width:300px;border:10px solid #14213D;border-radius:32px;background:#fff;overflow:hidden;box-shadow:0 18px 44px rgba(11,21,46,.22);flex:0 0 auto}
+.ph-bar{background:#14213D;color:#fff;font-family:"IBM Plex Mono",monospace;font-size:9px;letter-spacing:.1em;padding:6px 14px;display:flex;justify-content:space-between}
+.ph-nav{padding:12px 15px;border-bottom:1px solid var(--rule);display:flex;align-items:center;gap:10px;font-weight:700;font-size:14px}
+.ph-body{padding:14px 15px;font-size:12.5px;line-height:1.45}
+.ph-body h5{margin:0 0 4px;font-size:13.5px;font-family:"Bricolage Grotesque",sans-serif;font-weight:800}
+.ph-sec{font-family:"IBM Plex Mono",monospace;font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:14px 0 7px}
+.ph-card{border:1px solid var(--rule);border-radius:10px;padding:11px;margin-bottom:9px;background:#fff}
+.ph-card.sel{border-color:var(--cyan);background:var(--cyan-pale)}
+.ph-row{display:flex;gap:9px;align-items:flex-start}
+.av{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,var(--royal),var(--cyan));flex:0 0 auto}
+.av.sq{border-radius:6px;width:100%;height:44px;background:linear-gradient(135deg,#C8D6E8,#9DB4CE)}
+.ph-btn{background:var(--royal);color:#fff;text-align:center;border-radius:9px;padding:11px;font-weight:700;font-size:12.5px;margin-top:10px}
+.ph-btn.ghost{background:#fff;color:var(--royal);border:1.5px solid var(--royal)}
+.ph-btn.cyan{background:var(--cyan)}
+.chip{display:inline-block;font-family:"IBM Plex Mono",monospace;font-size:8.5px;letter-spacing:.08em;text-transform:uppercase;padding:3px 7px;border-radius:5px;background:var(--cyan-pale);color:var(--royal);font-weight:600;margin:2px 3px 2px 0}
+.chip.g{background:var(--green-pale);color:var(--green)}
+.chip.a{background:var(--amber-pale);color:var(--amber)}
+.chip.r{background:var(--red-pale);color:var(--red)}
+.meter{height:5px;background:var(--rule);border-radius:3px;overflow:hidden;margin:7px 0}
+.meter i{display:block;height:100%;background:var(--cyan)}
+.wfrow{display:flex;gap:26px;align-items:flex-start;flex-wrap:wrap;margin-top:52px}
+.wfnote{flex:1;min-width:250px;padding-top:8px}
+.wfnote h4{font-family:"Bricolage Grotesque",sans-serif;font-size:19px;margin-bottom:8px}
+.wfnote ul.tick li{font-size:14.5px}
+.anno{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--cyan);letter-spacing:.06em}
+
+details{border:1px solid var(--rule);border-radius:11px;background:var(--white);margin-bottom:10px;overflow:hidden}
+details[open]{border-color:var(--cyan)}
+summary{cursor:pointer;padding:15px 18px;font-weight:600;font-size:15px;display:flex;gap:12px;align-items:center;list-style:none}
+summary::-webkit-details-marker{display:none}
+summary::after{content:"+";margin-left:auto;font-family:"IBM Plex Mono",monospace;color:var(--cyan);font-size:19px}
+details[open] summary::after{content:"−"}
+details .dbody{padding:0 18px 17px;font-size:14.5px;color:var(--muted)}
+.tagm{font-family:"IBM Plex Mono",monospace;font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;padding:3px 8px;border-radius:5px;font-weight:600;flex:0 0 auto;background:var(--cyan-pale);color:var(--royal)}
+.tagm.p2{background:var(--amber-pale);color:var(--amber)}
+.tagm.p3{background:var(--paper);color:var(--muted)}
+
+.arc{display:grid;grid-template-columns:repeat(6,1fr);margin:22px 0;border:1px solid var(--rule);border-radius:12px;overflow:hidden;background:#fff}
+.arc>div{padding:15px 13px;border-right:1px solid var(--rule)}
+.arc>div:last-child{border-right:none}
+.arc .st{font-family:"IBM Plex Mono",monospace;font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:7px}
+.arc .fe{font-weight:700;font-size:14px;margin-bottom:5px}
+.arc .dt{font-size:12.5px;color:var(--muted);line-height:1.4}
+.mood{height:4px;border-radius:2px;margin-bottom:11px}
+
+.prin{display:flex;gap:18px;padding:22px 0;border-bottom:1px solid rgba(255,255,255,.14)}
+.prin .n{font-family:"Bricolage Grotesque",sans-serif;font-weight:800;font-size:30px;color:#7FC8EC;line-height:1;flex:0 0 46px}
+.prin h4{font-size:19px;font-family:"Bricolage Grotesque",sans-serif;margin-bottom:7px}
+.prin p{font-size:15px;margin:0;max-width:70ch}
+
+footer{background:var(--ink);color:#8FA9CC;padding:52px 0;font-size:13.5px}
+footer .wordmark{color:#fff;font-size:22px;margin-bottom:10px}
+@media(max-width:900px){.g2,.g3,.g4{grid-template-columns:1fr}.arc{grid-template-columns:1fr 1fr}.arc>div{border-bottom:1px solid var(--rule)}}
+@media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+@media print{section{page-break-inside:avoid;padding:34px 0}.cover{padding:30px 0}body{background:#fff}}
+</style>
+</head>
+<body>
+
+<header class="cover">
+  <svg class="arcs" viewBox="0 0 400 400" fill="none" aria-hidden="true">
+    <g stroke="#7FC8EC" stroke-width="16" stroke-linecap="round">
+      <path d="M60 340 A200 200 0 0 1 340 60"/><path d="M110 320 A150 150 0 0 1 320 110" opacity=".75"/><path d="M160 300 A100 100 0 0 1 300 160" opacity=".5"/>
+    </g>
+    <circle cx="340" cy="60" r="26" fill="#7FC8EC"/><circle cx="320" cy="110" r="19" fill="#7FC8EC" opacity=".75"/><circle cx="300" cy="160" r="13" fill="#7FC8EC" opacity=".5"/>
+  </svg>
+  <div class="wrap">
+    <div class="brandline"><span class="wordmark">maricho</span><span class="tag">Product design document</span></div>
+    <h1>Skilled work you can <em>see</em>, hire, and prove.</h1>
+    <p class="sub">Maricho turns informal trade work into something that leaves a trace — so a household can hire with confidence, an employer can staff a site in a morning, and a tradesman finally owns a record of everything he has built.</p>
+    <div class="covermeta">
+      <div>Document<b>Product design · complete</b></div>
+      <div>Pilot market<b>Bulawayo, Zimbabwe</b></div>
+      <div>Surfaces<b>Web app · WhatsApp · ops console</b></div>
+      <div>Date<b>August 2026</b></div>
+    </div>
+  </div>
+</header>
+
+<!-- 01 THE PRODUCT -->
+<section>
+<div class="wrap">
+  <div class="eyebrow">01 · The product</div>
+  <h2>What Maricho is</h2>
+  <p class="lede">Maricho is a hiring platform for skilled manual work. A household describes a problem and gets a verified tradesman at the door the same day. An employer describes a crew and gets one on site by Monday. And every completed job writes a permanent, evidenced entry into the worker's record.</p>
+
+  <div class="grid g3" style="margin-top:36px">
+    <div class="card">
+      <div class="stat">01</div>
+      <h4 style="margin-top:14px;font-size:18px;font-family:'Bricolage Grotesque',sans-serif">A way to be hired</h4>
+      <p style="font-size:14.5px;margin:0">Workers publish what they can do — by voice, in their own language — set the areas they cover, and receive work that fits. No CV, no certificate, no office to walk into.</p>
+    </div>
+    <div class="card">
+      <div class="stat">02</div>
+      <h4 style="margin-top:14px;font-size:18px;font-family:'Bricolage Grotesque',sans-serif">A way to hire</h4>
+      <p style="font-size:14.5px;margin:0">Buyers describe the problem, not the job title. Maricho returns three suitable people with their standing, their distance and a price band — and holds the money until the work is signed off.</p>
+    </div>
+    <div class="card" style="border-color:var(--cyan);background:var(--cyan-pale)">
+      <div class="stat">03</div>
+      <h4 style="margin-top:14px;font-size:18px;font-family:'Bricolage Grotesque',sans-serif">A record that lasts</h4>
+      <p style="font-size:14.5px;margin:0">Every job produces dated photographs, a named client's confirmation and a rating. It belongs to the worker, travels with him, and is the reason his rate can rise.</p>
+    </div>
+  </div>
+
+  <h3>The three problems it solves</h3>
+  <table>
+    <thead><tr><th style="width:22%">Problem</th><th style="width:34%">How it shows up</th><th>What Maricho does about it</th></tr></thead>
+    <tbody>
+      <tr><td class="k">Skill is invisible</td><td>A man has fitted two hundred geysers and can prove none of it, so a paper certificate he doesn't have outranks work he has done.</td><td>Issues evidence. Photographs, dates, a named client's sign-off, and an earned grade that rises with the work.</td></tr>
+      <tr><td class="k">Trust is unverifiable</td><td>A buyer cannot tell a good tradesman from a confident one until the work is half done and half paid.</td><td>Verifies identity before anyone is bookable, publishes standing, inspects before quoting, and guarantees a redo.</td></tr>
+      <tr><td class="k">Payment is unenforceable</td><td>"Come back on Friday." Fare spent, day lost, no leverage.</td><td>Holds a deposit from the moment of booking and releases the balance on sign-off.</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout">
+    <span class="lbl">The shape of the business</span>
+    <p>Two kinds of buyer walk through two different doors into the same pool of verified workers. <strong>Quick Hire</strong> serves households and small businesses: one job, near me, soon. <strong>Crew Hire</strong> serves organisations: a named number of workers, a role, a date range, a site. A worker verified once is hireable through either.</p>
+  </div>
+</div>
+</section>
+
+<!-- 02 PRINCIPLES -->
+<section class="dark">
+<div class="wrap">
+  <div class="eyebrow">02 · Design principles</div>
+  <h2>Seven rules that settle arguments</h2>
+  <p class="lede">Every unresolved design question in this document is decided by one of these. They are written to be usable — each says what to do, not what to believe.</p>
+
+  <div style="margin-top:34px">
+    <div class="prin"><div class="n">01</div><div><h4>Evidence beats assertion</h4><p>Nothing in a profile is a claim. If it cannot be photographed, dated, or confirmed by a named person, it does not appear. This applies to skills, to job history, and to standing.</p></div></div>
+    <div class="prin"><div class="n">02</div><div><h4>The person decides; the system explains</h4><p>Maricho narrows and reasons. A human always chooses. Any shortlist, ranking or rejection the product produces must be accompanied by the reason for it, in words the affected person can read.</p></div></div>
+    <div class="prin"><div class="n">03</div><div><h4>Design for the worker's worst day</h4><p>The worker is the party with the least power and the most to lose. Where a decision is finely balanced — defaults, notifications, penalties, dispute handling — it resolves in his favour and we absorb the cost.</p></div></div>
+    <div class="prin"><div class="n">04</div><div><h4>Money moves before trust exists</h4><p>Nobody travels on a promise. A booking is not real until a deposit is held, and the worker is told so before he spends a cent on transport.</p></div></div>
+    <div class="prin"><div class="n">05</div><div><h4>Location is a service area, never an address</h4><p>Workers publish where they will travel to. The product shows suburbs and distance bands. A worker's home never appears on a map, and a job address is revealed only when both sides have accepted.</p></div></div>
+    <div class="prin"><div class="n">06</div><div><h4>Speak first, type only if you want to</h4><p>Every input that matters accepts a voice note in Ndebele, Shona or English. Typing is an option, never a requirement. A product that requires literacy excludes precisely the people it exists to serve.</p></div></div>
+    <div class="prin"><div class="n">07</div><div><h4>Assume no power, no signal, no data</h4><p>The phone is cheap, the bundle is small and the electricity is intermittent. The product works offline, syncs later, and never spends a megabyte the user did not ask it to spend.</p></div></div>
+  </div>
+</div>
+</section>
+
+<!-- 03 PEOPLE -->
+<section>
+<div class="wrap">
+  <div class="eyebrow">03 · The people</div>
+  <h2>Who this is built for</h2>
+  <p class="lede">Five people. Each carries one fear that, unaddressed, makes them leave — and one moment that, if we land it, makes them stay.</p>
+
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-p="p1">Tendai · welder</button>
+    <button class="tab" role="tab" aria-selected="false" data-p="p2">Mrs Ncube · homeowner</button>
+    <button class="tab" role="tab" aria-selected="false" data-p="p3">Sipho · ops manager</button>
+    <button class="tab" role="tab" aria-selected="false" data-p="p4">Baba Moyo · crew lead</button>
+    <button class="tab" role="tab" aria-selected="false" data-p="p5">Nomsa · domestic worker</button>
+  </div>
+
+  <div class="panel" id="p1">
+    <div class="persona"><div class="top"><div class="nm">Tendai Ncube, 24</div><div class="rl">Welder &amp; fabricator · Nkulumane · Supply</div></div><div class="body">
+      <p class="quote">"I don't need someone to tell me there is work. I need to know that if I go, I will be paid."</p>
+      <dl class="kv">
+        <dt>Situation</dt><dd>Polytechnic practical completed, never placed. Owns a grinder, borrows the welder. Some weeks US$80, some weeks nothing.</dd>
+        <dt>Device</dt><dd>Entry-level Android. Buys US$1 data bundles. WhatsApp is most of his internet.</dd>
+        <dt>Finds work by</dt><dd>Standing near a hardware store; four WhatsApp groups; waiting for an uncle to call.</dd>
+        <dt>Fear</dt><dd>Not unemployment. Spending US$2 on fare for a job that isn't real, and finishing work only to be told to come back Friday.</dd>
+        <dt>The moment</dt><dd>Opening his record and seeing twelve completed jobs, each with a photograph and a client's words underneath. <strong>Not "I found work" — "I can show someone."</strong></dd>
+        <dt>Leaves if</dt><dd>He accepts fifteen jobs and wins none, or a single complaint costs him his income with no chance to answer.</dd>
+      </dl></div></div>
+  </div>
+
+  <div class="panel" id="p2" hidden>
+    <div class="persona"><div class="top"><div class="nm">Sithembile Ncube, 52</div><div class="rl">Homeowner · Hillside · Quick Hire</div></div><div class="body">
+      <p class="quote">"I don't mind paying. I mind not knowing who is standing in my kitchen."</p>
+      <dl class="kv">
+        <dt>Situation</dt><dd>Geyser leaking into the ceiling. Needs it fixed today, not quoted next week.</dd>
+        <dt>Hires by</dt><dd>Posting in her neighbourhood WhatsApp group and hoping a neighbour vouches for someone.</dd>
+        <dt>Buying</dt><dd>Not a plumber. Someone to be accountable to. She is outsourcing risk, not labour.</dd>
+        <dt>Fear</dt><dd>Being overcharged because she cannot judge the work; being abandoned halfway; a stranger in her house.</dd>
+        <dt>The moment</dt><dd>A verified name, an ID-checked badge, a held deposit and a redo guarantee — all before anyone knocks. The anxiety converts into a booking.</dd>
+        <dt>Leaves if</dt><dd>We are slower or dearer than her WhatsApp group, or the guarantee turns out to be decorative.</dd>
+      </dl></div></div>
+  </div>
+
+  <div class="panel" id="p3" hidden>
+    <div class="persona"><div class="top"><div class="nm">Sipho Dube, 41</div><div class="rl">Operations manager, facilities contractor · Crew Hire</div></div><div class="body">
+      <p class="quote">"Twelve bricklayers on site Monday. I care that twelve arrive on Thursday too."</p>
+      <dl class="kv">
+        <dt>Situation</dt><dd>Short-cycle contracts, headcount swinging weekly, penalty clauses when a site stalls.</dd>
+        <dt>Staffs by</dt><dd>Phoning a crew lead who brings a gang. Fast, opaque, and every risk sits with Sipho.</dd>
+        <dt>Fear</dt><dd>Day-four attrition. Skill that turns out to be a claim. No paperwork when something goes wrong on site.</dd>
+        <dt>The moment</dt><dd>A roster showing twelve confirmed names, verified IDs, this morning's check-ins, and one invoice on Friday.</dd>
+        <dt>Leaves if</dt><dd>We under-fill once without telling him early enough to fall back on his crew lead.</dd>
+      </dl></div></div>
+  </div>
+
+  <div class="panel" id="p4" hidden>
+    <div class="persona"><div class="top"><div class="nm">Baba Moyo, 47</div><div class="rl">Crew lead · Supply aggregator</div></div><div class="body">
+      <p class="quote">"These young men eat because I find the work. What are you offering me?"</p>
+      <dl class="kv">
+        <dt>Situation</dt><dd>Holds a crew of about twenty and the client relationships that feed them. He is the existing infrastructure of this market.</dd>
+        <dt>His role here</dt><dd>Crew lead. He registers a team; each member keeps their own individual record; he carries a team reliability score and a share of the Crew Hire fee.</dd>
+        <dt>Fear</dt><dd>That we build on his network and then route around him.</dd>
+        <dt>The moment</dt><dd>His crew wins an order he could never have landed alone, and he is paid as its leader rather than erased from it.</dd>
+        <dt>Why he matters</dt><dd>One signup can bring twenty verified workers and their reputations. He is the fastest honest route to supply.</dd>
+      </dl></div></div>
+  </div>
+
+  <div class="panel" id="p5" hidden>
+    <div class="persona"><div class="top"><div class="nm">Nomsa Sibanda, 31</div><div class="rl">Domestic worker · recurring placement</div></div><div class="body">
+      <p class="quote">"I don't want five houses one time each. I want one house every Tuesday."</p>
+      <dl class="kv">
+        <dt>Situation</dt><dd>Pieces together days across several employers. Income depends entirely on relationships that can end without notice.</dd>
+        <dt>What she needs</dt><dd>A regular arrangement, a rate that isn't renegotiated weekly, protection against unpaid extra hours, and a way to answer a complaint before it costs her the work.</dd>
+        <dt>Fear</dt><dd>Losing a placement over a misunderstanding she never got to explain.</dd>
+        <dt>The moment</dt><dd>A standing Tuesday booking that pays automatically, and a record showing eighteen months of unbroken service.</dd>
+        <dt>Product shape</dt><dd>Her category is served by <strong>recurring placement</strong>, not one-off dispatch — matched once, then supported for as long as the arrangement lasts.</dd>
+      </dl></div></div>
+  </div>
+</div>
+</section>
+
+<!-- 04 SCOPE -->
+<section>
+<div class="wrap">
+  <div class="eyebrow">04 · Service scope</div>
+  <h2>Six trades, one city</h2>
+  <p class="lede">A hiring platform only works where it is dense. Six trades in Bulawayo, deep enough that any request gets three good answers within the hour, is worth more than eighty trades that each return one distant maybe.</p>
+
+  <p>A trade enters at launch only if it scores on all four tests: how urgently the buyer needs it, whether the ticket is large enough to carry a fee, whether the result can be photographed, and whether existing local supply is deep enough to fill demand from day one.</p>
+
+  <table>
+    <thead><tr><th>Trade</th><th>Urgency</th><th>Ticket</th><th>Photographable</th><th>Role at launch</th></tr></thead>
+    <tbody>
+      <tr><td class="k">Plumbing</td><td>Very high</td><td>Medium</td><td>Yes</td><td>The emergency trade. A burst pipe cannot wait for a referral, which makes it the cheapest demand to win.</td></tr>
+      <tr><td class="k">Electrical</td><td>High</td><td>Medium</td><td>Partly</td><td>Safety-critical, so verification is worth real money to the buyer and grades mean something immediately.</td></tr>
+      <tr><td class="k">Solar install &amp; service</td><td>Medium</td><td>High</td><td>Yes</td><td>The growth trade. Intermittent grid power has made this the fastest-expanding skilled work in the country, with tickets large enough to carry the business.</td></tr>
+      <tr><td class="k">Welding &amp; fabrication</td><td>Low</td><td>Medium</td><td>Yes</td><td>The supply trade. Deep existing skill in the townships and visually striking output that makes records compelling.</td></tr>
+      <tr><td class="k">Building, tiling &amp; plastering</td><td>Low</td><td>High</td><td>Yes</td><td>The bridge trade. Multi-day jobs that lead naturally into crews and crew leads.</td></tr>
+      <tr><td class="k">Appliance &amp; refrigeration repair</td><td>High</td><td>Low–medium</td><td>Yes</td><td>The frequency trade. Small, repeatable jobs that teach the matching engine quickly and cheaply.</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Two service models, because two kinds of work exist</h3>
+  <div class="grid g2">
+    <div class="card">
+      <span class="pill">Dispatch</span>
+      <h4 style="font-size:19px;font-family:'Bricolage Grotesque',sans-serif;margin:12px 0 8px">One job, one worker, one visit</h4>
+      <p style="font-size:14.5px;margin:0">The six launch trades. A problem appears, a person is matched, the work is done, the record is written. Priced per job against a published band.</p>
+    </div>
+    <div class="card">
+      <span class="pill" style="background:var(--amber-pale);color:var(--amber)">Recurring</span>
+      <h4 style="font-size:19px;font-family:'Bricolage Grotesque',sans-serif;margin:12px 0 8px">A standing arrangement</h4>
+      <p style="font-size:14.5px;margin:0">Domestic and care work. Matched once, then supported: a fixed schedule, automatic payment, a rate that only changes by agreement, and a record of unbroken service. Enters once dispatch is stable, because it needs a different product, not a different category.</p>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- 05 DOMAIN MODEL -->
+<section class="dark">
+<div class="wrap">
+  <div class="eyebrow">05 · What the product knows</div>
+  <h2>Seven objects</h2>
+  <p class="lede">The whole system is these seven things and the relationships between them. Get these right and every screen becomes obvious.</p>
+
+  <figure>
+  <svg viewBox="0 0 1060 470" role="img" aria-label="Domain model showing person, skill, service area, job, record entry, standing, crew and ledger">
+    <defs><marker id="m1" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0 0 L9 4.5 L0 9 z" fill="#7FC8EC"/></marker></defs>
+    <g font-family="IBM Plex Sans, sans-serif">
+      <rect x="380" y="20" width="300" height="76" rx="12" fill="rgba(28,169,224,.22)" stroke="#1CA9E0" stroke-width="1.6"/>
+      <text x="530" y="50" text-anchor="middle" fill="#fff" font-size="19" font-weight="700" font-family="Bricolage Grotesque, sans-serif">Person</text>
+      <text x="530" y="74" text-anchor="middle" fill="#CDE8F7" font-size="12.5">ID · phone · guarantor · next of kin · role</text>
+
+      <rect x="20" y="150" width="240" height="72" rx="12" fill="rgba(255,255,255,.08)" stroke="rgba(255,255,255,.22)"/>
+      <text x="140" y="178" text-anchor="middle" fill="#fff" font-size="16" font-weight="700" font-family="Bricolage Grotesque, sans-serif">Skill</text>
+      <text x="140" y="200" text-anchor="middle" fill="#A9BEDC" font-size="12">trade · grade · how it was proven</text>
+
+      <rect x="290" y="150" width="240" height="72" rx="12" fill="rgba(255,255,255,.08)" stroke="rgba(255,255,255,.22)"/>
+      <text x="410" y="178" text-anchor="middle" fill="#fff" font-size="16" font-weight="700" font-family="Bricolage Grotesque, sans-serif">Service area</text>
+      <text x="410" y="200" text-anchor="middle" fill="#A9BEDC" font-size="12">suburbs covered · travel means</text>
+
+      <rect x="560" y="150" width="240" height="72" rx="12" fill="rgba(255,255,255,.08)" stroke="rgba(255,255,255,.22)"/>
+      <text x="680" y="178" text-anchor="middle" fill="#fff" font-size="16" font-weight="700" font-family="Bricolage Grotesque, sans-serif">Standing</text>
+      <text x="680" y="200" text-anchor="middle" fill="#A9BEDC" font-size="12">grade · on-time · disputes · fill</text>
+
+      <rect x="830" y="150" width="210" height="72" rx="12" fill="rgba(255,255,255,.08)" stroke="rgba(255,255,255,.22)"/>
+      <text x="935" y="178" text-anchor="middle" fill="#fff" font-size="16" font-weight="700" font-family="Bricolage Grotesque, sans-serif">Crew</text>
+      <text x="935" y="200" text-anchor="middle" fill="#A9BEDC" font-size="12">lead + members</text>
+
+      <rect x="290" y="278" width="510" height="76" rx="12" fill="rgba(255,255,255,.12)" stroke="rgba(255,255,255,.3)" stroke-width="1.6"/>
+      <text x="545" y="308" text-anchor="middle" fill="#fff" font-size="19" font-weight="700" font-family="Bricolage Grotesque, sans-serif">Job</text>
+      <text x="545" y="332" text-anchor="middle" fill="#C3D2E8" font-size="12.5">request · spec · booking · quote · evidence · sign-off</text>
+
+      <rect x="20" y="278" width="240" height="76" rx="12" fill="rgba(217,130,24,.20)" stroke="#F0B45E" stroke-width="1.4"/>
+      <text x="140" y="308" text-anchor="middle" fill="#fff" font-size="17" font-weight="700" font-family="Bricolage Grotesque, sans-serif">Ledger entry</text>
+      <text x="140" y="330" text-anchor="middle" fill="#E7D5B8" font-size="12">deposit · balance · release</text>
+
+      <rect x="290" y="386" width="510" height="76" rx="12" fill="rgba(28,169,224,.28)" stroke="#1CA9E0" stroke-width="2"/>
+      <text x="545" y="416" text-anchor="middle" fill="#fff" font-size="19" font-weight="700" font-family="Bricolage Grotesque, sans-serif">Record entry</text>
+      <text x="545" y="440" text-anchor="middle" fill="#CDE8F7" font-size="12.5">what was done · where · when · for whom · proof · their words</text>
+      <text x="1040" y="416" text-anchor="end" fill="#7FC8EC" font-size="11.5" font-family="IBM Plex Mono, monospace" letter-spacing="1">WORKER-OWNED</text>
+
+      <g stroke="#7FC8EC" stroke-width="1.6" fill="none" marker-end="url(#m1)" opacity=".8">
+        <path d="M420 96 L140 150"/><path d="M500 96 L410 150"/><path d="M580 96 L680 150"/><path d="M640 96 L900 150"/>
+        <path d="M410 222 L470 278"/><path d="M680 222 L620 278"/><path d="M830 186 L810 278 L800 300"/>
+        <path d="M260 316 L290 316"/>
+        <path d="M545 354 L545 386"/>
+        <path d="M300 424 L120 424 L120 240 L130 226" stroke-dasharray="5 5"/>
+      </g>
+      <text x="132" y="452" fill="#7FC8EC" font-size="11" font-family="IBM Plex Mono, monospace">RECORD RAISES STANDING</text>
+    </g>
+  </svg>
+  <figcaption>Fig. 1 — A job is the transaction. A record entry is what the job leaves behind. Standing is what the records add up to.</figcaption>
+  </figure>
+
+  <div class="grid g2" style="margin-top:8px">
+    <div class="card"><h4>A record entry is immutable</h4><p style="font-size:14.5px;margin:0">Once a client signs off, the entry cannot be edited or deleted by anyone, including Maricho. Corrections are appended, never overwritten. A record that can be quietly rewritten is not evidence.</p></div>
+    <div class="card"><h4>Standing is computed, never assigned</h4><p style="font-size:14.5px;margin:0">No manual boosts, no paid placement, no favourites. Standing is a function of records and nothing else, and the function is published to workers in plain language.</p></div>
+  </div>
+</div>
+</section>
+
+<!-- 06 IA -->
+<section>
+<div class="wrap">
+  <div class="eyebrow">06 · Structure</div>
+  <h2>Three surfaces</h2>
+  <p class="lede">One system, three ways in. Each is designed around what that person opens it to do, and nothing else.</p>
+
+  <figure>
+  <svg viewBox="0 0 1060 420" role="img" aria-label="Information architecture of the worker app, client app and operations console">
+    <g font-family="IBM Plex Sans, sans-serif">
+      <rect x="0" y="30" width="330" height="52" rx="10" fill="#1F3A93"/>
+      <text x="20" y="62" fill="#fff" font-size="17" font-weight="700" font-family="Bricolage Grotesque, sans-serif">Worker</text>
+      <text x="310" y="62" text-anchor="end" fill="#9FD4EE" font-size="11.5" font-family="IBM Plex Mono, monospace">PWA + WHATSAPP</text>
+
+      <rect x="365" y="30" width="330" height="52" rx="10" fill="#1CA9E0"/>
+      <text x="385" y="62" fill="#fff" font-size="17" font-weight="700" font-family="Bricolage Grotesque, sans-serif">Buyer</text>
+      <text x="675" y="62" text-anchor="end" fill="#EAF7FD" font-size="11.5" font-family="IBM Plex Mono, monospace">PWA + WHATSAPP</text>
+
+      <rect x="730" y="30" width="330" height="52" rx="10" fill="#0B152E"/>
+      <text x="750" y="62" fill="#fff" font-size="17" font-weight="700" font-family="Bricolage Grotesque, sans-serif">Operations</text>
+      <text x="1040" y="62" text-anchor="end" fill="#8FA9CC" font-size="11.5" font-family="IBM Plex Mono, monospace">DESKTOP CONSOLE</text>
+
+      <g font-size="13.5" fill="#0B152E">
+        <rect x="0" y="98" width="330" height="42" rx="8" fill="#fff" stroke="#D3DDEA"/><text x="20" y="125">Work — jobs open to me now</text>
+        <rect x="0" y="148" width="330" height="42" rx="8" fill="#fff" stroke="#D3DDEA"/><text x="20" y="175">My jobs — accepted, today, upcoming</text>
+        <rect x="0" y="198" width="330" height="42" rx="8" fill="#E4F3FB" stroke="#1CA9E0" stroke-width="1.5"/><text x="20" y="225" font-weight="700">My record — everything I have built</text>
+        <rect x="0" y="248" width="330" height="42" rx="8" fill="#fff" stroke="#D3DDEA"/><text x="20" y="275">Money — held, paid, on the way</text>
+        <rect x="0" y="298" width="330" height="42" rx="8" fill="#fff" stroke="#D3DDEA"/><text x="20" y="325">Me — skills, areas, availability</text>
+
+        <rect x="365" y="98" width="330" height="42" rx="8" fill="#E4F3FB" stroke="#1CA9E0" stroke-width="1.5"/><text x="385" y="125" font-weight="700">Get help — describe the problem</text>
+        <rect x="365" y="148" width="330" height="42" rx="8" fill="#fff" stroke="#D3DDEA"/><text x="385" y="175">My jobs — booked, in progress, done</text>
+        <rect x="365" y="198" width="330" height="42" rx="8" fill="#fff" stroke="#D3DDEA"/><text x="385" y="225">My people — anyone I'd hire again</text>
+        <rect x="365" y="248" width="330" height="42" rx="8" fill="#fff" stroke="#D3DDEA"/><text x="385" y="275">Crews — orders, rosters, invoices</text>
+        <rect x="365" y="298" width="330" height="42" rx="8" fill="#fff" stroke="#D3DDEA"/><text x="385" y="325">Account — addresses, payment, receipts</text>
+
+        <rect x="730" y="98" width="330" height="42" rx="8" fill="#fff" stroke="#D3DDEA"/><text x="750" y="125">Queue — unfilled and at-risk jobs</text>
+        <rect x="730" y="148" width="330" height="42" rx="8" fill="#fff" stroke="#D3DDEA"/><text x="750" y="175">Verification — people awaiting checks</text>
+        <rect x="730" y="198" width="330" height="42" rx="8" fill="#FCF1E0" stroke="#D98218" stroke-width="1.5"/><text x="750" y="225" font-weight="700">Disputes — both sides, one screen</text>
+        <rect x="730" y="248" width="330" height="42" rx="8" fill="#fff" stroke="#D3DDEA"/><text x="750" y="275">Crews — orders, standbys, attendance</text>
+        <rect x="730" y="298" width="330" height="42" rx="8" fill="#fff" stroke="#D3DDEA"/><text x="750" y="325">Supply — coverage gaps by trade and suburb</text>
+      </g>
+      <text x="0" y="378" fill="#5D6B85" font-size="13">Five destinations each. If a sixth is proposed, something has to leave — a person under pressure cannot navigate a menu.</text>
+    </g>
+  </svg>
+  <figcaption>Fig. 2 — Navigation. The highlighted item on each surface is the one that must load first and work offline.</figcaption>
+  </figure>
+
+  <h3>WhatsApp is a full channel, not a notification pipe</h3>
+  <p>A worker can run his entire working life through WhatsApp without opening the web app: receive a job, accept it, say he is on his way, send completion photographs, confirm he was paid. The web app is richer — his record, his money, his settings — but nothing essential is locked inside it. Buyers can post a job and approve a quote the same way.</p>
+</div>
+</section>
+
+<!-- 07 JOB LIFECYCLE -->
+<section class="dark">
+<div class="wrap">
+  <div class="eyebrow">07 · The job</div>
+  <h2>From a leaking ceiling to a line in a record</h2>
+  <p class="lede">One job, twelve states, three parties. The money sits in the middle the whole way, and every failure branch is a designed outcome rather than an edge case.</p>
+
+  <figure>
+  <svg viewBox="0 0 1060 640" role="img" aria-label="Job lifecycle with buyer steps, escrow states and worker steps plus failure branches">
+    <defs>
+      <marker id="b1" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0 0 L9 4.5 L0 9 z" fill="#7FC8EC"/></marker>
+      <marker id="b2" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0 0 L9 4.5 L0 9 z" fill="#F0B45E"/></marker>
+    </defs>
+    <text x="150" y="18" fill="#7FC8EC" font-family="IBM Plex Mono, monospace" font-size="11.5" letter-spacing="2" text-anchor="middle">BUYER</text>
+    <text x="530" y="18" fill="#F0B45E" font-family="IBM Plex Mono, monospace" font-size="11.5" letter-spacing="2" text-anchor="middle">MONEY</text>
+    <text x="910" y="18" fill="#7FC8EC" font-family="IBM Plex Mono, monospace" font-size="11.5" letter-spacing="2" text-anchor="middle">WORKER</text>
+    <line x1="340" y1="32" x2="340" y2="620" stroke="rgba(255,255,255,.13)" stroke-dasharray="4 5"/>
+    <line x1="720" y1="32" x2="720" y2="620" stroke="rgba(255,255,255,.13)" stroke-dasharray="4 5"/>
+
+    <g font-family="IBM Plex Sans, sans-serif" font-size="13.5">
+      <rect x="10" y="40" width="270" height="54" rx="10" fill="rgba(255,255,255,.09)" stroke="rgba(255,255,255,.22)"/>
+      <text x="28" y="63" fill="#fff" font-weight="700">Describes the problem</text>
+      <text x="28" y="82" fill="#A9BEDC" font-size="12">Voice, photo or text. Any language.</text>
+
+      <rect x="10" y="112" width="270" height="54" rx="10" fill="rgba(255,255,255,.09)" stroke="rgba(255,255,255,.22)"/>
+      <text x="28" y="135" fill="#fff" font-weight="700">Chooses from three</text>
+      <text x="28" y="154" fill="#A9BEDC" font-size="12">Standing, distance band, price band.</text>
+
+      <rect x="10" y="184" width="270" height="54" rx="10" fill="rgba(28,169,224,.22)" stroke="#1CA9E0"/>
+      <text x="28" y="207" fill="#fff" font-weight="700">Books · pays deposit</text>
+      <text x="28" y="226" fill="#CDE8F7" font-size="12">Address is revealed at this moment.</text>
+
+      <rect x="10" y="328" width="270" height="54" rx="10" fill="rgba(255,255,255,.09)" stroke="rgba(255,255,255,.22)"/>
+      <text x="28" y="351" fill="#fff" font-weight="700">Approves the quote</text>
+      <text x="28" y="370" fill="#A9BEDC" font-size="12">Priced after inspection, never from a photo.</text>
+
+      <rect x="10" y="472" width="270" height="54" rx="10" fill="rgba(28,169,224,.22)" stroke="#1CA9E0"/>
+      <text x="28" y="495" fill="#fff" font-weight="700">Signs off · rates</text>
+      <text x="28" y="514" fill="#CDE8F7" font-size="12">Or raises a concern within 48 hours.</text>
+
+      <g font-family="IBM Plex Mono, monospace" font-size="11.5" letter-spacing="1">
+        <rect x="410" y="186" width="240" height="42" rx="21" fill="rgba(217,130,24,.2)" stroke="#F0B45E"/>
+        <text x="530" y="212" fill="#F0B45E" text-anchor="middle">DEPOSIT HELD</text>
+        <rect x="410" y="402" width="240" height="42" rx="21" fill="rgba(217,130,24,.2)" stroke="#F0B45E"/>
+        <text x="530" y="428" fill="#F0B45E" text-anchor="middle">BALANCE COMMITTED</text>
+        <rect x="410" y="474" width="240" height="42" rx="21" fill="rgba(30,122,94,.3)" stroke="#5FD3A8"/>
+        <text x="530" y="500" fill="#8FE3C2" text-anchor="middle">RELEASED SAME DAY</text>
+      </g>
+
+      <rect x="410" y="550" width="240" height="60" rx="12" fill="rgba(28,169,224,.2)" stroke="#1CA9E0" stroke-width="1.6"/>
+      <text x="530" y="576" fill="#fff" text-anchor="middle" font-weight="700">Record entry written</text>
+      <text x="530" y="596" fill="#CDE8F7" text-anchor="middle" font-size="12">Permanent · portable · his</text>
+
+      <rect x="780" y="112" width="270" height="54" rx="10" fill="rgba(255,255,255,.09)" stroke="rgba(255,255,255,.22)"/>
+      <text x="798" y="135" fill="#fff" font-weight="700">Alerted · accepts</text>
+      <text x="798" y="154" fill="#A9BEDC" font-size="12">Sees the deposit is already held.</text>
+
+      <rect x="780" y="256" width="270" height="54" rx="10" fill="rgba(255,255,255,.09)" stroke="rgba(255,255,255,.22)"/>
+      <text x="798" y="279" fill="#fff" font-weight="700">Travels · checks in</text>
+      <text x="798" y="298" fill="#A9BEDC" font-size="12">Starts the clock and the cover.</text>
+
+      <rect x="780" y="400" width="270" height="54" rx="10" fill="rgba(255,255,255,.09)" stroke="rgba(255,255,255,.22)"/>
+      <text x="798" y="423" fill="#fff" font-weight="700">Works · photographs</text>
+      <text x="798" y="442" fill="#A9BEDC" font-size="12">Before and after. This becomes the record.</text>
+
+      <g stroke="#7FC8EC" stroke-width="1.7" fill="none" marker-end="url(#b1)">
+        <path d="M150 94 L150 112"/><path d="M150 166 L150 184"/>
+        <path d="M910 166 L910 256"/><path d="M910 310 L910 328 L280 355"/>
+        <path d="M910 454 L910 472 L280 499"/>
+        <path d="M150 526 L150 580 L410 580"/><path d="M910 526 L910 580 L650 580"/>
+      </g>
+      <g stroke="#F0B45E" stroke-width="1.7" fill="none" marker-end="url(#b2)">
+        <path d="M280 207 L410 207"/><path d="M650 207 L780 207 L910 207 L910 172"/>
+        <path d="M150 382 L150 423 L410 423"/><path d="M650 423 L780 423"/>
+      </g>
+    </g>
+  </svg>
+  <figcaption>Fig. 3 — Note the inspection step. The worker prices the job standing in front of it, which removes the single largest source of disagreement in this trade.</figcaption>
+  </figure>
+
+  <h3 style="color:#fff">When it goes wrong</h3>
+  <div class="grid g4" style="margin-top:6px">
+    <div class="card"><h4 style="color:#fff">Buyer cancels late</h4><p style="font-size:14px;margin:0">Deposit goes to the worker. He was ready; his day was held.</p></div>
+    <div class="card"><h4 style="color:#fff">Worker doesn't arrive</h4><p style="font-size:14px;margin:0">Deposit refunded, standing marked, a standby offered within the hour.</p></div>
+    <div class="card"><h4 style="color:#fff">Scope grows on site</h4><p style="font-size:14px;margin:0">A revised quote must be approved in-app before work continues. Unapproved extra work is never expected of anyone.</p></div>
+    <div class="card"><h4 style="color:#fff">Buyer is unhappy</h4><p style="font-size:14px;margin:0">Money freezes, both sides give their account, and the default remedy is a free return visit rather than a refund.</p></div>
+  </div>
+
+  <h3 style="color:#fff">What it feels like — the buyer</h3>
+  <div class="arc" style="background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.16)">
+    <div><div class="mood" style="background:#B33A2B"></div><div class="st" style="color:#8FA9CC">Trigger</div><div class="fe" style="color:#fff">Panic</div><div class="dt" style="color:#A9BEDC">Water coming through the ceiling.</div></div>
+    <div><div class="mood" style="background:#C4693A"></div><div class="st" style="color:#8FA9CC">Describes</div><div class="fe" style="color:#fff">Doubt</div><div class="dt" style="color:#A9BEDC">"Is this faster than asking my neighbours?"</div></div>
+    <div><div class="mood" style="background:#D98218"></div><div class="st" style="color:#8FA9CC">Chooses</div><div class="fe" style="color:#fff">Weighing</div><div class="dt" style="color:#A9BEDC">Three names, three grades, three distances.</div></div>
+    <div><div class="mood" style="background:#8FA43C"></div><div class="st" style="color:#8FA9CC">Deposit</div><div class="fe" style="color:#fff">Committed</div><div class="dt" style="color:#A9BEDC">Money held, not gone. Someone is coming.</div></div>
+    <div><div class="mood" style="background:#3F9A6E"></div><div class="st" style="color:#8FA9CC">Arrival</div><div class="fe" style="color:#fff">Relief</div><div class="dt" style="color:#A9BEDC">The face matches the name on the badge.</div></div>
+    <div><div class="mood" style="background:#1E7A5E"></div><div class="st" style="color:#8FA9CC">Sign-off</div><div class="fe" style="color:#fff">Trust</div><div class="dt" style="color:#A9BEDC">It held. She saves him to My people.</div></div>
+  </div>
+
+  <h3 style="color:#fff">What it feels like — the worker</h3>
+  <div class="arc" style="background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.16)">
+    <div><div class="mood" style="background:#5D6B85"></div><div class="st" style="color:#8FA9CC">Alert</div><div class="fe" style="color:#fff">Sceptical</div><div class="dt" style="color:#A9BEDC">He has been sent to phantom jobs before.</div></div>
+    <div><div class="mood" style="background:#8FA43C"></div><div class="st" style="color:#8FA9CC">Sees deposit</div><div class="fe" style="color:#fff">Reassured</div><div class="dt" style="color:#A9BEDC">The fare is covered whatever happens now.</div></div>
+    <div><div class="mood" style="background:#3F9A6E"></div><div class="st" style="color:#8FA9CC">Checks in</div><div class="fe" style="color:#fff">Professional</div><div class="dt" style="color:#A9BEDC">He is expected. He is on a system.</div></div>
+    <div><div class="mood" style="background:#3F9A6E"></div><div class="st" style="color:#8FA9CC">Photographs</div><div class="fe" style="color:#fff">Proud</div><div class="dt" style="color:#A9BEDC">The weld is good, and now it is proof.</div></div>
+    <div><div class="mood" style="background:#1E7A5E"></div><div class="st" style="color:#8FA9CC">Paid</div><div class="fe" style="color:#fff">Certain</div><div class="dt" style="color:#A9BEDC">Same day. No Friday. No asking twice.</div></div>
+    <div><div class="mood" style="background:#1CA9E0"></div><div class="st" style="color:#8FA9CC">Record grows</div><div class="fe" style="color:#fff">Visible</div><div class="dt" style="color:#A9BEDC">Job thirteen. Two more to reach journeyman.</div></div>
+  </div>
+</div>
+</section>
+
+<!-- 08 SCREENS -->
+<section>
+<div class="wrap">
+  <div class="eyebrow">08 · Interface</div>
+  <h2>Eight screens</h2>
+  <p class="lede">Low-fidelity by intention — these fix hierarchy and wording, and visual design follows. Every one assumes a small phone, an expensive bundle, and a reader who may be in their second language.</p>
+
+  <div class="wfrow">
+    <div class="phone">
+      <div class="ph-bar"><span>09:41</span><span>▮▮▮ 4G</span></div>
+      <div class="ph-nav">← <span>Get help</span></div>
+      <div class="ph-body">
+        <h5>What needs fixing?</h5>
+        <p style="color:var(--muted);margin:4px 0 12px">Speak, type, or send a photo.</p>
+        <div class="ph-card" style="text-align:center;padding:20px 11px;border-style:dashed">
+          <div style="width:52px;height:52px;border-radius:50%;background:var(--cyan);margin:0 auto 9px"></div>
+          <div style="font-weight:700">Hold to speak</div>
+          <div style="color:var(--muted);font-size:11px">isiNdebele · chiShona · English</div>
+        </div>
+        <div class="ph-sec">We heard</div>
+        <div class="ph-card sel">
+          <div style="font-weight:700;margin-bottom:5px">Geyser leaking into the ceiling</div>
+          <span class="chip">Plumbing</span><span class="chip a">Today</span><span class="chip">Hillside</span>
+          <div style="color:var(--muted);font-size:11px;margin-top:7px">Tap anything to change it.</div>
+        </div>
+        <div class="ph-btn">Find someone</div>
+      </div>
+    </div>
+    <div class="wfnote">
+      <div class="anno">SCREEN 01 · BUYER</div>
+      <h4>Describe the problem</h4>
+      <p>The entry point to the whole product. Someone with water coming through a ceiling will not complete an eight-field form, and a tradesman will never type a biography. Speak in, structure out.</p>
+      <ul class="tick">
+        <li><strong>What we heard is shown back as editable chips.</strong> The system never silently interprets — the person always sees the understanding before acting on it.</li>
+        <li><strong>A photo is a first-class input.</strong> A picture of a leak is a better specification than a paragraph about one.</li>
+        <li><strong>The same component onboards workers.</strong> "Tell us what you can do" produces the skill profile from a voice note.</li>
+        <li>Identical flow runs over WhatsApp for anyone who never opens the app.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="wfrow">
+    <div class="phone">
+      <div class="ph-bar"><span>09:42</span><span>▮▮▮ 4G</span></div>
+      <div class="ph-nav">← <span>Three people can help</span></div>
+      <div class="ph-body">
+        <div style="background:var(--cyan-pale);border-radius:9px;padding:9px 11px;font-size:11.5px;color:var(--royal);margin-bottom:11px">
+          <strong>Why these three:</strong> free today · within 8 km · five or more plumbing jobs signed off
+        </div>
+        <div class="ph-card sel">
+          <div class="ph-row"><div class="av"></div><div style="flex:1">
+            <div style="font-weight:700">Tendai N.</div>
+            <div style="color:var(--muted);font-size:11px">Nkulumane · about 6 km away</div>
+            <div style="margin-top:5px"><span class="chip g">ID verified</span><span class="chip">Journeyman</span></div>
+          </div></div>
+          <div class="meter"><i style="width:88%"></i></div>
+          <div style="font-size:11px;color:var(--muted)">14 jobs signed off · no open concerns</div>
+          <div style="font-weight:700;margin-top:7px">US$25–40 <span style="font-weight:400;color:var(--muted);font-size:11px">usual for this job</span></div>
+        </div>
+        <div class="ph-card">
+          <div class="ph-row"><div class="av" style="background:linear-gradient(135deg,#4A6FA5,#7FA8CC)"></div><div style="flex:1">
+            <div style="font-weight:700">Blessing M.</div>
+            <div style="color:var(--muted);font-size:11px">Pumula · about 11 km away</div>
+            <div style="margin-top:5px"><span class="chip g">ID verified</span><span class="chip a">New · 2 jobs</span></div>
+          </div></div>
+        </div>
+        <div class="ph-btn">Book Tendai · deposit US$5</div>
+        <div style="text-align:center;font-size:10.5px;color:var(--muted);margin-top:8px">Held by Maricho until you sign off</div>
+      </div>
+    </div>
+    <div class="wfnote">
+      <div class="anno">SCREEN 02 · BUYER</div>
+      <h4>Three people, and why</h4>
+      <p>Three, never thirty. A long list hands the work of judging back to someone who came here precisely because they cannot judge.</p>
+      <ul class="tick">
+        <li><strong>The reasoning line is mandatory.</strong> If we cannot say why these three, the match is not good enough to show.</li>
+        <li><strong>Distance bands and suburb names, never pins.</strong> Proximity ranks the list; it does not draw a map of where anyone lives.</li>
+        <li><strong>New workers are labelled, not hidden.</strong> A guaranteed share of shortlists goes to unproven people — otherwise nobody earns a first job and supply dies at the top.</li>
+        <li><strong>The price band comes from completed comparable jobs</strong>, so neither side is negotiating blind on a doorstep.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="wfrow">
+    <div class="phone">
+      <div class="ph-bar"><span>09:43</span><span>▮▮▮ 4G</span></div>
+      <div class="ph-nav">← <span>Confirm booking</span></div>
+      <div class="ph-body">
+        <div class="ph-card sel">
+          <div class="ph-row"><div class="av"></div><div style="flex:1"><div style="font-weight:700">Tendai N. · Journeyman</div><div style="color:var(--muted);font-size:11px">Arriving today, before 13:00</div></div></div>
+        </div>
+        <div class="ph-sec">What you pay</div>
+        <div class="ph-card">
+          <div style="display:flex;justify-content:space-between;margin-bottom:5px"><span>Deposit now</span><strong>US$5.00</strong></div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:5px;color:var(--muted)"><span>Balance after sign-off</span><span>US$20–35</span></div>
+          <div style="display:flex;justify-content:space-between;color:var(--muted)"><span>Maricho fee (included)</span><span>10%</span></div>
+        </div>
+        <div style="background:var(--green-pale);border-radius:9px;padding:10px 11px;font-size:11px;color:var(--green);margin-bottom:4px">
+          <strong>Covered by the Maricho guarantee.</strong> If the work isn't right, he comes back and fixes it at no extra cost.
+        </div>
+        <div class="ph-sec">Pay with</div>
+        <div class="ph-card sel" style="padding:9px 11px;font-weight:700">EcoCash · 077 ••• 4412</div>
+        <div class="ph-btn">Pay US$5 and book</div>
+        <div style="text-align:center;font-size:10px;color:var(--muted);margin-top:7px">Cancel free until he sets off</div>
+      </div>
+    </div>
+    <div class="wfnote">
+      <div class="anno">SCREEN 03 · BUYER</div>
+      <h4>Booking and deposit</h4>
+      <p>The moment of commitment, and the moment the product either earns trust or loses it. Everything on this screen exists to remove a reason to hesitate.</p>
+      <ul class="tick">
+        <li><strong>The fee is shown, not buried.</strong> Ten per cent, stated, next to the guarantee it pays for.</li>
+        <li><strong>The guarantee sits beside the payment button</strong> because it is the actual product being bought at this instant.</li>
+        <li><strong>The cancellation rule is written in plain words</strong> before the money moves — ambiguity here becomes a dispute later.</li>
+        <li>The balance is a range until inspection, and says so. A false precision now is a broken promise in an hour.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="wfrow">
+    <div class="phone">
+      <div class="ph-bar"><span>09:44</span><span>▮▮ 3G</span></div>
+      <div class="ph-nav">≡ <span>Work</span></div>
+      <div class="ph-body">
+        <div style="background:var(--green-pale);border-radius:9px;padding:10px 11px;margin-bottom:11px">
+          <div style="font-weight:700;color:var(--green);font-size:12px">Deposit secured · US$5</div>
+          <div style="font-size:11px;color:var(--muted)">Your fare is covered even if this is cancelled.</div>
+        </div>
+        <div class="ph-card sel">
+          <div style="font-weight:700">Geyser leaking into the ceiling</div>
+          <div style="color:var(--muted);font-size:11px">Hillside · about 6 km · today before 13:00</div>
+          <div style="margin-top:6px"><span class="chip">Plumbing</span><span class="chip a">Today</span></div>
+          <div style="font-weight:700;margin-top:8px">US$25–40 <span style="font-weight:400;font-size:11px;color:var(--muted)">band for this job</span></div>
+          <div style="display:flex;gap:7px"><div class="ph-btn ghost" style="flex:1">Pass</div><div class="ph-btn cyan" style="flex:2">Accept</div></div>
+        </div>
+        <div class="ph-sec">Also open near you</div>
+        <div class="ph-card">
+          <div style="font-weight:700">Gate hinge replacement</div>
+          <div style="color:var(--muted);font-size:11px">Famona · about 9 km · tomorrow</div>
+          <span class="chip">Welding</span>
+        </div>
+        <div style="background:var(--paper);border-radius:9px;padding:10px;margin-top:11px;font-size:11px;color:var(--muted)">
+          <strong style="color:var(--ink)">Light mode is on.</strong> Photos load only when you tap them.
+        </div>
+      </div>
+    </div>
+    <div class="wfnote">
+      <div class="anno">SCREEN 04 · WORKER</div>
+      <h4>Work near you</h4>
+      <p>Built around the worker's actual question, which is not "is there work" but "is this real". The money status answers it before anything else on the screen.</p>
+      <ul class="tick">
+        <li><strong>"Deposit secured" is the first line.</strong> This single fact is what distinguishes Maricho from the group chats he is already in.</li>
+        <li><strong>The band appears before he accepts</strong>, so he never negotiates from ignorance in someone's driveway.</li>
+        <li><strong>Light mode is a visible feature with a status.</strong> Data costs him money and the product should show that it knows.</li>
+        <li><strong>Passing costs nothing.</strong> Declines never affect ranking. Penalising refusal is how a platform quietly coerces people into bad work.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="wfrow">
+    <div class="phone">
+      <div class="ph-bar"><span>11:02</span><span>◌ offline</span></div>
+      <div class="ph-nav">← <span>On the job</span></div>
+      <div class="ph-body">
+        <div style="background:var(--amber-pale);border-radius:9px;padding:9px 11px;font-size:11px;color:var(--amber);margin-bottom:11px">
+          <strong>No signal.</strong> Everything you do is saved and will send when you're back.
+        </div>
+        <div class="ph-card" style="border-color:var(--green)">
+          <div style="font-weight:700;color:var(--green);font-size:12px">Checked in · 10:38</div>
+          <div style="font-size:11px;color:var(--muted)">14 Cecil Ave, Hillside · S. Ncube · 077 ••• 2201</div>
+        </div>
+        <div class="ph-sec">Evidence</div>
+        <div style="display:flex;gap:6px;margin-bottom:9px">
+          <div class="av sq" style="height:56px"></div><div class="av sq" style="height:56px"></div>
+          <div style="flex:1;height:56px;border:1.5px dashed var(--rule);border-radius:6px;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:20px">+</div>
+        </div>
+        <div style="font-size:10.5px;color:var(--muted);margin-bottom:11px">2 photos waiting to send</div>
+        <div class="ph-sec">Quote for this job</div>
+        <div class="ph-card"><div style="font-weight:800;font-size:18px">US$32.00</div><div style="font-size:11px;color:var(--muted)">Sent for approval at 10:51 · waiting</div></div>
+        <div class="ph-btn cyan">Mark work finished</div>
+        <div class="ph-btn ghost">Something is wrong here</div>
+      </div>
+    </div>
+    <div class="wfnote">
+      <div class="anno">SCREEN 05 · WORKER</div>
+      <h4>On the job, offline</h4>
+      <p>Where the record is actually made. It has to work in a house with thick walls, during load-shedding, on a phone with no bundle left.</p>
+      <ul class="tick">
+        <li><strong>Offline is a stated state, not a failure.</strong> Check-in, photographs and quotes are captured locally and queued — the worker is told plainly that nothing is lost.</li>
+        <li><strong>Photographs are captured during the job, not remembered afterwards.</strong> Evidence gathered later is weaker and usually never gathered at all.</li>
+        <li><strong>The quote is raised here, standing in front of the work</strong>, and the buyer approves it before anything continues.</li>
+        <li><strong>"Something is wrong here" is always available</strong> — an unsafe property, an absent client, a job that isn't what was described. It stops the clock and reaches a person.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="wfrow">
+    <div class="phone">
+      <div class="ph-bar"><span>16:20</span><span>▮▮▮ 4G</span></div>
+      <div class="ph-nav">← <span>My record</span></div>
+      <div class="ph-body">
+        <div class="ph-row" style="margin-bottom:11px">
+          <div class="av" style="width:46px;height:46px"></div>
+          <div style="flex:1"><div style="font-weight:700;font-size:15px">Tendai Ncube</div>
+          <div style="color:var(--muted);font-size:11px">Welder &amp; fabricator · Nkulumane</div>
+          <div style="margin-top:5px"><span class="chip g">ID verified</span><span class="chip g">Guarantor</span><span class="chip">Journeyman</span></div></div>
+        </div>
+        <div style="display:flex;gap:7px;text-align:center;margin-bottom:12px">
+          <div style="flex:1;background:var(--paper);border-radius:8px;padding:9px 4px"><div style="font-weight:800;font-size:17px">14</div><div style="font-size:9px;color:var(--muted)">SIGNED OFF</div></div>
+          <div style="flex:1;background:var(--paper);border-radius:8px;padding:9px 4px"><div style="font-weight:800;font-size:17px">0</div><div style="font-size:9px;color:var(--muted)">CONCERNS</div></div>
+          <div style="flex:1;background:var(--paper);border-radius:8px;padding:9px 4px"><div style="font-weight:800;font-size:17px">96%</div><div style="font-size:9px;color:var(--muted)">ON TIME</div></div>
+        </div>
+        <div style="background:var(--cyan-pale);border-radius:9px;padding:10px;font-size:11px;color:var(--royal);margin-bottom:11px">
+          <strong>2 more jobs to reach Expert.</strong> Your band rises to US$35–60.
+        </div>
+        <div class="ph-sec">Work · newest first</div>
+        <div class="ph-card">
+          <div class="av sq" style="margin-bottom:8px"></div>
+          <div style="font-weight:700">Burglar bars · four windows</div>
+          <div style="color:var(--muted);font-size:10.5px">Hillside · March 2026 · signed off by S. Ncube</div>
+          <div style="margin-top:6px;font-size:11.5px;font-style:italic">"Clean welds, arrived when he said."</div>
+          <span class="chip g" style="margin-top:6px">Client confirmed</span>
+        </div>
+        <div class="ph-btn ghost">Share my record</div>
+      </div>
+    </div>
+    <div class="wfnote">
+      <div class="anno">SCREEN 06 · WORKER</div>
+      <h4>My record</h4>
+      <p>The screen the product is named for. Everything here is evidence: dated, photographed, attributed to a person who confirmed it. Nothing here is a claim he made about himself.</p>
+      <ul class="tick">
+        <li><strong>Concerns are shown, not hidden.</strong> Fourteen jobs and no open concerns is a far stronger signal than five stars, and a record that only carries good news is a brochure.</li>
+        <li><strong>The next grade is always visible, with the money attached.</strong> This is what makes building the record feel like building something.</li>
+        <li><strong>Share my record produces a document</strong> he can hand to an employer who has never heard of Maricho. The record is his, and it works outside our walls.</li>
+        <li>Job locations show suburb names only, and appear on a map only where the client agreed.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="wfrow">
+    <div class="phone">
+      <div class="ph-bar"><span>07:05</span><span>▮▮▮ 4G</span></div>
+      <div class="ph-nav">← <span>Ascot site · day 4</span></div>
+      <div class="ph-body">
+        <div style="display:flex;gap:7px;margin-bottom:12px">
+          <div style="flex:1;background:var(--green-pale);border-radius:8px;padding:10px;text-align:center"><div style="font-weight:800;font-size:19px;color:var(--green)">11</div><div style="font-size:9px;color:var(--green)">ON SITE</div></div>
+          <div style="flex:1;background:var(--amber-pale);border-radius:8px;padding:10px;text-align:center"><div style="font-weight:800;font-size:19px;color:var(--amber)">1</div><div style="font-size:9px;color:var(--amber)">LATE</div></div>
+          <div style="flex:1;background:var(--paper);border-radius:8px;padding:10px;text-align:center"><div style="font-weight:800;font-size:19px">12</div><div style="font-size:9px;color:var(--muted)">ORDERED</div></div>
+        </div>
+        <div style="background:var(--cyan-pale);border-radius:9px;padding:10px 11px;font-size:11.5px;color:var(--royal);margin-bottom:11px">
+          <strong>K. Sibanda is 40 minutes out.</strong> A standby is 15 minutes away. Send them?
+        </div>
+        <div class="ph-sec">Crew · Moyo team</div>
+        <div class="ph-card"><div class="ph-row"><div class="av" style="width:28px;height:28px"></div><div style="flex:1"><div style="font-weight:700;font-size:12.5px">Baba Moyo <span class="chip" style="margin-left:3px">LEAD</span></div><div style="font-size:10.5px;color:var(--green)">On site · 06:48</div></div></div></div>
+        <div class="ph-card"><div class="ph-row"><div class="av" style="width:28px;height:28px;background:linear-gradient(135deg,#4A6FA5,#7FA8CC)"></div><div style="flex:1"><div style="font-weight:700;font-size:12.5px">P. Ndlovu</div><div style="font-size:10.5px;color:var(--green)">On site · 06:52</div></div></div></div>
+        <div class="ph-card" style="border-color:var(--amber)"><div class="ph-row"><div class="av" style="width:28px;height:28px;background:linear-gradient(135deg,#B08A4A,#D4B57E)"></div><div style="flex:1"><div style="font-weight:700;font-size:12.5px">K. Sibanda</div><div style="font-size:10.5px;color:var(--amber)">Late · expected 07:45</div></div></div></div>
+        <div class="ph-btn ghost">Export timesheet</div>
+      </div>
+    </div>
+    <div class="wfnote">
+      <div class="anno">SCREEN 07 · CREW HIRE</div>
+      <h4>The roster</h4>
+      <p>Sipho is not shopping. He is managing risk at seven in the morning on the fourth day of a contract. Fill status is the entire interface.</p>
+      <ul class="tick">
+        <li><strong>Day four is in the title.</strong> Attrition after day three is what loses a site, and the product should look worried about it before he does.</li>
+        <li><strong>The standby offer is where Crew Hire earns its fee.</strong> Sourcing is a commodity; recovering an absence by 07:05 is not.</li>
+        <li><strong>The crew lead appears as a lead</strong>, with his own people beneath him. He is inside the system rather than routed around it.</li>
+        <li><strong>The timesheet is the quiet reason procurement renews</strong> — paperwork the client does not currently have.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="wfrow">
+    <div class="phone">
+      <div class="ph-bar"><span>11:15</span><span>▮▮▮ 4G</span></div>
+      <div class="ph-nav">← <span>Job on hold</span></div>
+      <div class="ph-body">
+        <div style="background:var(--amber-pale);border-radius:9px;padding:11px;margin-bottom:12px">
+          <div style="font-weight:700;color:var(--amber);font-size:12.5px">The money is held, not lost</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:3px">US$32 stays with Maricho until this is settled. Nobody has been charged or paid.</div>
+        </div>
+        <h5>Mrs Ncube says</h5>
+        <p style="font-size:11.5px;color:var(--muted);margin:3px 0 11px">"The leak stopped but the ceiling board was not replaced."</p>
+        <div class="ph-sec">Your side of it</div>
+        <div class="ph-card" style="border-style:dashed;text-align:center;padding:16px 11px">
+          <div style="font-weight:700;font-size:12.5px">Speak, or add photos</div>
+          <div style="font-size:10.5px;color:var(--muted)">Your job photos are already attached.</div>
+        </div>
+        <div class="ph-card"><div style="font-size:11.5px"><strong>What happens next.</strong> Someone at Maricho reads both sides within 24 hours. Most cases end with a return visit.</div></div>
+        <div class="ph-btn">Send my response</div>
+        <div style="text-align:center;font-size:10.5px;color:var(--muted);margin-top:8px">Your record is unchanged while this is open</div>
+      </div>
+    </div>
+    <div class="wfnote">
+      <div class="anno">SCREEN 08 · WORKER</div>
+      <h4>When there's a disagreement</h4>
+      <p>The screen that decides whether this product deserves the trust of the people it is built for. It is designed to the third principle without compromise.</p>
+      <ul class="tick">
+        <li><strong>He answers before anything happens to him.</strong> No suspension, no ranking penalty, no mark on the record until a person has read both accounts.</li>
+        <li><strong>His own job photographs are attached automatically.</strong> He is not asked to prove his case from memory.</li>
+        <li><strong>Speaking is enough.</strong> A written-only appeal silently excludes the least literate workers, who are exactly the ones most likely to need one.</li>
+        <li><strong>The default outcome is a return visit, not a refund.</strong> The buyer gets a working geyser, the worker keeps his day's pay, and the record shows a resolved matter rather than a failure.</li>
+      </ul>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- 09 STANDING -->
+<section class="dark">
+<div class="wrap">
+  <div class="eyebrow">09 · Standing</div>
+  <h2>How a stranger becomes a known quantity</h2>
+  <p class="lede">Trust is not a badge, it is a sequence. A worker climbs it by working; the platform's exposure to him rises as he does. The first two rungs are reachable without a single review, which is how anyone gets a first job at all.</p>
+
+  <figure>
+  <svg viewBox="0 0 1060 380" role="img" aria-label="Five-rung standing ladder from registered to expert">
+    <defs><linearGradient id="lad" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#1F3A93"/><stop offset="1" stop-color="#1CA9E0"/></linearGradient></defs>
+    <g font-family="IBM Plex Sans, sans-serif">
+      <rect x="0" y="300" width="196" height="60" rx="10" fill="url(#lad)" opacity=".35"/>
+      <text x="16" y="326" fill="#fff" font-size="15" font-weight="700">Registered</text>
+      <text x="16" y="346" fill="#C3D2E8" font-size="11.5">Phone and name. Not bookable.</text>
+
+      <rect x="212" y="232" width="196" height="128" rx="10" fill="url(#lad)" opacity=".5"/>
+      <text x="228" y="258" fill="#fff" font-size="15" font-weight="700">Identified</text>
+      <text x="228" y="278" fill="#DCEEF9" font-size="11.5">National ID, liveness</text>
+      <text x="228" y="296" fill="#DCEEF9" font-size="11.5">selfie, guarantor, address.</text>
+      <text x="228" y="322" fill="#7FC8EC" font-size="11" font-family="IBM Plex Mono, monospace">BOOKABLE ·</text>
+      <text x="228" y="338" fill="#7FC8EC" font-size="11" font-family="IBM Plex Mono, monospace">GUARANTEED EXPOSURE</text>
+
+      <rect x="424" y="164" width="196" height="196" rx="10" fill="url(#lad)" opacity=".68"/>
+      <text x="440" y="190" fill="#fff" font-size="15" font-weight="700">Apprentice</text>
+      <text x="440" y="210" fill="#DCEEF9" font-size="11.5">A practical assessment,</text>
+      <text x="440" y="228" fill="#DCEEF9" font-size="11.5">or three jobs signed off.</text>
+      <text x="440" y="254" fill="#7FC8EC" font-size="11" font-family="IBM Plex Mono, monospace">ENTRY BAND</text>
+
+      <rect x="636" y="96" width="196" height="264" rx="10" fill="url(#lad)" opacity=".84"/>
+      <text x="652" y="122" fill="#fff" font-size="15" font-weight="700">Journeyman</text>
+      <text x="652" y="142" fill="#DCEEF9" font-size="11.5">Ten jobs signed off,</text>
+      <text x="652" y="160" fill="#DCEEF9" font-size="11.5">no upheld concerns,</text>
+      <text x="652" y="178" fill="#DCEEF9" font-size="11.5">on time nine times in ten.</text>
+      <text x="652" y="204" fill="#7FC8EC" font-size="11" font-family="IBM Plex Mono, monospace">STANDARD BAND ·</text>
+      <text x="652" y="220" fill="#7FC8EC" font-size="11" font-family="IBM Plex Mono, monospace">CREW ELIGIBLE</text>
+
+      <rect x="848" y="28" width="196" height="332" rx="10" fill="url(#lad)"/>
+      <text x="864" y="54" fill="#fff" font-size="15" font-weight="700">Expert</text>
+      <text x="864" y="74" fill="#DCEEF9" font-size="11.5">Thirty jobs, a formal</text>
+      <text x="864" y="92" fill="#DCEEF9" font-size="11.5">trade test, insurable.</text>
+      <text x="864" y="118" fill="#CDE8F7" font-size="11" font-family="IBM Plex Mono, monospace">PREMIUM BAND ·</text>
+      <text x="864" y="134" fill="#CDE8F7" font-size="11" font-family="IBM Plex Mono, monospace">CREW LEAD ·</text>
+      <text x="864" y="150" fill="#CDE8F7" font-size="11" font-family="IBM Plex Mono, monospace">CAN ASSESS OTHERS</text>
+    </g>
+    <text x="0" y="20" fill="#7FC8EC" font-family="IBM Plex Mono, monospace" font-size="11.5" letter-spacing="2">EARNED STANDING → A HIGHER RATE BAND → A REASON TO KEEP BUILDING IT</text>
+  </svg>
+  <figcaption>Fig. 4 — Each rung raises what a worker can charge. Standing is built by working through Maricho and is only worth money here, which is what makes the platform worth returning to.</figcaption>
+  </figure>
+
+  <div class="grid g3" style="margin-top:34px">
+    <div class="card"><h4>Ratings run both ways</h4><p style="font-size:14px;margin:0">Buyers rate workers. Workers rate buyers — on paying, on scope, on how they were treated. A buyer with a pattern of unpaid extras stops being offered people.</p></div>
+    <div class="card"><h4>Answer before consequence</h4><p style="font-size:14px;margin:0">A single complaint never removes anyone. Standing is frozen, not damaged, while a person reads both accounts and decides.</p></div>
+    <div class="card"><h4>Everyone gets seen</h4><p style="font-size:14px;margin:0">A fixed share of every day's shortlists goes to identified workers with little history, and a cooldown stops the same five people taking everything.</p></div>
+    <div class="card"><h4>Address discipline</h4><p style="font-size:14px;margin:0">A job address appears when both sides accept. A worker's home appears nowhere, to nobody, at any point.</p></div>
+    <div class="card"><h4>Both people are safe</h4><p style="font-size:14px;margin:0">In-app help for either party, next of kin on file, and a number a person answers. A woman entering a stranger's property is protected as carefully as the household she enters.</p></div>
+    <div class="card"><h4>The guarantee</h4><p style="font-size:14px;margin:0">Work that isn't right is put right at no extra cost. It is what a buyer is really paying the fee for, and it is why she chooses us over asking a neighbour.</p></div>
+  </div>
+</div>
+</section>
+
+<!-- 10 MONEY -->
+<section>
+<div class="wrap">
+  <div class="eyebrow">10 · Money</div>
+  <h2>How value moves</h2>
+
+  <h3>Holding</h3>
+  <p>A booking is real when a deposit is held. The deposit is sized to cover travel plus a meaningful share of a day's earnings, so cancelling late costs something and travelling is never a gamble. The balance is committed when the quote is approved and released on the day the buyer signs off — same day, to EcoCash or InnBucks, with a receipt in the record.</p>
+
+  <figure>
+  <svg viewBox="0 0 1060 300" role="img" aria-label="Money state machine with happy path and three failure branches">
+    <defs><marker id="c1" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0 0 L9 4.5 L0 9 z" fill="#1F3A93"/></marker>
+    <marker id="c2" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0 0 L9 4.5 L0 9 z" fill="#B33A2B"/></marker></defs>
+    <g font-family="IBM Plex Sans, sans-serif" font-size="13">
+      <rect x="0" y="90" width="150" height="62" rx="10" fill="#fff" stroke="#1F3A93" stroke-width="1.5"/>
+      <text x="75" y="116" text-anchor="middle" font-weight="700">Requested</text><text x="75" y="136" text-anchor="middle" fill="#5D6B85" font-size="11.5">nothing moved</text>
+      <rect x="215" y="90" width="150" height="62" rx="10" fill="#FCF1E0" stroke="#D98218" stroke-width="1.5"/>
+      <text x="290" y="116" text-anchor="middle" font-weight="700">Deposit held</text><text x="290" y="136" text-anchor="middle" fill="#8A6320" font-size="11.5">the booking is real</text>
+      <rect x="430" y="90" width="150" height="62" rx="10" fill="#FCF1E0" stroke="#D98218" stroke-width="1.5"/>
+      <text x="505" y="116" text-anchor="middle" font-weight="700">On site</text><text x="505" y="136" text-anchor="middle" fill="#8A6320" font-size="11.5">checked in</text>
+      <rect x="645" y="90" width="150" height="62" rx="10" fill="#FCF1E0" stroke="#D98218" stroke-width="1.5"/>
+      <text x="720" y="116" text-anchor="middle" font-weight="700">Awaiting sign-off</text><text x="720" y="136" text-anchor="middle" fill="#8A6320" font-size="11.5">48-hour window</text>
+      <rect x="860" y="90" width="150" height="62" rx="10" fill="#E3F2EC" stroke="#1E7A5E" stroke-width="1.5"/>
+      <text x="935" y="116" text-anchor="middle" font-weight="700">Released</text><text x="935" y="136" text-anchor="middle" fill="#1E7A5E" font-size="11.5">paid · record written</text>
+
+      <path d="M150 121 L215 121" stroke="#1F3A93" stroke-width="1.8" marker-end="url(#c1)"/>
+      <path d="M365 121 L430 121" stroke="#1F3A93" stroke-width="1.8" marker-end="url(#c1)"/>
+      <path d="M580 121 L645 121" stroke="#1F3A93" stroke-width="1.8" marker-end="url(#c1)"/>
+      <path d="M795 121 L860 121" stroke="#1F3A93" stroke-width="1.8" marker-end="url(#c1)"/>
+
+      <rect x="215" y="220" width="150" height="56" rx="10" fill="#FBEBE8" stroke="#B33A2B" stroke-width="1.5"/>
+      <text x="290" y="244" text-anchor="middle" font-weight="700" fill="#B33A2B" font-size="12.5">Cancelled late</text><text x="290" y="263" text-anchor="middle" fill="#8A3226" font-size="11">deposit to the worker</text>
+      <rect x="430" y="220" width="150" height="56" rx="10" fill="#FBEBE8" stroke="#B33A2B" stroke-width="1.5"/>
+      <text x="505" y="244" text-anchor="middle" font-weight="700" fill="#B33A2B" font-size="12.5">Nobody arrived</text><text x="505" y="263" text-anchor="middle" fill="#8A3226" font-size="11">refund · standby offered</text>
+      <rect x="645" y="220" width="150" height="56" rx="10" fill="#FBEBE8" stroke="#B33A2B" stroke-width="1.5"/>
+      <text x="720" y="244" text-anchor="middle" font-weight="700" fill="#B33A2B" font-size="12.5">On hold</text><text x="720" y="263" text-anchor="middle" fill="#8A3226" font-size="11">frozen · return visit</text>
+
+      <path d="M290 152 L290 220" stroke="#B33A2B" stroke-width="1.6" stroke-dasharray="4 4" marker-end="url(#c2)"/>
+      <path d="M505 152 L505 220" stroke="#B33A2B" stroke-width="1.6" stroke-dasharray="4 4" marker-end="url(#c2)"/>
+      <path d="M720 152 L720 220" stroke="#B33A2B" stroke-width="1.6" stroke-dasharray="4 4" marker-end="url(#c2)"/>
+      <text x="0" y="30" fill="#5D6B85" font-family="IBM Plex Mono, monospace" font-size="11.5" letter-spacing="1.6">EXPECTED PATH</text>
+      <text x="0" y="196" fill="#B33A2B" font-family="IBM Plex Mono, monospace" font-size="11.5" letter-spacing="1.6">EVERY BRANCH IS SHOWN TO BOTH PARTIES BEFORE THEY COMMIT</text>
+    </g>
+  </svg>
+  <figcaption>Fig. 5 — Forfeit rules are published at the point of booking. Ambiguity about money is the raw material of disputes.</figcaption>
+  </figure>
+
+  <h3>Pricing</h3>
+  <p>Maricho publishes a <strong>band</strong> for every job type, computed from completed comparable jobs in that suburb. The worker prices within the band; his grade lifts its ceiling. Neither party negotiates blind, nobody can be pushed beneath the floor, and a worker who improves earns more without having to argue for it. Above a set value, the quote is issued after the worker has inspected the job in person — never from a photograph.</p>
+
+  <h3>Who pays</h3>
+  <div class="grid g3">
+    <div class="card"><h4>Quick Hire</h4><p style="font-size:14px;margin:0">A percentage of the job, charged to the buyer and disclosed before booking. It buys the verification, the held money and the guarantee.</p></div>
+    <div class="card"><h4>Crew Hire</h4><p style="font-size:14px;margin:0">A placement fee or a monthly subscription, invoiced to the organisation. Fill rate and attendance records are what renews it.</p></div>
+    <div class="card" style="border-color:var(--red);background:var(--red-pale)"><h4 style="color:var(--red)">Never the worker</h4><p style="font-size:14px;margin:0">Nothing to register, nothing to apply, nothing to be shortlisted. A platform that charges the people with the least money selects for desperation, not skill.</p></div>
+  </div>
+
+  <div class="callout">
+    <span class="lbl">To confirm with a payments partner</span>
+    <p>Holding buyers' funds in Zimbabwe will most likely run on a licensed rail — a mobile money merchant arrangement or a bank partner — rather than Maricho holding balances directly. This conversation should happen before the flow is finalised, because the answer shapes it.</p>
+  </div>
+</div>
+</section>
+
+<!-- 11 MATCHING -->
+<section class="dark">
+<div class="wrap">
+  <div class="eyebrow">11 · Matching</div>
+  <h2>How three names get chosen</h2>
+  <p class="lede">Matching is the least visible part of the product and the one that most determines whether it feels fair. Four inputs, one hard rule, and an explanation attached to every result.</p>
+
+  <div class="grid g4" style="margin-top:30px">
+    <div class="card"><div class="stat">01</div><h4 style="margin-top:12px;color:#fff">Can they do it</h4><p style="font-size:14px;margin:0">Meaning is matched, not keywords. "Someone to sort out a leaking geyser" should reach plumbers and refrigeration technicians alike, because that is who can actually help.</p></div>
+    <div class="card"><div class="stat">02</div><h4 style="margin-top:12px;color:#fff">Can they get there</h4><p style="font-size:14px;margin:0">Declared service area first, distance second. How he travels matters more than how many kilometres — a man with a bicycle and a man with a bakkie do not have the same eight kilometres.</p></div>
+    <div class="card"><div class="stat">03</div><h4 style="margin-top:12px;color:#fff">Are they free</h4><p style="font-size:14px;margin:0">Real availability, not an optimistic setting. Someone already on a job in another suburb is not a match, however good.</p></div>
+    <div class="card"><div class="stat">04</div><h4 style="margin-top:12px;color:#fff">Have they done it before</h4><p style="font-size:14px;margin:0">Standing and relevant record entries. Weighted, never decisive — otherwise the same five people take everything and nobody new is ever hired.</p></div>
+  </div>
+
+  <div class="callout" style="background:rgba(28,169,224,.12);border-color:var(--cyan);margin-top:30px">
+    <span class="lbl" style="color:#7FC8EC">The rule that governs all of it</span>
+    <p style="color:#C3D2E8;margin:0"><strong style="color:#fff">If we cannot say why, we do not show it.</strong> Every shortlist carries its reasoning to the buyer. Every worker can see why he was not shortlisted and what would change that. A ranking that decides who earns this week must be answerable to the people it ranks.</p>
+  </div>
+
+  <h3 style="color:#fff">What the machine is for, and what it is not for</h3>
+  <div class="grid g2">
+    <div class="card">
+      <h4 style="color:#fff">It does this</h4>
+      <ul class="tick" style="color:#C3D2E8;font-size:14.5px">
+        <li>Turns a spoken description into a structured profile or job specification</li>
+        <li>Understands meaning across languages and informal trade vocabulary</li>
+        <li>Narrows hundreds of people to three, with reasons</li>
+        <li>Notices duplicate accounts, recycled photographs and false claims</li>
+        <li>Drafts the record entry from the job's own evidence, for the worker to approve</li>
+      </ul>
+    </div>
+    <div class="card" style="border-color:rgba(179,58,43,.55);background:rgba(179,58,43,.12)">
+      <h4 style="color:#fff">It never does this</h4>
+      <ul class="tick" style="color:#E8C4BE;font-size:14.5px">
+        <li>Choose who is hired</li>
+        <li>Remove someone from the platform</li>
+        <li>Decide a disagreement between two people</li>
+        <li>Set a price with no band and no explanation</li>
+        <li>Rank anyone by anything it cannot put into words</li>
+      </ul>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- 12 CONSTRAINTS -->
+<section>
+<div class="wrap">
+  <div class="eyebrow">12 · Conditions on the ground</div>
+  <h2>Designed for the phone in his hand</h2>
+  <p class="lede">Every one of these is a design input, not an excuse. A product that assumes a good phone, a strong signal and constant power is a product for people who already have options.</p>
+
+  <div class="grid g3">
+    <div class="card"><h4>An inexpensive Android</h4><p style="font-size:14.5px;margin:0">Small screen, little storage, an old browser. A progressive web app, no install required, everything reachable with one thumb.</p></div>
+    <div class="card"><h4>A small data bundle</h4><p style="font-size:14.5px;margin:0">Light mode by default: text first, images on request, photographs compressed on the device before they are sent. Data spent is data the user chose to spend.</p></div>
+    <div class="card"><h4>Power that comes and goes</h4><p style="font-size:14.5px;margin:0">Work continues offline. Check-ins, photographs and quotes queue locally and send when the signal returns, with the pending count always visible.</p></div>
+    <div class="card"><h4>Three languages</h4><p style="font-size:14.5px;margin:0">isiNdebele, chiShona and English throughout, including notifications, receipts and disputes. Trade vocabulary follows local usage rather than translation.</p></div>
+    <div class="card"><h4>Mixed reading confidence</h4><p style="font-size:14.5px;margin:0">Speech accepted everywhere it matters. Icons always paired with words. Numbers, times and money written the way people say them.</p></div>
+    <div class="card"><h4>WhatsApp is home</h4><p style="font-size:14.5px;margin:0">For many workers it is the internet. The full working cycle runs there, so the app is an upgrade rather than a barrier.</p></div>
+  </div>
+
+  <h3>How the product speaks</h3>
+  <table>
+    <thead><tr><th style="width:26%">Rule</th><th style="width:30%">Not this</th><th>This</th></tr></thead>
+    <tbody>
+      <tr><td class="k">Name things by what the person controls</td><td>"Manage service radius parameters"</td><td>"Where you will travel to"</td></tr>
+      <tr><td class="k">Say what a button does</td><td>"Submit"</td><td>"Pay US$5 and book"</td></tr>
+      <tr><td class="k">Keep the word through the flow</td><td>Book → "Request created"</td><td>Book → "Booked"</td></tr>
+      <tr><td class="k">Explain a failure and the way out</td><td>"An error occurred"</td><td>"That didn't send. It's saved — we'll try again when you have signal."</td></tr>
+      <tr><td class="k">An empty screen invites</td><td>"No jobs found"</td><td>"No work near you yet. Add another suburb and more will reach you."</td></tr>
+      <tr><td class="k">Never make money vague</td><td>"Fees may apply"</td><td>"US$5 now, the rest after you sign off. Our fee is 10%, already included."</td></tr>
+    </tbody>
+  </table>
+</div>
+</section>
+
+<!-- 13 MEASURES -->
+<section class="dark">
+<div class="wrap">
+  <div class="eyebrow">13 · Measures</div>
+  <h2>What good looks like</h2>
+  <p class="lede">Eight numbers. Between them they describe whether the marketplace is real, whether it is fair, and whether the record is worth anything.</p>
+  <table style="color:#C3D2E8">
+    <thead><tr><th style="color:#8FA9CC;border-color:#7FC8EC">Measure</th><th style="color:#8FA9CC;border-color:#7FC8EC">Meaning</th><th style="color:#8FA9CC;border-color:#7FC8EC">Target by month six</th></tr></thead>
+    <tbody style="font-size:14.5px">
+      <tr style="border-color:rgba(255,255,255,.14)"><td style="border-color:rgba(255,255,255,.12);color:#fff;font-weight:600">Fill rate</td><td style="border-color:rgba(255,255,255,.12)">Requests that put a worker at the door</td><td style="border-color:rgba(255,255,255,.12)">Above 85%</td></tr>
+      <tr><td style="border-color:rgba(255,255,255,.12);color:#fff;font-weight:600">Time to accept</td><td style="border-color:rgba(255,255,255,.12)">Request to a worker saying yes</td><td style="border-color:rgba(255,255,255,.12)">Under 30 minutes for urgent trades</td></tr>
+      <tr><td style="border-color:rgba(255,255,255,.12);color:#fff;font-weight:600">Buyers who come back</td><td style="border-color:rgba(255,255,255,.12)">A second booking within 90 days</td><td style="border-color:rgba(255,255,255,.12)">Above 35%</td></tr>
+      <tr><td style="border-color:rgba(255,255,255,.12);color:#fff;font-weight:600">Workers earning properly</td><td style="border-color:rgba(255,255,255,.12)">Share of active workers with four or more paid jobs a month</td><td style="border-color:rgba(255,255,255,.12)">Above 40%</td></tr>
+      <tr><td style="border-color:rgba(255,255,255,.12);color:#fff;font-weight:600">Spread of earnings</td><td style="border-color:rgba(255,255,255,.12)">Share of all payouts reaching the busiest tenth</td><td style="border-color:rgba(255,255,255,.12)">Below 40%</td></tr>
+      <tr><td style="border-color:rgba(255,255,255,.12);color:#fff;font-weight:600">Jobs put on hold</td><td style="border-color:rgba(255,255,255,.12)">Disagreements as a share of jobs</td><td style="border-color:rgba(255,255,255,.12)">Below 6%</td></tr>
+      <tr><td style="border-color:rgba(255,255,255,.12);color:#fff;font-weight:600">Worker responses upheld</td><td style="border-color:rgba(255,255,255,.12)">Held jobs decided wholly or partly for the worker</td><td style="border-color:rgba(255,255,255,.12)">Tracked — near zero means the process is decorative</td></tr>
+      <tr><td style="border-color:rgba(255,255,255,.12);color:#fff;font-weight:600">Records shared</td><td style="border-color:rgba(255,255,255,.12)">Workers sending their record outside Maricho</td><td style="border-color:rgba(255,255,255,.12)">Tracked — the first proof it has value beyond us</td></tr>
+    </tbody>
+  </table>
+  <div class="callout" style="background:rgba(179,58,43,.16);border-color:var(--red)">
+    <span class="lbl" style="color:#E8A79D">Not a measure</span>
+    <p style="color:#E8C4BE;margin:0"><strong style="color:#fff">Registered workers.</strong> Signing people up is easy, costs nothing and proves nothing. A hundred workers each doing four jobs a month is a business. Five thousand workers waiting for a job that never comes is a directory of disappointed people.</p>
+  </div>
+</div>
+</section>
+
+<!-- 14 BUILD -->
+<section>
+<div class="wrap">
+  <div class="eyebrow">14 · Build sequence</div>
+  <h2>Three stages, each ending in a decision</h2>
+  <p class="lede">Stages end when they are proven, not when the calendar says so. If a stage does not reach its mark we repair it rather than adding scope on top of a weak foundation.</p>
+
+  <div class="grid g3" style="margin-top:32px">
+    <div class="card">
+      <div class="mono" style="color:var(--cyan);font-size:11px;letter-spacing:.14em">STAGE ONE</div>
+      <h3 style="margin:12px 0 10px;font-size:20px">Make one trade work in a few suburbs</h3>
+      <ul class="tick" style="font-size:14.5px">
+        <li>Web app and WhatsApp channel</li>
+        <li>Plumbing and electrical only</li>
+        <li>Two or three suburbs</li>
+        <li>Identity, record, deposit, sign-off, disagreements</li>
+        <li>Crew orders filled by hand, by a person</li>
+        <li>Supply recruited through crew leads and the polytechnic</li>
+      </ul>
+      <div style="border-top:1px solid var(--rule);margin-top:16px;padding-top:14px">
+        <div class="mono" style="font-size:10.5px;letter-spacing:.12em;color:var(--amber)">MOVE ON WHEN</div>
+        <p style="font-size:14px;margin:6px 0 0;color:var(--muted)">Fill rate above 85% and buyers returning above 35%, held for eight straight weeks.</p>
+      </div>
+    </div>
+    <div class="card">
+      <div class="mono" style="color:var(--cyan);font-size:11px;letter-spacing:.14em">STAGE TWO</div>
+      <h3 style="margin:12px 0 10px;font-size:20px">Widen the city, build the crew product</h3>
+      <ul class="tick" style="font-size:14.5px">
+        <li>The remaining four trades</li>
+        <li>All of Bulawayo</li>
+        <li>Crew Hire console, built from what the manual work taught us</li>
+        <li>Crew lead team accounts</li>
+        <li>Grades and rate bands live</li>
+        <li>Domestic and care work, as recurring placement</li>
+      </ul>
+      <div style="border-top:1px solid var(--rule);margin-top:16px;padding-top:14px">
+        <div class="mono" style="font-size:10.5px;letter-spacing:.12em;color:var(--amber)">MOVE ON WHEN</div>
+        <p style="font-size:14px;margin:6px 0 0;color:var(--muted)">Three organisations ordering crews repeatedly, and each Quick Hire job paying for itself.</p>
+      </div>
+    </div>
+    <div class="card">
+      <div class="mono" style="color:var(--cyan);font-size:11px;letter-spacing:.14em">STAGE THREE</div>
+      <h3 style="margin:12px 0 10px;font-size:20px">Make the record valuable elsewhere</h3>
+      <ul class="tick" style="font-size:14.5px">
+        <li>A second city</li>
+        <li>Shareable verified records for outside employers</li>
+        <li>Tool finance and insurance written against standing</li>
+        <li>Training institutions feeding verified graduates in</li>
+        <li>Native apps once reliable alerts justify them</li>
+      </ul>
+      <div style="border-top:1px solid var(--rule);margin-top:16px;padding-top:14px">
+        <div class="mono" style="font-size:10.5px;letter-spacing:.12em;color:var(--amber)">PROVEN WHEN</div>
+        <p style="font-size:14px;margin:6px 0 0;color:var(--muted)">An outside party — a lender, an insurer, an employer — acts on a Maricho record. That is the whole idea, confirmed.</p>
+      </div>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- 15 APPENDIX -->
+<section>
+<div class="wrap">
+  <div class="eyebrow">Appendix</div>
+  <h2>Trade roadmap</h2>
+  <p class="lede">The full range of skilled work Maricho is built to carry, ordered by when each cluster becomes viable. Depth comes first; breadth follows the density that depth creates.</p>
+
+  <details open>
+    <summary><span class="tagm">Stage one</span> Launch trades</summary>
+    <div class="dbody"><p>Plumber · Electrician · Solar technician and installer · Welder and metal fabricator · Bricklayer, tiler and plasterer · Refrigeration, air-conditioning and appliance technician</p></div>
+  </details>
+  <details>
+    <summary><span class="tagm p2">Stage two</span> Property, trades and site support</summary>
+    <div class="dbody"><p>Carpenter · Painter and decorator · Glazier · Roof leak repairer · Paver · Fence erector · Builder's assistant · Trencher · Machine operator · Forklift operator · Motor mechanic · Panel beater · Spray painter · CCTV and security systems installer · Solar panel cleaning · Gardener · Landscaper · Tree cutter · Grass cutter · Window cleaner · Waste collector · Street sweeper</p></div>
+  </details>
+  <details>
+    <summary><span class="tagm p2">Stage two</span> Domestic and care · recurring placement</summary>
+    <div class="dbody"><p>House help · Laundry · Babysitter · After-school carer · Crèche assistant · Dog walker · Car washer</p><p><strong>These enter as recurring placements, with a full safety review and a live response process — never as one-off dispatch.</strong> The work is a relationship, and the product has to be one too.</p></div>
+  </details>
+  <details>
+    <summary><span class="tagm p3">Stage three</span> Hospitality, retail, logistics, events and creative</summary>
+    <div class="dbody"><p>Chef · Cook · Baker · Butcher · Barman · Doorman · Bouncer · Shop sales assistant · Hardware salesperson · Tuck shop assistant · Market trader · Vegetable vendor · Fuel attendant · Packer · Trolley and cart pusher · Kombi assistant · Messenger · Executive driver · School run driver · Designated driver · DJ · Musician · Session singer · Photographer · Content creator · Actor · Tailor · Seamstress · Garment maker · Cobbler · Hairdresser · Barber · Sculptor · Personal assistant · Farm worker · Agricultural technician · Artisanal mining personnel</p></div>
+  </details>
+</div>
+</section>
+
+<footer>
+<div class="wrap">
+  <div class="wordmark">maricho</div>
+  <p style="max-width:66ch">Product design document · August 2026 · Bulawayo, Zimbabwe.</p>
+</div>
+</footer>
+
+<script>
+(function(){
+  var tabs=[].slice.call(document.querySelectorAll('.tab'));
+  tabs.forEach(function(t){
+    t.addEventListener('click',function(){
+      tabs.forEach(function(o){
+        o.setAttribute('aria-selected', o===t?'true':'false');
+        var p=document.getElementById(o.dataset.p);
+        if(p) p.hidden=(o!==t);
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>
