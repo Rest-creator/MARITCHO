@@ -34,7 +34,12 @@ paths:
   /jobs/request:
     post:
       summary: Create a Quick Hire job request
-      description: Buyer submits a problem description (text/audio).
+      description: >
+        Buyer submits a problem description (text, or a voice-note transcript
+        arriving as text from the WhatsApp/client channel). The buyer is taken
+        from the bearer token, not the request body.
+      security:
+        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -42,19 +47,1222 @@ paths:
             schema:
               type: object
               required:
-                - buyer_id
-                - description
+                - trade
                 - suburb
+                - address
+                - problem_description
               properties:
-                buyer_id:
+                trade:
                   type: string
-                  format: uuid
-                description:
-                  type: string
+                  enum: [PLUMBING, ELECTRICAL, SOLAR, WELDING, BUILDING, APPLIANCE_REPAIR]
                 suburb:
                   type: string
+                address:
+                  type: string
+                  description: >
+                    Exact street address. Stored at request time but only
+                    ever shown to the buyer, the assigned worker (from
+                    booking onward), or OPS — never to unassigned match
+                    candidates.
+                problem_description:
+                  type: string
+                problem_photo_url:
+                  type: string
+                  nullable: true
       responses:
         '201':
           description: Job requested successfully
-        '400':
-          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+        '401':
+          description: Missing or invalid bearer token
+        '403':
+          description: Authenticated user is not a BUYER
+        '422':
+          description: Invalid input (missing/blank suburb or description, or unknown suburb)
+  /jobs/{job_id}:
+    get:
+      summary: Fetch a job
+      description: >
+        Restricted to the job's buyer, its assigned worker, or an OPS user.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: job_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Job found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+        '403':
+          description: Authenticated user is not a party to this job
+        '404':
+          description: Job not found
+  /jobs/{job_id}/matches:
+    get:
+      summary: Run the matching engine and return ranked worker candidates
+      description: >
+        Returns up to 3 workers filtered to the job's trade, ranked primarily
+        by distance band (SAME_SUBURB > NEARBY > MODERATE; FAR is excluded)
+        and secondarily by standing (grade, on-time rate, dispute rate, fill
+        rate) within the same band. Distance is computed via haversine
+        distance between suburb centroids (see the `suburbs` reference
+        table). Excludes workers currently tied to another active job. Each
+        candidate includes a `reason` explaining the match. The first call
+        on a REQUESTED job transitions it to MATCHED; a job past BOOKED no
+        longer accepts matches. Restricted to the job's buyer.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: job_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Up to 3 ranked candidates (possibly empty)
+          content:
+            application/json:
+              schema:
+                type: array
+                maxItems: 3
+                items:
+                  $ref: '#/components/schemas/MatchCandidate'
+        '403':
+          description: Authenticated user is not this job's buyer
+        '404':
+          description: Job not found
+        '409':
+          description: Job is no longer accepting matches (already BOOKED or later)
+  /jobs/{job_id}/book:
+    post:
+      summary: Book a matched worker
+      description: >
+        Buyer picks one of the matched workers, holds a deposit
+        (DEPOSIT_HELD ledger entry), and reveals the exact address to the
+        worker. The chosen worker must be a registered WORKER with a skill
+        in this job's trade and not already tied to another active job.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: job_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [worker_id, deposit_amount]
+              properties:
+                worker_id:
+                  type: string
+                  format: uuid
+                deposit_amount:
+                  type: number
+                  exclusiveMinimum: 0
+      responses:
+        '200':
+          description: Job booked
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+        '403':
+          description: Authenticated user is not this job's buyer
+        '404':
+          description: Job not found
+        '409':
+          description: Job is not MATCHED, or the worker is already committed elsewhere
+        '422':
+          description: worker_id does not refer to a registered, skilled worker
+  /jobs/{job_id}/quote:
+    post:
+      summary: Assigned worker submits their on-site price
+      description: >
+        Commits the remaining balance (quote minus the deposit already held)
+        as a BALANCE_COMMITTED ledger entry and moves the job to IN_PROGRESS.
+        Only the job's assigned worker may call this.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: job_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [quote_amount]
+              properties:
+                quote_amount:
+                  type: number
+                  exclusiveMinimum: 0
+      responses:
+        '200':
+          description: Quote submitted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+        '403':
+          description: Authenticated user is not this job's assigned worker
+        '404':
+          description: Job not found
+        '409':
+          description: Job is not BOOKED
+        '422':
+          description: Quote does not exceed the deposit already held
+  /jobs/{job_id}/complete:
+    post:
+      summary: Buyer signs off and releases payment
+      description: >
+        Writes the immutable RecordEntry and a RELEASED ledger entry (the
+        full quote amount). Only the job's buyer may call this.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: job_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [what_was_done]
+              properties:
+                what_was_done:
+                  type: string
+                client_words:
+                  type: string
+                  nullable: true
+                before_photo_url:
+                  type: string
+                  nullable: true
+                after_photo_url:
+                  type: string
+                  nullable: true
+      responses:
+        '200':
+          description: Job completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+        '403':
+          description: Authenticated user is not this job's buyer
+        '404':
+          description: Job not found
+        '409':
+          description: Job is not IN_PROGRESS
+  /jobs/{job_id}/dispute:
+    post:
+      summary: Buyer raises a dispute
+      description: >
+        Money freezes: the job moves to DISPUTED and no further ledger
+        release can happen until the worker responds. "Design for the
+        worker's worst day" — the worker's standing is frozen, not dropped,
+        while the dispute is open (see GET /workers/me/standing).
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: job_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason:
+                  type: string
+      responses:
+        '201':
+          description: Dispute opened
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dispute'
+        '403':
+          description: Authenticated user is not this job's buyer
+        '404':
+          description: Job not found
+        '409':
+          description: Job is not IN_PROGRESS
+  /jobs/{job_id}/dispute/respond:
+    post:
+      summary: Assigned worker answers the dispute
+      description: >
+        Default outcome is a return visit, not a refund: the dispute
+        resolves to RESOLVED_RETURN_VISIT and the job goes back to
+        IN_PROGRESS so the worker can fix the issue and the buyer can
+        complete normally afterward. Only the job's assigned worker may
+        call this. Photos are attached as part of the response, not
+        sourced automatically — there is no separate execution-phase photo
+        upload endpoint yet.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: job_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [response]
+              properties:
+                response:
+                  type: string
+                before_photo_url:
+                  type: string
+                  nullable: true
+                after_photo_url:
+                  type: string
+                  nullable: true
+      responses:
+        '200':
+          description: Dispute resolved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dispute'
+        '403':
+          description: Authenticated user is not this job's assigned worker
+        '404':
+          description: Job not found, or no open dispute
+        '409':
+          description: Job is not currently DISPUTED
+  /jobs/{job_id}/disputes:
+    get:
+      summary: List a job's disputes
+      description: Restricted to the job's buyer, its assigned worker, or an OPS user.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: job_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/offset'
+      responses:
+        '200':
+          description: Disputes, oldest first, paginated
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Dispute'
+        '403':
+          description: Authenticated user is not a party to this job
+        '404':
+          description: Job not found
+  /jobs/{job_id}/ledger:
+    get:
+      summary: View a job's ledger entries
+      description: Restricted to the job's buyer, its assigned worker, or an OPS user.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: job_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/offset'
+      responses:
+        '200':
+          description: Ledger entries, oldest first, paginated
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LedgerEntry'
+        '403':
+          description: Authenticated user is not a party to this job
+        '404':
+          description: Job not found
+  /jobs/{job_id}/record:
+    get:
+      summary: View a job's immutable record entry
+      description: Restricted to the job's buyer, its assigned worker, or an OPS user.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: job_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Record entry
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecordEntry'
+        '403':
+          description: Authenticated user is not a party to this job
+        '404':
+          description: Job not found, or no record entry yet (job not completed)
+  /workers/me/skills:
+    post:
+      summary: Register a skill (trade) for the current worker
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [trade]
+              properties:
+                trade:
+                  type: string
+                  enum: [PLUMBING, ELECTRICAL, SOLAR, WELDING, BUILDING, APPLIANCE_REPAIR]
+                proof_url:
+                  type: string
+                  nullable: true
+      responses:
+        '201':
+          description: Skill registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Skill'
+        '403':
+          description: Authenticated user is not a WORKER
+        '409':
+          description: Skill already registered for this trade
+    get:
+      summary: List the current worker's registered skills
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/offset'
+      responses:
+        '200':
+          description: Skills for this worker, paginated
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Skill'
+        '403':
+          description: Authenticated user is not a WORKER
+  /workers/me/service-areas:
+    post:
+      summary: Register a service area (suburb) for the current worker
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [suburb]
+              properties:
+                suburb:
+                  type: string
+                travel_means:
+                  type: string
+                  nullable: true
+      responses:
+        '201':
+          description: Service area registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceArea'
+        '403':
+          description: Authenticated user is not a WORKER
+        '409':
+          description: Service area already registered for this suburb
+        '422':
+          description: Unknown suburb
+    get:
+      summary: List the current worker's registered service areas
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/offset'
+      responses:
+        '200':
+          description: Service areas for this worker, paginated
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ServiceArea'
+        '403':
+          description: Authenticated user is not a WORKER
+  /workers/me/standing:
+    get:
+      summary: View the current worker's standing
+      description: >
+        Standing is computed, never assigned. A worker with no standings row
+        yet (nothing registered) gets the same defaults a new row would have.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Standing for this worker
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Standing'
+        '403':
+          description: Authenticated user is not a WORKER
+  /suburbs:
+    get:
+      summary: List known suburbs and their centroids
+      description: >
+        Public reference data for building a suburb picker (icons/list)
+        client-side rather than free-text entry. No authentication required.
+      parameters:
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/offset'
+      responses:
+        '200':
+          description: Known suburbs, alphabetical, paginated
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Suburb'
+  /crews/me:
+    post:
+      summary: Create the current AGGREGATOR's crew
+      description: One crew per lead (enforced by a unique constraint).
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+      responses:
+        '201':
+          description: Crew created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Crew'
+        '403':
+          description: Authenticated user is not an AGGREGATOR
+        '409':
+          description: Already has a crew registered
+    get:
+      summary: View the current AGGREGATOR's crew and its members
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Crew found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Crew'
+        '403':
+          description: Authenticated user is not an AGGREGATOR
+        '404':
+          description: No crew registered yet
+  /crews/me/members:
+    post:
+      summary: Add a worker to the current AGGREGATOR's crew
+      description: >
+        The crew lead directly manages their roster — there is no invite/
+        accept sub-workflow.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [worker_id]
+              properties:
+                worker_id:
+                  type: string
+                  format: uuid
+      responses:
+        '201':
+          description: Member added
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Crew'
+        '403':
+          description: Authenticated user is not an AGGREGATOR
+        '404':
+          description: No crew registered yet
+        '409':
+          description: Worker is already a member of this crew
+        '422':
+          description: worker_id does not refer to a registered worker
+  /crews/me/members/{worker_id}:
+    delete:
+      summary: Remove a worker from the current AGGREGATOR's crew
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: worker_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Member removed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Crew'
+        '403':
+          description: Authenticated user is not an AGGREGATOR
+        '404':
+          description: No crew registered, or worker is not a member
+  /crew-orders/request:
+    post:
+      summary: Request a crew (Crew Hire)
+      description: >
+        An organization requests N workers of a trade for a site. Stage Two
+        scope (business case names this a self-service "Crew Hire console");
+        built ahead of the phased rollout at the user's request.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [trade, suburb, address, workers_needed]
+              properties:
+                trade:
+                  type: string
+                  enum: [PLUMBING, ELECTRICAL, SOLAR, WELDING, BUILDING, APPLIANCE_REPAIR]
+                suburb:
+                  type: string
+                address:
+                  type: string
+                workers_needed:
+                  type: integer
+                  minimum: 1
+                problem_description:
+                  type: string
+                  nullable: true
+      responses:
+        '201':
+          description: Crew order requested
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CrewOrder'
+        '403':
+          description: Authenticated user is not a BUYER
+        '422':
+          description: Invalid input, or unknown suburb
+  /crew-orders/{order_id}:
+    get:
+      summary: Fetch a crew order
+      description: >
+        Restricted to the order's buyer, the booked crew's lead, or an OPS
+        user.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: order_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Crew order found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CrewOrder'
+        '403':
+          description: Authenticated user is not a party to this crew order
+        '404':
+          description: Crew order not found
+  /crew-orders/{order_id}/matches:
+    get:
+      summary: Run the crew matching engine and return ranked crew candidates
+      description: >
+        Returns up to 3 crews with enough qualifying members (matching
+        trade, within distance, individually available) to fill the order,
+        ranked by distance band then qualifying-member count. The first
+        call on a REQUESTED order transitions it to MATCHED. Restricted to
+        the order's buyer.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: order_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Up to 3 ranked crew candidates (possibly empty)
+          content:
+            application/json:
+              schema:
+                type: array
+                maxItems: 3
+                items:
+                  $ref: '#/components/schemas/CrewMatchCandidate'
+        '403':
+          description: Authenticated user is not this order's buyer
+        '404':
+          description: Crew order not found
+        '409':
+          description: Crew order is no longer accepting matches
+  /crew-orders/{order_id}/book:
+    post:
+      summary: Book a matched crew
+      description: >
+        Holds the deposit (DEPOSIT_HELD). The crew becomes unavailable as a
+        whole for other orders until this one completes.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: order_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [crew_id, deposit_amount]
+              properties:
+                crew_id:
+                  type: string
+                  format: uuid
+                deposit_amount:
+                  type: number
+                  exclusiveMinimum: 0
+      responses:
+        '200':
+          description: Crew order booked
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CrewOrder'
+        '403':
+          description: Authenticated user is not this order's buyer
+        '404':
+          description: Crew order not found
+        '409':
+          description: Order is not MATCHED, or the crew is already committed elsewhere
+        '422':
+          description: crew_id does not refer to a registered crew
+  /crew-orders/{order_id}/quote:
+    post:
+      summary: Booked crew's lead submits their on-site price
+      description: >
+        Commits the remaining balance (BALANCE_COMMITTED) and moves the
+        order to IN_PROGRESS. Only the booked crew's lead may call this.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: order_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [quote_amount]
+              properties:
+                quote_amount:
+                  type: number
+                  exclusiveMinimum: 0
+      responses:
+        '200':
+          description: Quote submitted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CrewOrder'
+        '403':
+          description: Authenticated user is not the booked crew's lead
+        '404':
+          description: Crew order not found
+        '409':
+          description: Order is not BOOKED
+        '422':
+          description: Quote does not exceed the deposit already held
+  /crew-orders/{order_id}/complete:
+    post:
+      summary: Buyer signs off and releases payment
+      description: >
+        Writes a RELEASED ledger entry (the full quote amount) and sets
+        `completion_note`. No per-worker RecordEntry is produced for crew
+        orders. Only the order's buyer may call this.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: order_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [what_was_done]
+              properties:
+                what_was_done:
+                  type: string
+      responses:
+        '200':
+          description: Crew order completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CrewOrder'
+        '403':
+          description: Authenticated user is not this order's buyer
+        '404':
+          description: Crew order not found
+        '409':
+          description: Order is not IN_PROGRESS
+  /crew-orders/{order_id}/ledger:
+    get:
+      summary: View a crew order's ledger entries
+      description: >
+        Restricted to the order's buyer, the booked crew's lead, or an OPS
+        user.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: order_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/offset'
+      responses:
+        '200':
+          description: Ledger entries, oldest first, paginated
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CrewOrderLedgerEntry'
+        '403':
+          description: Authenticated user is not a party to this crew order
+        '404':
+          description: Crew order not found
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    limit:
+      name: limit
+      in: query
+      required: false
+      schema:
+        type: integer
+        default: 50
+        minimum: 1
+        maximum: 200
+      description: Maximum rows to return.
+    offset:
+      name: offset
+      in: query
+      required: false
+      schema:
+        type: integer
+        default: 0
+        minimum: 0
+      description: Rows to skip before collecting the result set.
+  schemas:
+    Job:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        buyer_id:
+          type: string
+          format: uuid
+        worker_id:
+          type: string
+          format: uuid
+          nullable: true
+        status:
+          type: string
+          enum: [REQUESTED, MATCHED, BOOKED, IN_PROGRESS, DISPUTED, COMPLETED, CANCELLED]
+        trade:
+          type: string
+          enum: [PLUMBING, ELECTRICAL, SOLAR, WELDING, BUILDING, APPLIANCE_REPAIR]
+        suburb:
+          type: string
+        address:
+          type: string
+          description: Only present for the buyer, the assigned worker, or OPS.
+        problem_description:
+          type: string
+          nullable: true
+        problem_photo_url:
+          type: string
+          nullable: true
+        quote_amount:
+          type: number
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    LedgerEntry:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        job_id:
+          type: string
+          format: uuid
+        amount:
+          type: number
+        entry_type:
+          type: string
+          enum: [DEPOSIT_HELD, BALANCE_COMMITTED, RELEASED, REFUNDED]
+        created_at:
+          type: string
+          format: date-time
+    RecordEntry:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        job_id:
+          type: string
+          format: uuid
+        worker_id:
+          type: string
+          format: uuid
+        what_was_done:
+          type: string
+        client_words:
+          type: string
+          nullable: true
+        before_photo_url:
+          type: string
+          nullable: true
+        after_photo_url:
+          type: string
+          nullable: true
+        signed_off_at:
+          type: string
+          format: date-time
+    Dispute:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        job_id:
+          type: string
+          format: uuid
+        raised_by_id:
+          type: string
+          format: uuid
+        reason:
+          type: string
+        status:
+          type: string
+          enum: [OPEN, RESOLVED_RETURN_VISIT]
+        worker_response:
+          type: string
+          nullable: true
+        before_photo_url:
+          type: string
+          nullable: true
+        after_photo_url:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        responded_at:
+          type: string
+          format: date-time
+          nullable: true
+    MatchCandidate:
+      type: object
+      properties:
+        worker_id:
+          type: string
+          format: uuid
+        suburb:
+          type: string
+        travel_means:
+          type: string
+          nullable: true
+        distance_band:
+          type: string
+          enum: [SAME_SUBURB, NEARBY, MODERATE, FAR]
+        distance_km:
+          type: number
+        grade:
+          type: string
+        on_time_rate:
+          type: number
+        dispute_rate:
+          type: number
+        fill_rate:
+          type: number
+        jobs_completed:
+          type: integer
+        reason:
+          type: string
+    Skill:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        worker_id:
+          type: string
+          format: uuid
+        trade:
+          type: string
+          enum: [PLUMBING, ELECTRICAL, SOLAR, WELDING, BUILDING, APPLIANCE_REPAIR]
+        grade:
+          type: string
+          nullable: true
+        proof_url:
+          type: string
+          nullable: true
+    ServiceArea:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        worker_id:
+          type: string
+          format: uuid
+        suburb:
+          type: string
+        travel_means:
+          type: string
+          nullable: true
+    Standing:
+      type: object
+      properties:
+        worker_id:
+          type: string
+          format: uuid
+        grade:
+          type: string
+        on_time_rate:
+          type: number
+        dispute_rate:
+          type: number
+        fill_rate:
+          type: number
+        jobs_completed:
+          type: integer
+        is_frozen:
+          type: boolean
+          description: >
+            True while this worker has any job currently under an open
+            dispute. Computed, not stored — never dropped, per the
+            "worker's worst day" design principle.
+    Suburb:
+      type: object
+      properties:
+        name:
+          type: string
+        latitude:
+          type: number
+        longitude:
+          type: number
+    Crew:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        lead_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          nullable: true
+        member_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+    CrewOrder:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        buyer_id:
+          type: string
+          format: uuid
+        crew_id:
+          type: string
+          format: uuid
+          nullable: true
+        status:
+          type: string
+          enum: [REQUESTED, MATCHED, BOOKED, IN_PROGRESS, COMPLETED, CANCELLED]
+        trade:
+          type: string
+          enum: [PLUMBING, ELECTRICAL, SOLAR, WELDING, BUILDING, APPLIANCE_REPAIR]
+        suburb:
+          type: string
+        address:
+          type: string
+          description: Only present for the buyer, the booked crew's lead, or OPS.
+        workers_needed:
+          type: integer
+        problem_description:
+          type: string
+          nullable: true
+        quote_amount:
+          type: number
+          nullable: true
+        completion_note:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    CrewMatchCandidate:
+      type: object
+      properties:
+        crew_id:
+          type: string
+          format: uuid
+        crew_name:
+          type: string
+          nullable: true
+        lead_id:
+          type: string
+          format: uuid
+        qualifying_members:
+          type: integer
+        total_members:
+          type: integer
+        distance_band:
+          type: string
+          enum: [SAME_SUBURB, NEARBY, MODERATE, FAR]
+        distance_km:
+          type: number
+        reason:
+          type: string
+    CrewOrderLedgerEntry:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        crew_order_id:
+          type: string
+          format: uuid
+        amount:
+          type: number
+        entry_type:
+          type: string
+          enum: [DEPOSIT_HELD, BALANCE_COMMITTED, RELEASED, REFUNDED]
+        created_at:
+          type: string
+          format: date-time

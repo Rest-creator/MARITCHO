@@ -1,18 +1,17 @@
 import asyncio
+import os
+import sys
 from logging.config import fileConfig
 
+from alembic import context
 from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
-from alembic import context
-
-import os
-import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
-from app.models import Base
-from app.database import DATABASE_URL
+import app.models  # noqa: F401  (side effect: registers all tables on Base.metadata)
+from app.database import DATABASE_URL, Base
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

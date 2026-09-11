@@ -1,20 +1,36 @@
-from fastapi import FastAPI, status, Depends, Response
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import text
-import redis.asyncio as aioredis
 import time
+from typing import Any
 
-from app.telemetry import setup_telemetry, logger
+import redis.asyncio as aioredis
+from fastapi import Depends, FastAPI, Response, status
+from fastapi.security import OAuth2PasswordRequestForm
+from sqlalchemy import select, text
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.auth import RequireRole, create_access_token, get_current_user
 from app.database import get_db_session
+from app.models import Person, RoleEnum
 from app.redis import get_redis_client
+from app.routers.crew_orders import router as crew_orders_router
+from app.routers.crews import router as crews_router
+from app.routers.jobs import router as jobs_router
+from app.routers.suburbs import router as suburbs_router
+from app.routers.workers import router as workers_router
+from app.telemetry import logger, setup_telemetry
 
 app = FastAPI(title="Maricho Backend API")
 
 # Initialize telemetry
 setup_telemetry(app, "maricho-api")
 
+app.include_router(jobs_router)
+app.include_router(workers_router)
+app.include_router(suburbs_router)
+app.include_router(crews_router)
+app.include_router(crew_orders_router)
+
 @app.get("/health/live", status_code=status.HTTP_200_OK)
-def liveness_probe():
+def liveness_probe() -> dict[str, Any]:
     """Liveness probe to verify process is running."""
     return {
         "status": "UP",
@@ -27,12 +43,12 @@ async def readiness_probe(
     response: Response,
     db: AsyncSession = Depends(get_db_session),
     redis_client: aioredis.Redis = Depends(get_redis_client)
-):
+) -> dict[str, Any]:
     """
     Readiness probe to verify downstream dependencies (PostgreSQL, Redis).
     """
     health_status = "UP"
-    details = {}
+    details: dict[str, Any] = {}
     
     # 1. Verify PostgreSQL
     try:
@@ -69,16 +85,11 @@ async def readiness_probe(
         "dependencies": details
     }
 
-from fastapi.security import OAuth2PasswordRequestForm
-from app.auth import create_access_token, get_current_user, RequireRole
-from app.models import Person, RoleEnum
-from sqlalchemy import select
-
 @app.post("/token")
 async def login_for_access_token(
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: AsyncSession = Depends(get_db_session)
-):
+) -> dict[str, Any]:
     """
     Mock login endpoint for development. 
     In production, this would use WhatsApp OTP verification.
@@ -98,7 +109,7 @@ async def login_for_access_token(
     return {"access_token": access_token, "token_type": "bearer"}
 
 @app.get("/users/me")
-async def read_users_me(current_user: Person = Depends(get_current_user)):
+async def read_users_me(current_user: Person = Depends(get_current_user)) -> dict[str, Any]:
     return {
         "id": current_user.id,
         "phone": current_user.phone,
@@ -108,6 +119,6 @@ async def read_users_me(current_user: Person = Depends(get_current_user)):
 @app.get("/ops/dashboard")
 async def read_ops_dashboard(
     current_user: Person = Depends(RequireRole([RoleEnum.OPS]))
-):
+) -> dict[str, Any]:
     """Protected endpoint requiring OPS role."""
     return {"message": f"Welcome to Ops Dashboard, {current_user.phone}!"}

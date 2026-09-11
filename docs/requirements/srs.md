@@ -12,7 +12,7 @@ Maricho is built to operate under severe physical constraints: inexpensive Andro
 
 ### 2.1. Performance & Latency (SLOs)
 - **API Response Time:** 99% of API requests (excluding file uploads) must resolve within 50ms.
-- **Connection Pooling:** The PostgreSQL database must utilize an asynchronous connection pool (e.g., `pool_size=20`, `max_overflow=10`, `pool_recycle=1800`) to prevent starvation during traffic spikes.
+- **Connection Pooling:** The PostgreSQL database must utilize an asynchronous connection pool (e.g., `pool_size=10`, `max_overflow=5`, `pool_recycle=1800`) sized against a documented connection budget, to prevent starvation during traffic spikes both within a single instance and across horizontally-scaled replicas.
 - **Background Jobs:** Heavy tasks (image processing, notifications) must be offloaded to asynchronous background workers (e.g., Celery/BullMQ) with strict idempotency and Dead Letter Queues (DLQ).
 
 ### 2.2. Observability & Tracing

@@ -7,9 +7,8 @@ Create Date: 2026-09-06 16:59:18.084291
 """
 from typing import Sequence, Union
 
-from alembic import op
 import sqlalchemy as sa
-
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = '7165c54ce358'
@@ -24,7 +23,9 @@ def upgrade() -> None:
     op.create_table('persons',
     sa.Column('id', sa.UUID(), nullable=False),
     sa.Column('phone', sa.String(length=20), nullable=False),
-    sa.Column('role', sa.Enum('BUYER', 'WORKER', 'OPS', 'AGGREGATOR', name='roleenum'), nullable=False),
+    sa.Column(
+        'role', sa.Enum('BUYER', 'WORKER', 'OPS', 'AGGREGATOR', name='roleenum'), nullable=False
+    ),
     sa.Column('next_of_kin_phone', sa.String(length=20), nullable=True),
     sa.Column('guarantor_id', sa.UUID(), nullable=True),
     sa.Column('created_at', sa.DateTime(timezone=True), nullable=True),
@@ -36,7 +37,14 @@ def upgrade() -> None:
     sa.Column('id', sa.UUID(), nullable=False),
     sa.Column('buyer_id', sa.UUID(), nullable=False),
     sa.Column('worker_id', sa.UUID(), nullable=True),
-    sa.Column('status', sa.Enum('REQUESTED', 'MATCHED', 'BOOKED', 'IN_PROGRESS', 'DISPUTED', 'COMPLETED', 'CANCELLED', name='jobstatusenum'), nullable=False),
+    sa.Column(
+        'status',
+        sa.Enum(
+            'REQUESTED', 'MATCHED', 'BOOKED', 'IN_PROGRESS', 'DISPUTED', 'COMPLETED', 'CANCELLED',
+            name='jobstatusenum',
+        ),
+        nullable=False,
+    ),
     sa.Column('suburb', sa.String(length=100), nullable=False),
     sa.Column('problem_description', sa.Text(), nullable=True),
     sa.Column('problem_photo_url', sa.String(length=255), nullable=True),
@@ -78,7 +86,14 @@ def upgrade() -> None:
     sa.Column('id', sa.UUID(), nullable=False),
     sa.Column('job_id', sa.UUID(), nullable=False),
     sa.Column('amount', sa.Numeric(precision=10, scale=2), nullable=False),
-    sa.Column('entry_type', sa.Enum('DEPOSIT_HELD', 'BALANCE_COMMITTED', 'RELEASED', 'REFUNDED', name='ledgerentrytypeenum'), nullable=False),
+    sa.Column(
+        'entry_type',
+        sa.Enum(
+            'DEPOSIT_HELD', 'BALANCE_COMMITTED', 'RELEASED', 'REFUNDED',
+            name='ledgerentrytypeenum',
+        ),
+        nullable=False,
+    ),
     sa.Column('created_at', sa.DateTime(timezone=True), nullable=True),
     sa.CheckConstraint('amount > 0', name='check_amount_positive'),
     sa.ForeignKeyConstraint(['job_id'], ['jobs.id'], ),
@@ -112,3 +127,6 @@ def downgrade() -> None:
     op.drop_table('jobs')
     op.drop_table('persons')
     # ### end Alembic commands ###
+    sa.Enum(name='ledgerentrytypeenum').drop(op.get_bind())
+    sa.Enum(name='jobstatusenum').drop(op.get_bind())
+    sa.Enum(name='roleenum').drop(op.get_bind())
