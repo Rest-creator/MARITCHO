@@ -1,7 +1,8 @@
 import uuid
 from decimal import Decimal
 
-from app.models import Job, TradeEnum
+from app.apps.jobs.infrastructure.models import JobModel as Job
+from app.shared_kernel.enums import TradeEnum
 from tests.conftest import auth_headers
 
 JOB_PAYLOAD = {
@@ -47,7 +48,7 @@ async def test_full_lifecycle_creates_correct_ledger_and_record(
 
     quote_response = await client.post(
         f"/jobs/{job['id']}/quote",
-        json={"quote_amount": "200.00"},
+        json={"labor_amount": "200.00", "materials_amount": "0.00"},
         headers=auth_headers(worker),
     )
     assert quote_response.status_code == 200
@@ -154,7 +155,7 @@ async def test_quote_requires_assigned_worker(client, buyer, worker_factory):
 
     response = await client.post(
         f"/jobs/{job['id']}/quote",
-        json={"quote_amount": "200.00"},
+        json={"labor_amount": "200.00", "materials_amount": "0.00"},
         headers=auth_headers(impostor),
     )
 
@@ -168,7 +169,7 @@ async def test_quote_rejected_before_booking(client, buyer, worker_factory):
 
     response = await client.post(
         f"/jobs/{job['id']}/quote",
-        json={"quote_amount": "200.00"},
+        json={"labor_amount": "200.00", "materials_amount": "0.00"},
         headers=auth_headers(worker),
     )
 
@@ -185,11 +186,41 @@ async def test_quote_requires_booked_status(client, buyer, worker_factory, db_se
 
     response = await client.post(
         f"/jobs/{job['id']}/quote",
-        json={"quote_amount": "200.00"},
+        json={"labor_amount": "200.00", "materials_amount": "0.00"},
         headers=auth_headers(worker),
     )
 
     assert response.status_code == 409
+
+
+async def test_quote_splits_into_labor_and_materials(client, buyer, worker_factory):
+    job, worker = await _create_matched_job(client, buyer, worker_factory)
+    await _book(client, buyer, job, worker, deposit_amount="50.00")
+
+    response = await client.post(
+        f"/jobs/{job['id']}/quote",
+        json={"labor_amount": "150.00", "materials_amount": "60.00"},
+        headers=auth_headers(worker),
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["labor_amount"] == "150.00"
+    assert body["materials_amount"] == "60.00"
+    assert body["quote_amount"] == "210.00"
+
+
+async def test_quote_rejects_negative_materials_amount(client, buyer, worker_factory):
+    job, worker = await _create_matched_job(client, buyer, worker_factory)
+    await _book(client, buyer, job, worker, deposit_amount="50.00")
+
+    response = await client.post(
+        f"/jobs/{job['id']}/quote",
+        json={"labor_amount": "150.00", "materials_amount": "-10.00"},
+        headers=auth_headers(worker),
+    )
+
+    assert response.status_code == 422
 
 
 async def test_quote_rejects_amount_not_exceeding_deposit(client, buyer, worker_factory):
@@ -198,7 +229,7 @@ async def test_quote_rejects_amount_not_exceeding_deposit(client, buyer, worker_
 
     response = await client.post(
         f"/jobs/{job['id']}/quote",
-        json={"quote_amount": "50.00"},
+        json={"labor_amount": "50.00", "materials_amount": "0.00"},
         headers=auth_headers(worker),
     )
 
@@ -210,7 +241,7 @@ async def test_complete_requires_buyer(client, buyer, worker_factory):
     await _book(client, buyer, job, worker)
     await client.post(
         f"/jobs/{job['id']}/quote",
-        json={"quote_amount": "200.00"},
+        json={"labor_amount": "200.00", "materials_amount": "0.00"},
         headers=auth_headers(worker),
     )
 

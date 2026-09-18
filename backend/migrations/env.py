@@ -10,8 +10,16 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
-import app.models  # noqa: F401  (side effect: registers all tables on Base.metadata)
-from app.database import DATABASE_URL, Base
+# Side-effect imports: each app's infrastructure.models module must be
+# imported so its SQLAlchemy model classes register their tables on
+# Base.metadata before autogenerate/upgrade runs.
+import app.apps.accounts.infrastructure.models  # noqa: F401
+import app.apps.crews.infrastructure.models  # noqa: F401
+import app.apps.jobs.infrastructure.models  # noqa: F401
+import app.apps.payments.infrastructure.models  # noqa: F401
+import app.apps.suburbs.infrastructure.models  # noqa: F401
+import app.apps.workers.infrastructure.models  # noqa: F401
+from app.core.database import DATABASE_URL, Base
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

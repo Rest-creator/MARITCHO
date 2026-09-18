@@ -24,6 +24,43 @@ async def test_buyer_can_create_job_request(client, buyer):
     assert body["worker_id"] is None
 
 
+async def test_buyer_can_create_job_request_with_geo_fields(client, buyer):
+    payload = {
+        **VALID_PAYLOAD,
+        "landmark_narrative": "Blue gate opposite the municipal clinic.",
+        "latitude": "-20.2050",
+        "longitude": "28.5300",
+    }
+
+    response = await client.post("/jobs/request", json=payload, headers=auth_headers(buyer))
+
+    assert response.status_code == 201
+    body = response.json()
+    assert body["landmark_narrative"] == payload["landmark_narrative"]
+    assert body["latitude"] == "-20.205000"
+    assert body["longitude"] == "28.530000"
+
+
+async def test_job_request_geo_fields_are_optional(client, buyer):
+    response = await client.post(
+        "/jobs/request", json=VALID_PAYLOAD, headers=auth_headers(buyer)
+    )
+
+    assert response.status_code == 201
+    body = response.json()
+    assert body["landmark_narrative"] is None
+    assert body["latitude"] is None
+    assert body["longitude"] is None
+
+
+async def test_job_request_rejects_out_of_range_latitude(client, buyer):
+    payload = {**VALID_PAYLOAD, "latitude": "95.0"}
+
+    response = await client.post("/jobs/request", json=payload, headers=auth_headers(buyer))
+
+    assert response.status_code == 422
+
+
 async def test_buyer_id_cannot_be_spoofed_via_payload(client, buyer, other_buyer):
     payload = {**VALID_PAYLOAD, "buyer_id": str(other_buyer.id)}
 

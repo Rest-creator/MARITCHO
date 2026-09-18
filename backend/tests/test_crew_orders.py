@@ -1,6 +1,6 @@
 from decimal import Decimal
 
-from app.models import TradeEnum
+from app.shared_kernel.enums import TradeEnum
 from tests.conftest import auth_headers
 
 ORDER_PAYLOAD = {
@@ -42,6 +42,33 @@ async def _create_matched_order(client, buyer, workers_needed=2):
     order = await _create_order(client, buyer, workers_needed)
     await client.get(f"/crew-orders/{order['id']}/matches", headers=auth_headers(buyer))
     return order
+
+
+async def test_crew_order_request_accepts_optional_geo_fields(client, buyer):
+    payload = {
+        **ORDER_PAYLOAD,
+        "landmark_narrative": "Behind the industrial hardware depot.",
+        "latitude": "-20.2050",
+        "longitude": "28.5300",
+    }
+
+    response = await client.post(
+        "/crew-orders/request", json=payload, headers=auth_headers(buyer)
+    )
+
+    assert response.status_code == 201
+    body = response.json()
+    assert body["landmark_narrative"] == payload["landmark_narrative"]
+    assert body["latitude"] == "-20.205000"
+    assert body["longitude"] == "28.530000"
+
+
+async def test_crew_order_request_geo_fields_are_optional(client, buyer):
+    order = await _create_order(client, buyer)
+
+    assert order["landmark_narrative"] is None
+    assert order["latitude"] is None
+    assert order["longitude"] is None
 
 
 async def test_crew_order_matches_returns_qualifying_crew(
@@ -94,6 +121,30 @@ async def test_crew_order_excludes_far_suburb(client, buyer, aggregator, worker_
     assert response.json() == []
 
 
+async def test_crew_order_quote_splits_into_labor_and_materials(
+    client, buyer, aggregator, worker_factory
+):
+    crew, _workers = await _create_crew(client, aggregator, worker_factory, count=2)
+    order = await _create_matched_order(client, buyer, workers_needed=2)
+    await client.post(
+        f"/crew-orders/{order['id']}/book",
+        json={"crew_id": crew["id"], "deposit_amount": "500.00"},
+        headers=auth_headers(buyer),
+    )
+
+    response = await client.post(
+        f"/crew-orders/{order['id']}/quote",
+        json={"labor_amount": "1500.00", "materials_amount": "600.00"},
+        headers=auth_headers(aggregator),
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["labor_amount"] == "1500.00"
+    assert body["materials_amount"] == "600.00"
+    assert body["quote_amount"] == "2100.00"
+
+
 async def test_crew_order_full_lifecycle_and_ledger(client, buyer, aggregator, worker_factory):
     crew, _workers = await _create_crew(client, aggregator, worker_factory, count=2)
     order = await _create_matched_order(client, buyer, workers_needed=2)
@@ -109,7 +160,7 @@ async def test_crew_order_full_lifecycle_and_ledger(client, buyer, aggregator, w
 
     quote_response = await client.post(
         f"/crew-orders/{order['id']}/quote",
-        json={"quote_amount": "2000.00"},
+        json={"labor_amount": "2000.00", "materials_amount": "0.00"},
         headers=auth_headers(aggregator),
     )
     assert quote_response.status_code == 200
@@ -191,7 +242,7 @@ async def test_quote_requires_crew_lead(
 
     response = await client.post(
         f"/crew-orders/{order['id']}/quote",
-        json={"quote_amount": "2000.00"},
+        json={"labor_amount": "2000.00", "materials_amount": "0.00"},
         headers=auth_headers(other_aggregator),
     )
 
@@ -205,7 +256,7 @@ async def test_quote_requires_booked_status(client, buyer, aggregator, worker_fa
 
     response = await client.post(
         f"/crew-orders/{order['id']}/quote",
-        json={"quote_amount": "2000.00"},
+        json={"labor_amount": "2000.00", "materials_amount": "0.00"},
         headers=auth_headers(aggregator),
     )
 
@@ -225,7 +276,7 @@ async def test_quote_rejects_amount_not_exceeding_deposit(
 
     response = await client.post(
         f"/crew-orders/{order['id']}/quote",
-        json={"quote_amount": "500.00"},
+        json={"labor_amount": "500.00", "materials_amount": "0.00"},
         headers=auth_headers(aggregator),
     )
 
@@ -242,7 +293,7 @@ async def test_complete_requires_buyer(client, buyer, aggregator, worker_factory
     )
     await client.post(
         f"/crew-orders/{order['id']}/quote",
-        json={"quote_amount": "2000.00"},
+        json={"labor_amount": "2000.00", "materials_amount": "0.00"},
         headers=auth_headers(aggregator),
     )
 

@@ -7,8 +7,8 @@
 
 ## 2. Telemetry & Observability
 - **Distributed Tracing:** All backend services must implement OpenTelemetry (W3C Trace Context).
-- **Structured Logging:** Standard `logging` must output JSON or structured text containing `trace_id` and `span_id`.
-  - Format: `%(asctime)s [%(levelname)s] [trace_id=%(otelTraceID)s span_id=%(otelSpanID)s] %(name)s: %(message)s`
+- **Structured Logging:** Standard `logging` must output real JSON (one object per line) containing `trace_id` and `span_id`, not formatted plain text with embedded IDs.
+  - Implemented via `app/telemetry.py::JSONLogFormatter`. Fields: `timestamp` (ISO 8601 UTC), `level`, `logger`, `message`, `trace_id`, `span_id`, and `exception` (full traceback) when logged with `exc_info=True`.
 - **Health Checks:** `/health/live` (process check) and `/health/ready` (dependency check, e.g., PostgreSQL/Redis ping) must be implemented.
 
 ## 3. Database Integrity

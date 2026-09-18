@@ -1,6 +1,6 @@
 from decimal import Decimal
 
-from app.models import TradeEnum
+from app.shared_kernel.enums import TradeEnum
 from tests.conftest import auth_headers
 
 JOB_PAYLOAD = {
@@ -26,7 +26,7 @@ async def _book_and_quote(client, buyer, worker, deposit="50.00", quote="200.00"
     )
     await client.post(
         f"/jobs/{job['id']}/quote",
-        json={"quote_amount": quote},
+        json={"labor_amount": quote, "materials_amount": "0.00"},
         headers=auth_headers(worker),
     )
     return job

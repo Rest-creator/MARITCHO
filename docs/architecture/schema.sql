@@ -15,6 +15,7 @@ CREATE TYPE tradeenum AS ENUM ('PLUMBING', 'ELECTRICAL', 'SOLAR', 'WELDING', 'BU
 CREATE TYPE disputestatusenum AS ENUM ('OPEN', 'RESOLVED_RETURN_VISIT');
 CREATE TYPE creworderstatusenum AS ENUM ('REQUESTED', 'MATCHED', 'BOOKED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED');
 CREATE TYPE gradeenum AS ENUM ('REGISTERED', 'IDENTIFIED', 'APPRENTICE', 'JOURNEYMAN', 'EXPERT');
+CREATE TYPE currencyenum AS ENUM ('USD', 'ECOCASH', 'ZWG');
 
 -- Approximate suburb centroids for MVP distance banding (Stage One pilot,
 -- Bulawayo). Refine with surveyed coordinates before widening coverage.
@@ -67,6 +68,31 @@ CREATE TABLE standings (
     jobs_completed INTEGER DEFAULT 0
 );
 
+-- Progressive vetting tiers (ADR-005, database_schema_design.md §9). Feeds
+-- app/vetting.py::recompute_grade(), which sets standings.grade above.
+CREATE TABLE worker_vetting (
+    worker_id UUID PRIMARY KEY REFERENCES persons(id) ON DELETE CASCADE,
+    id_photo_url VARCHAR(255),
+    id_submitted_at TIMESTAMP WITH TIME ZONE
+);
+
+CREATE TABLE worker_references (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    worker_id UUID NOT NULL REFERENCES persons(id) ON DELETE CASCADE,
+    name VARCHAR(100) NOT NULL,
+    phone VARCHAR(20) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE worker_vouches (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    worker_id UUID NOT NULL REFERENCES persons(id) ON DELETE CASCADE, -- vouched for
+    voucher_id UUID NOT NULL REFERENCES persons(id) ON DELETE CASCADE, -- the voucher
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uq_worker_vouches_worker_voucher UNIQUE (worker_id, voucher_id),
+    CONSTRAINT check_worker_vouches_no_self_vouch CHECK (worker_id != voucher_id)
+);
+
 CREATE TABLE crews (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     lead_id UUID NOT NULL UNIQUE REFERENCES persons(id) ON DELETE CASCADE,
@@ -87,11 +113,28 @@ CREATE TABLE jobs (
     trade tradeenum NOT NULL,
     suburb VARCHAR(100) NOT NULL REFERENCES suburbs(name),
     address TEXT NOT NULL, -- hidden from workers until booking (see database_schema_design.md §4)
+    landmark_narrative TEXT, -- additive geo-grounding, see §2.10
+    latitude DECIMAL(9,6), -- additive GPS pin, see §2.10
+    longitude DECIMAL(9,6), -- additive GPS pin, see §2.10
     problem_description TEXT,
     problem_photo_url VARCHAR(255),
+    -- Set once at booking (ADR-002, see database_schema_design.md §10).
+    -- Every ledger entry written afterward reuses this value.
+    currency currencyenum,
+    -- Two-tier quote breakdown (ADR-003, see database_schema_design.md §2.11).
+    -- Set together by POST /jobs/{id}/quote; quote_amount is server-computed,
+    -- never accepted directly from the client.
+    labor_amount DECIMAL(10,2),
+    materials_amount DECIMAL(10,2),
     quote_amount DECIMAL(10,2),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT check_job_quote_equals_labor_plus_materials CHECK (
+        (quote_amount IS NULL AND labor_amount IS NULL AND materials_amount IS NULL)
+        OR (quote_amount IS NOT NULL AND labor_amount IS NOT NULL
+            AND materials_amount IS NOT NULL
+            AND quote_amount = labor_amount + materials_amount)
+    )
 );
 
 CREATE TABLE ledger_entries (
@@ -99,6 +142,8 @@ CREATE TABLE ledger_entries (
     job_id UUID NOT NULL REFERENCES jobs(id),
     amount DECIMAL(10,2) NOT NULL CHECK (amount > 0),
     entry_type ledgerentrytypeenum NOT NULL,
+    currency currencyenum NOT NULL DEFAULT 'USD', -- see database_schema_design.md §10
+    external_reference VARCHAR(100), -- gateway transaction ref, nullable, see §10
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -141,12 +186,26 @@ CREATE TABLE crew_orders (
     trade tradeenum NOT NULL,
     suburb VARCHAR(100) NOT NULL REFERENCES suburbs(name),
     address TEXT NOT NULL, -- hidden from the crew until booking
+    landmark_narrative TEXT, -- additive geo-grounding, see §2.10
+    latitude DECIMAL(9,6), -- additive GPS pin, see §2.10
+    longitude DECIMAL(9,6), -- additive GPS pin, see §2.10
     workers_needed INTEGER NOT NULL CHECK (workers_needed > 0),
     problem_description TEXT,
+    -- Set once at booking (ADR-002, see database_schema_design.md §10).
+    currency currencyenum,
+    -- Two-tier quote breakdown (ADR-003, see database_schema_design.md §2.11).
+    labor_amount DECIMAL(10,2),
+    materials_amount DECIMAL(10,2),
     quote_amount DECIMAL(10,2),
     completion_note TEXT, -- no per-worker RecordEntry analog exists for crews
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT check_crew_order_quote_equals_labor_plus_materials CHECK (
+        (quote_amount IS NULL AND labor_amount IS NULL AND materials_amount IS NULL)
+        OR (quote_amount IS NOT NULL AND labor_amount IS NOT NULL
+            AND materials_amount IS NOT NULL
+            AND quote_amount = labor_amount + materials_amount)
+    )
 );
 
 CREATE TABLE crew_order_ledger_entries (
@@ -154,6 +213,8 @@ CREATE TABLE crew_order_ledger_entries (
     crew_order_id UUID NOT NULL REFERENCES crew_orders(id),
     amount DECIMAL(10,2) NOT NULL CHECK (amount > 0),
     entry_type ledgerentrytypeenum NOT NULL,
+    currency currencyenum NOT NULL DEFAULT 'USD', -- see database_schema_design.md §10
+    external_reference VARCHAR(100), -- gateway transaction ref, nullable, see §10
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -199,4 +260,33 @@ CREATE TRIGGER record_entries_worker_matches_job
 
 CREATE TRIGGER crew_order_ledger_entries_immutable
     BEFORE UPDATE OR DELETE ON crew_order_ledger_entries
+    FOR EACH ROW EXECUTE FUNCTION prevent_mutation();
+
+-- Admin-editable EcoCash merchant credentials (ADR-002, see
+-- database_schema_design.md §10). Entered/rotated from the running system
+-- (OPS-only endpoints), never env vars. api_key is plaintext today — a
+-- known, documented limitation, not an oversight.
+CREATE TABLE payment_gateway_configs (
+    provider VARCHAR(20) PRIMARY KEY, -- e.g. 'ECOCASH'
+    merchant_code VARCHAR(100),
+    api_key VARCHAR(255),
+    base_url VARCHAR(255),
+    is_sandbox BOOLEAN NOT NULL DEFAULT TRUE,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Append-only audit trail of every EcoCash webhook call received.
+-- Deliberately not reconciled back into the immutable ledger tables above
+-- by mutation — see database_schema_design.md §10.
+CREATE TABLE ecocash_callback_logs (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    external_reference VARCHAR(100) NOT NULL,
+    raw_payload TEXT NOT NULL,
+    received_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX ix_ecocash_callback_logs_external_reference
+    ON ecocash_callback_logs (external_reference);
+
+CREATE TRIGGER ecocash_callback_logs_immutable
+    BEFORE UPDATE OR DELETE ON ecocash_callback_logs
     FOR EACH ROW EXECUTE FUNCTION prevent_mutation();

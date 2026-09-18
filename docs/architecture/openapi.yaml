@@ -64,6 +64,22 @@ paths:
                     ever shown to the buyer, the assigned worker (from
                     booking onward), or OPS — never to unassigned match
                     candidates.
+                landmark_narrative:
+                  type: string
+                  nullable: true
+                  description: >-
+                    Optional navigation description, gated the same as
+                    address. See ADR-004.
+                latitude:
+                  type: number
+                  nullable: true
+                  minimum: -90
+                  maximum: 90
+                longitude:
+                  type: number
+                  nullable: true
+                  minimum: -180
+                  maximum: 180
                 problem_description:
                   type: string
                 problem_photo_url:
@@ -81,7 +97,9 @@ paths:
         '403':
           description: Authenticated user is not a BUYER
         '422':
-          description: Invalid input (missing/blank suburb or description, or unknown suburb)
+          description: >-
+            Invalid input (missing/blank suburb or description, unknown
+            suburb, or out-of-range latitude/longitude)
   /jobs/{job_id}:
     get:
       summary: Fetch a job
@@ -153,6 +171,10 @@ paths:
         (DEPOSIT_HELD ledger entry), and reveals the exact address to the
         worker. The chosen worker must be a registered WORKER with a skill
         in this job's trade and not already tied to another active job.
+        `currency` (ADR-002, default USD) is set once here and reused by
+        every later ledger entry for this job. When `currency` is
+        `ECOCASH`, a real collection request is initiated from the buyer
+        before the booking completes — see 503/502 below.
       security:
         - bearerAuth: []
       parameters:
@@ -176,6 +198,10 @@ paths:
                 deposit_amount:
                   type: number
                   exclusiveMinimum: 0
+                currency:
+                  type: string
+                  enum: [USD, ECOCASH, ZWG]
+                  default: USD
       responses:
         '200':
           description: Job booked
@@ -191,13 +217,20 @@ paths:
           description: Job is not MATCHED, or the worker is already committed elsewhere
         '422':
           description: worker_id does not refer to a registered, skilled worker
+        '502':
+          description: currency was ECOCASH and the collection request failed
+        '503':
+          description: currency was ECOCASH and no gateway config exists yet
   /jobs/{job_id}/quote:
     post:
       summary: Assigned worker submits their on-site price
       description: >
-        Commits the remaining balance (quote minus the deposit already held)
-        as a BALANCE_COMMITTED ledger entry and moves the job to IN_PROGRESS.
-        Only the job's assigned worker may call this.
+        Two-tier quoting (ADR-003): the worker submits a labor amount and a
+        materials amount separately; quote_amount is computed server-side as
+        their sum (labor + materials), never accepted directly from the
+        client. Commits the remaining balance (quote minus the deposit
+        already held) as a BALANCE_COMMITTED ledger entry and moves the job
+        to IN_PROGRESS. Only the job's assigned worker may call this.
       security:
         - bearerAuth: []
       parameters:
@@ -213,11 +246,14 @@ paths:
           application/json:
             schema:
               type: object
-              required: [quote_amount]
+              required: [labor_amount, materials_amount]
               properties:
-                quote_amount:
+                labor_amount:
                   type: number
                   exclusiveMinimum: 0
+                materials_amount:
+                  type: number
+                  minimum: 0
       responses:
         '200':
           description: Quote submitted
@@ -563,6 +599,132 @@ paths:
                 $ref: '#/components/schemas/Standing'
         '403':
           description: Authenticated user is not a WORKER
+  /workers/me/vetting:
+    get:
+      summary: View the current worker's vetting evidence and computed grade
+      description: >
+        Progressive vetting tiers (ADR-005). grade is computed from
+        accumulated evidence — never assigned directly.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Vetting status for this worker
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkerVetting'
+        '403':
+          description: Authenticated user is not a WORKER
+  /workers/me/vetting/id-photo:
+    post:
+      summary: Submit (or replace) ID-photo evidence
+      description: >
+        Gates REGISTERED -> IDENTIFIED (ADR-005). Grade is recomputed
+        immediately from all accumulated evidence.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [id_photo_url]
+              properties:
+                id_photo_url:
+                  type: string
+      responses:
+        '200':
+          description: ID photo recorded, grade recomputed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkerVetting'
+        '403':
+          description: Authenticated user is not a WORKER
+  /workers/me/references:
+    post:
+      summary: Add a contactable reference
+      description: Gates IDENTIFIED -> APPRENTICE (ADR-005).
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, phone]
+              properties:
+                name:
+                  type: string
+                phone:
+                  type: string
+      responses:
+        '201':
+          description: Reference recorded, grade recomputed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkerReference'
+        '403':
+          description: Authenticated user is not a WORKER
+    get:
+      summary: List the current worker's submitted references
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/offset'
+      responses:
+        '200':
+          description: References for this worker, paginated
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/WorkerReference'
+        '403':
+          description: Authenticated user is not a WORKER
+  /workers/me/vouches:
+    post:
+      summary: Vouch for another worker
+      description: >
+        Gates APPRENTICE -> JOURNEYMAN/EXPERT (ADR-005). Only workers whose
+        own current grade is JOURNEYMAN or EXPERT may vouch. Recomputes the
+        *vouched-for* worker's grade, not the voucher's.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [worker_id]
+              properties:
+                worker_id:
+                  type: string
+                  format: uuid
+      responses:
+        '201':
+          description: Vouch recorded, vouched-for worker's grade recomputed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkerVouch'
+        '403':
+          description: >-
+            Authenticated user is not a WORKER, or their grade is below
+            JOURNEYMAN
+        '409':
+          description: This voucher has already vouched for this worker
+        '422':
+          description: >-
+            Self-vouch attempted, or worker_id does not refer to a
+            registered worker
   /suburbs:
     get:
       summary: List known suburbs and their centroids
@@ -704,6 +866,22 @@ paths:
                   type: string
                 address:
                   type: string
+                landmark_narrative:
+                  type: string
+                  nullable: true
+                  description: >-
+                    Optional navigation description, gated the same as
+                    address. See ADR-004.
+                latitude:
+                  type: number
+                  nullable: true
+                  minimum: -90
+                  maximum: 90
+                longitude:
+                  type: number
+                  nullable: true
+                  minimum: -180
+                  maximum: 180
                 workers_needed:
                   type: integer
                   minimum: 1
@@ -720,7 +898,9 @@ paths:
         '403':
           description: Authenticated user is not a BUYER
         '422':
-          description: Invalid input, or unknown suburb
+          description: >-
+            Invalid input, unknown suburb, or out-of-range
+            latitude/longitude
   /crew-orders/{order_id}:
     get:
       summary: Fetch a crew order
@@ -786,7 +966,10 @@ paths:
       summary: Book a matched crew
       description: >
         Holds the deposit (DEPOSIT_HELD). The crew becomes unavailable as a
-        whole for other orders until this one completes.
+        whole for other orders until this one completes. `currency`
+        (ADR-002, default USD) is set once here and reused by every later
+        ledger entry. When `currency` is `ECOCASH`, a real collection
+        request is initiated from the buyer before booking completes.
       security:
         - bearerAuth: []
       parameters:
@@ -810,6 +993,10 @@ paths:
                 deposit_amount:
                   type: number
                   exclusiveMinimum: 0
+                currency:
+                  type: string
+                  enum: [USD, ECOCASH, ZWG]
+                  default: USD
       responses:
         '200':
           description: Crew order booked
@@ -825,12 +1012,19 @@ paths:
           description: Order is not MATCHED, or the crew is already committed elsewhere
         '422':
           description: crew_id does not refer to a registered crew
+        '502':
+          description: currency was ECOCASH and the collection request failed
+        '503':
+          description: currency was ECOCASH and no gateway config exists yet
   /crew-orders/{order_id}/quote:
     post:
       summary: Booked crew's lead submits their on-site price
       description: >
-        Commits the remaining balance (BALANCE_COMMITTED) and moves the
-        order to IN_PROGRESS. Only the booked crew's lead may call this.
+        Two-tier quoting (ADR-003): the crew lead submits a labor amount and
+        a materials amount separately; quote_amount is computed server-side
+        as their sum, never accepted directly from the client. Commits the
+        remaining balance (BALANCE_COMMITTED) and moves the order to
+        IN_PROGRESS. Only the booked crew's lead may call this.
       security:
         - bearerAuth: []
       parameters:
@@ -846,11 +1040,14 @@ paths:
           application/json:
             schema:
               type: object
-              required: [quote_amount]
+              required: [labor_amount, materials_amount]
               properties:
-                quote_amount:
+                labor_amount:
                   type: number
                   exclusiveMinimum: 0
+                materials_amount:
+                  type: number
+                  minimum: 0
       responses:
         '200':
           description: Quote submitted
@@ -935,6 +1132,92 @@ paths:
           description: Authenticated user is not a party to this crew order
         '404':
           description: Crew order not found
+  /admin/payment-gateways/ecocash:
+    get:
+      summary: View the EcoCash gateway configuration
+      description: OPS-only. api_key is never returned — only whether one is set.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Current EcoCash configuration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EcoCashConfig'
+        '403':
+          description: Authenticated user is not OPS
+        '404':
+          description: EcoCash is not configured yet
+    put:
+      summary: Set (or replace) the EcoCash gateway configuration
+      description: >
+        OPS-only. Entered/rotated from the running system, not via env
+        vars (ADR-002) — credentials can change without a redeploy.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                merchant_code:
+                  type: string
+                  nullable: true
+                api_key:
+                  type: string
+                  nullable: true
+                base_url:
+                  type: string
+                  nullable: true
+                is_sandbox:
+                  type: boolean
+                  default: true
+      responses:
+        '200':
+          description: Configuration saved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EcoCashConfig'
+        '403':
+          description: Authenticated user is not OPS
+  /webhooks/ecocash:
+    post:
+      summary: Receive an EcoCash payment-confirmation callback
+      description: >
+        Logs the callback as a raw, append-only audit record
+        (EcoCashCallbackLog) keyed by reference — not reconciled into the
+        immutable ledger tables by mutation. Authenticated via a bearer
+        token matching the configured api_key — a placeholder, not a
+        confirmed EcoCash signature scheme (see app/ecocash.py). No
+        request body validation beyond requiring a reference field.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reference]
+              properties:
+                reference:
+                  type: string
+                status:
+                  type: string
+                  nullable: true
+                amount:
+                  type: number
+                  nullable: true
+                msisdn:
+                  type: string
+                  nullable: true
+      responses:
+        '204':
+          description: Callback logged
+        '401':
+          description: Missing or incorrect Authorization header
 components:
   securitySchemes:
     bearerAuth:
@@ -986,15 +1269,42 @@ components:
         address:
           type: string
           description: Only present for the buyer, the assigned worker, or OPS.
+        landmark_narrative:
+          type: string
+          nullable: true
+          description: >-
+            Optional navigation description (e.g. "blue gate opposite the
+            clinic"), gated the same as address.
+        latitude:
+          type: number
+          nullable: true
+          description: Optional GPS pin, gated the same as address.
+        longitude:
+          type: number
+          nullable: true
+          description: Optional GPS pin, gated the same as address.
         problem_description:
           type: string
           nullable: true
         problem_photo_url:
           type: string
           nullable: true
+        currency:
+          type: string
+          enum: [USD, ECOCASH, ZWG]
+          nullable: true
+          description: Set once at booking (ADR-002); nullable until then.
+        labor_amount:
+          type: number
+          nullable: true
+          description: Set together with materials_amount by POST /jobs/{id}/quote (ADR-003).
+        materials_amount:
+          type: number
+          nullable: true
         quote_amount:
           type: number
           nullable: true
+          description: Computed server-side as labor_amount + materials_amount.
         created_at:
           type: string
           format: date-time
@@ -1015,6 +1325,13 @@ components:
         entry_type:
           type: string
           enum: [DEPOSIT_HELD, BALANCE_COMMITTED, RELEASED, REFUNDED]
+        currency:
+          type: string
+          enum: [USD, ECOCASH, ZWG]
+        external_reference:
+          type: string
+          nullable: true
+          description: Gateway transaction reference (ADR-002), set only for ECOCASH entries.
         created_at:
           type: string
           format: date-time
@@ -1159,6 +1476,60 @@ components:
             True while this worker has any job currently under an open
             dispute. Computed, not stored — never dropped, per the
             "worker's worst day" design principle.
+    WorkerVetting:
+      type: object
+      description: Progressive vetting evidence and computed grade (ADR-005).
+      properties:
+        worker_id:
+          type: string
+          format: uuid
+        id_photo_url:
+          type: string
+          nullable: true
+        id_submitted_at:
+          type: string
+          format: date-time
+          nullable: true
+        reference_count:
+          type: integer
+        vouch_count:
+          type: integer
+          description: Total vouches received, regardless of voucher grade validity.
+        grade:
+          type: string
+    WorkerReference:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        worker_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        phone:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+    WorkerVouch:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        worker_id:
+          type: string
+          format: uuid
+          description: The worker being vouched for.
+        voucher_id:
+          type: string
+          format: uuid
+          description: The vouching worker.
+        created_at:
+          type: string
+          format: date-time
     Suburb:
       type: object
       properties:
@@ -1209,14 +1580,43 @@ components:
         address:
           type: string
           description: Only present for the buyer, the booked crew's lead, or OPS.
+        landmark_narrative:
+          type: string
+          nullable: true
+          description: >-
+            Optional navigation description (e.g. "blue gate opposite the
+            clinic"), gated the same as address.
+        latitude:
+          type: number
+          nullable: true
+          description: Optional GPS pin, gated the same as address.
+        longitude:
+          type: number
+          nullable: true
+          description: Optional GPS pin, gated the same as address.
         workers_needed:
           type: integer
         problem_description:
           type: string
           nullable: true
+        currency:
+          type: string
+          enum: [USD, ECOCASH, ZWG]
+          nullable: true
+          description: Set once at booking (ADR-002); nullable until then.
+        labor_amount:
+          type: number
+          nullable: true
+          description: >-
+            Set together with materials_amount by
+            POST /crew-orders/{id}/quote (ADR-003).
+        materials_amount:
+          type: number
+          nullable: true
         quote_amount:
           type: number
           nullable: true
+          description: Computed server-side as labor_amount + materials_amount.
         completion_note:
           type: string
           nullable: true
@@ -1263,6 +1663,33 @@ components:
         entry_type:
           type: string
           enum: [DEPOSIT_HELD, BALANCE_COMMITTED, RELEASED, REFUNDED]
+        currency:
+          type: string
+          enum: [USD, ECOCASH, ZWG]
+        external_reference:
+          type: string
+          nullable: true
+          description: Gateway transaction reference (ADR-002), set only for ECOCASH entries.
         created_at:
           type: string
           format: date-time
+    EcoCashConfig:
+      type: object
+      properties:
+        provider:
+          type: string
+        merchant_code:
+          type: string
+          nullable: true
+        base_url:
+          type: string
+          nullable: true
+        is_sandbox:
+          type: boolean
+        api_key_configured:
+          type: boolean
+          description: Whether an api_key is set — the key itself is never returned.
+        updated_at:
+          type: string
+          format: date-time
+          nullable: true

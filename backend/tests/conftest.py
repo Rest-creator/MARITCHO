@@ -19,10 +19,16 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy import text
 from sqlalchemy.engine import make_url
 
-from app.auth import create_access_token
-from app.database import AsyncSessionLocal, engine
+from app.apps.accounts.infrastructure.models import PersonModel as Person
+from app.apps.workers.infrastructure.models import (
+    ServiceAreaModel as ServiceArea,
+)
+from app.apps.workers.infrastructure.models import SkillModel as Skill
+from app.apps.workers.infrastructure.models import StandingModel as Standing
+from app.core.database import AsyncSessionLocal, engine
+from app.core.security import create_access_token
 from app.main import app
-from app.models import GradeEnum, Person, RoleEnum, ServiceArea, Skill, Standing, TradeEnum
+from app.shared_kernel.enums import GradeEnum, RoleEnum, TradeEnum
 
 BACKEND_DIR = Path(__file__).resolve().parent.parent
 

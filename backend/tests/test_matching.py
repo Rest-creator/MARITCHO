@@ -1,7 +1,9 @@
 import uuid
 from decimal import Decimal
 
-from app.models import GradeEnum, Job, JobStatusEnum, TradeEnum
+from app.apps.jobs.domain.entities import JobStatusEnum
+from app.apps.jobs.infrastructure.models import JobModel as Job
+from app.shared_kernel.enums import GradeEnum, TradeEnum
 from tests.conftest import auth_headers
 
 JOB_PAYLOAD = {
