@@ -1,0 +1,105 @@
+name: Backend CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend-ci.yml"
+  pull_request:
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend-ci.yml"
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: maricho
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: backend/pyproject.toml
+
+      - name: Install dependencies
+        run: pip install -e ".[dev]"
+
+      - name: Ruff
+        run: ruff check .
+
+      - name: Mypy
+        run: mypy .
+
+      - name: Alembic migrations apply cleanly and match models (no drift)
+        env:
+          DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/maricho
+        run: |
+          alembic upgrade head
+          alembic check
+
+      - name: Pytest (with 85% coverage gate)
+        env:
+          DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/maricho_test
+          REDIS_URL: redis://localhost:6379/1
+          SECRET_KEY: ci-test-secret-key
+        run: pytest --cov
+
+      - name: Build Docker image
+        run: docker build -t maricho-backend:ci .
+
+      - name: Smoke-test the container image
+        env:
+          DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/maricho
+          REDIS_URL: redis://localhost:6379/0
+          SECRET_KEY: ci-test-secret-key
+        run: |
+          docker run -d --name maricho-smoke --network host \
+            -e DATABASE_URL -e REDIS_URL -e SECRET_KEY \
+            maricho-backend:ci
+
+          ok=0
+          for _ in $(seq 1 30); do
+            if curl -sf http://localhost:8000/health/ready > /dev/null; then
+              ok=1
+              break
+            fi
+            sleep 2
+          done
+
+          docker logs maricho-smoke
+          docker rm -f maricho-smoke
+
+          if [ "$ok" -ne 1 ]; then
+            echo "Container never became healthy"
+            exit 1
+          fi

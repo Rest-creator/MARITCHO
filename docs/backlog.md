@@ -57,6 +57,6 @@ behind each item below — all four are now `DONE`.
 
 | Task ID | Status | Priority | Description | Dependencies | Assignee |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **APP-001** | `TODO` | High | Scaffold Expo React Native app with local SQLite/AsyncStorage sync engine. | None | - |
+| **APP-001** | `TODO` | High | Scaffold Flutter app with local SQLite/SharedPreferences sync engine. | None | - |
 | **APP-002** | `TODO` | High | Build offline-capable "Check-In" and "Upload Photo" queueing mechanism. | APP-001 | - |
 | **APP-003** | `TODO` | Medium | Implement Light Mode UI components (text-first, tap-to-load images). | APP-001 | - |

@@ -2,7 +2,7 @@
 
 ## 1. Code Formatting & Linting
 - **Backend (Python/FastAPI):** We use **Ruff** for linting and formatting, and **MyPy** for strict static type checking.
-- **Frontend (React Native/Expo):** We use **ESLint** (with Prettier) and strict **TypeScript**.
+- **Frontend (Flutter):** We use **Dart analyzer** for linting and strict type checking.
 - **Enforcement:** Code must pass local linters (`ruff check .`, `mypy .`) before any commit. 
 
 ## 2. Telemetry & Observability

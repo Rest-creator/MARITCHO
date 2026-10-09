@@ -32,3 +32,25 @@ This file contains the checkpoint rules aligned with our SDLC implementation.
 - Assume inexpensive Android devices and small data bundles.
 - Do not build complex forms where voice or photo inputs can be used.
 - In conflict scenarios (worker vs buyer), default to "Design for the worker's worst day" logic.
+
+## Mobile Architecture Guidelines (Flutter)
+You are an expert mobile systems engineer. Your modifications must align with the architectural standards, performance configurations, and patterns defined below.
+
+**Core System Conventions**
+- **Directory Layout:** Use a feature-first folder structure (`/features/feature_name/data`, `/domain`, `/presentation`).
+- **State Flow:** Follow Unidirectional Data Flow. Handle UI changes using Cubits that emit immutable states.
+- **Dependency Management:** Inject dependencies explicitly via constructors. Do not use global dynamic registries.
+- **Strict Typing:** Specify explicit types for all method signatures and variables. Do not use generic dynamic types.
+- **Exceptions:** Never throw uncaught exceptions. Wrap fallible operations in functional `Result.ok()` or `Result.error()` return values.
+- **Async Gap Safety:** Always check `if (!mounted) return;` before using context after an await block.
+- **Resource Cleanup:** Every class that registers text/scroll controllers, streams, focus nodes, or listeners must explicitly release those assets in its `dispose()` method.
+
+**Structural Rules**
+- Limit each file to one major class or widget.
+- Reference layout and styling properties from the centralized design system.
+- Do not use feature-level barrel files; use absolute imports.
+
+**Verification Protocol**
+- Verify modifications with static analysis: `flutter analyze`.
+- Format code files before committing changes: `dart format .`
+- Run the automated test suite to verify changes: `flutter test`.

@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 375 812" width="375" height="812" style="background-color: #f8f9fa; font-family: sans-serif;">
+  <!-- Header -->
+  <rect x="0" y="0" width="375" height="100" fill="#ffffff" stroke="#e0e0e0"/>
+  <text x="187.5" y="50" font-size="22" font-weight="bold" fill="#000000" text-anchor="middle">Matched Workers</text>
+  <text x="187.5" y="75" font-size="16" fill="#666666" text-anchor="middle">Your Shortlist (3)</text>
+
+  <!-- Worker 1 -->
+  <rect x="20" y="120" width="335" height="180" rx="8" fill="#ffffff" stroke="#e0e0e0" stroke-width="2"/>
+  <circle cx="60" cy="160" r="24" fill="#e0e0e0"/>
+  <text x="100" y="150" font-size="16" font-weight="bold" fill="#000000">Sarah J. - Plumber</text>
+  <text x="100" y="170" font-size="14" fill="#FFA500">★ 4.8</text>
+  <text x="150" y="170" font-size="14" fill="#666666">| 5km away</text>
+  
+  <text x="40" y="200" font-size="14" font-weight="bold" fill="#333333">Matched Because:</text>
+  <text x="40" y="220" font-size="13" fill="#666666">• Available immediately</text>
+  <text x="40" y="240" font-size="13" fill="#666666">• Specializes in leak repairs</text>
+  
+  <rect x="240" y="250" width="100" height="36" rx="18" fill="#f0f0f0" stroke="#cccccc"/>
+  <text x="290" y="273" font-size="14" font-weight="bold" fill="#333333" text-anchor="middle">View Profile</text>
+
+  <!-- Worker 2 -->
+  <rect x="20" y="320" width="335" height="180" rx="8" fill="#ffffff" stroke="#e0e0e0" stroke-width="2"/>
+  <circle cx="60" cy="360" r="24" fill="#e0e0e0"/>
+  <text x="100" y="350" font-size="16" font-weight="bold" fill="#000000">David M. - Plumber</text>
+  <text x="100" y="370" font-size="14" fill="#FFA500">★ 4.5</text>
+  <text x="150" y="370" font-size="14" fill="#666666">| 3km away</text>
+  
+  <text x="40" y="400" font-size="14" font-weight="bold" fill="#333333">Matched Because:</text>
+  <text x="40" y="420" font-size="13" fill="#666666">• Licensed professional</text>
+  <text x="40" y="440" font-size="13" fill="#666666">• High rating for punctuality</text>
+  
+  <rect x="240" y="450" width="100" height="36" rx="18" fill="#f0f0f0" stroke="#cccccc"/>
+  <text x="290" y="473" font-size="14" font-weight="bold" fill="#333333" text-anchor="middle">View Profile</text>
+
+  <!-- Worker 3 -->
+  <rect x="20" y="520" width="335" height="180" rx="8" fill="#ffffff" stroke="#e0e0e0" stroke-width="2"/>
+  <circle cx="60" cy="560" r="24" fill="#e0e0e0"/>
+  <text x="100" y="550" font-size="16" font-weight="bold" fill="#000000">Sipho D. - Plumber</text>
+  <text x="100" y="570" font-size="14" fill="#FFA500">★ 4.7</text>
+  <text x="150" y="570" font-size="14" fill="#666666">| 8km away</text>
+  
+  <text x="40" y="600" font-size="14" font-weight="bold" fill="#333333">Matched Because:</text>
+  <text x="40" y="620" font-size="13" fill="#666666">• Nearby previous clients</text>
+  <text x="40" y="640" font-size="13" fill="#666666">• Top rated in your suburb</text>
+  
+  <rect x="240" y="650" width="100" height="36" rx="18" fill="#f0f0f0" stroke="#cccccc"/>
+  <text x="290" y="673" font-size="14" font-weight="bold" fill="#333333" text-anchor="middle">View Profile</text>
+
+</svg>

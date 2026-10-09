@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 375 812" width="375" height="812" style="background-color: #f8f9fa; font-family: sans-serif;">
+  <!-- Phone Frame (Optional context) -->
+  <rect x="0" y="0" width="375" height="812" fill="#f8f9fa"/>
+  <rect x="0" y="0" width="375" height="80" fill="#ffffff" stroke="#e0e0e0"/>
+  <text x="30" y="52" font-size="24" font-weight="bold" fill="#000000">←</text>
+  <text x="187.5" y="50" font-size="20" font-weight="bold" fill="#000000" text-anchor="middle">REQUEST SERVICE</text>
+
+  <!-- Step 1 -->
+  <text x="20" y="120" font-size="18" font-weight="bold" fill="#000000">1. DESCRIBE THE PROBLEM</text>
+  
+  <!-- Voice Button -->
+  <rect x="20" y="140" width="335" height="60" rx="8" fill="#ffffff" stroke="#333333" stroke-width="2"/>
+  <circle cx="50" cy="170" r="16" fill="#e0e0e0"/>
+  <text x="85" y="176" font-size="16" font-weight="bold" fill="#000000">PRESS AND HOLD TO SPEAK</text>
+
+  <!-- Camera Button -->
+  <rect x="20" y="215" width="160" height="60" rx="8" fill="#ffffff" stroke="#333333" stroke-width="2"/>
+  <rect x="35" y="235" width="24" height="20" rx="2" fill="none" stroke="#333333" stroke-width="2"/>
+  <circle cx="47" cy="245" r="5" fill="none" stroke="#333333" stroke-width="2"/>
+  <text x="70" y="250" font-size="14" font-weight="bold" fill="#000000">TAKE PHOTO</text>
+
+  <!-- Gallery Button -->
+  <rect x="20" y="290" width="160" height="60" rx="8" fill="#ffffff" stroke="#333333" stroke-width="2"/>
+  <rect x="35" y="310" width="24" height="20" rx="2" fill="none" stroke="#333333" stroke-width="2"/>
+  <polyline points="35,325 43,318 49,325 54,320 59,325" fill="none" stroke="#333333" stroke-width="2"/>
+  <text x="70" y="316" font-size="12" font-weight="bold" fill="#000000">UPLOAD PHOTO</text>
+  <text x="70" y="332" font-size="12" font-weight="bold" fill="#000000">FROM PHONE</text>
+
+  <!-- Text Input -->
+  <text x="195" y="230" font-size="12" fill="#666666">OR TYPE A SIMPLE NOTE:</text>
+  <rect x="195" y="240" width="160" height="110" rx="4" fill="#ffffff" stroke="#cccccc" stroke-width="1"/>
+  <text x="205" y="260" font-size="14" fill="#999999">Describe what is</text>
+  <text x="205" y="280" font-size="14" fill="#999999">broken...</text>
+
+  <!-- Step 2 -->
+  <text x="20" y="400" font-size="18" font-weight="bold" fill="#000000">2. YOUR LOCATION</text>
+  <rect x="20" y="420" width="335" height="50" rx="8" fill="#ffffff" stroke="#e0e0e0" stroke-width="1"/>
+  <path d="M 35 445 C 35 438 45 438 45 445 C 45 450 40 455 40 455 C 40 455 35 450 35 445 Z" fill="none" stroke="#333333" stroke-width="2"/>
+  <text x="60" y="450" font-size="16" fill="#333333">SET YOUR ADDRESS</text>
+
+  <!-- Step 3 -->
+  <text x="20" y="520" font-size="18" font-weight="bold" fill="#000000">3. WHEN DO YOU NEED IT?</text>
+  <rect x="20" y="540" width="335" height="50" rx="8" fill="#ffffff" stroke="#e0e0e0" stroke-width="1"/>
+  <rect x="35" y="555" width="20" height="20" rx="2" fill="none" stroke="#333333" stroke-width="2"/>
+  <line x1="35" y1="560" x2="55" y2="560" stroke="#333333" stroke-width="2"/>
+  <text x="60" y="570" font-size="16" fill="#333333">SELECT A DATE &amp; TIME</text>
+
+  <!-- Submit Button -->
+  <rect x="20" y="700" width="335" height="60" rx="8" fill="#333333"/>
+  <text x="187.5" y="736" font-size="18" font-weight="bold" fill="#ffffff" text-anchor="middle">FIND WORKERS →</text>
+</svg>
