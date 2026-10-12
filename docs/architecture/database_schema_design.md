@@ -531,3 +531,108 @@ confirmed signature-verification scheme — EcoCash's real webhook
 authentication contract is unknown. Both should be re-checked against
 real EcoCash documentation before any of this runs against production
 traffic or real credentials.
+
+## 11. Job Offers — Hybrid Matching Extension (implemented `a6cbb4146d66`)
+
+Mobile wireframes showed workers submitting their own price + availability
+on a job before being matched, and buyers comparing several such
+worker-submitted offers side by side. The existing matching/booking
+contract (`GetJobMatchesUseCase` → system-ranked candidates,
+`BookJobUseCase` → direct booking) was kept as-is rather than replaced
+with a full bidding marketplace; instead, a worker can optionally attach a
+price to a job before booking, and the ranked-candidates response
+surfaces it when present.
+
+### Schema
+
+- `JOBS.budget_amount` — the buyer's optional stated budget at request
+  time (`PostJob` wireframe). Informational only: never enforced against,
+  or derived from, the eventual deposit/quote amounts.
+- `JOB_OFFERS` (`id` PK, `job_id` FK → `jobs`, `worker_id` FK → `persons`,
+  `quoted_amount` `CHECK > 0`, `availability_note` nullable, timestamps,
+  `UNIQUE(job_id, worker_id)`) — a worker's own price + availability for
+  one specific job, submitted while it's still `REQUESTED`/`MATCHED`.
+  Resubmitting **upserts** the existing row rather than erroring (no
+  "edit offer" screen in the wireframes, just resend). Distinct from
+  `JOBS.labor_amount`/`materials_amount`/`quote_amount`, which are set
+  once by the single already-*booked* worker (`POST /jobs/{id}/quote`) —
+  `JOB_OFFERS` rows can exist, many-to-one, for jobs no worker has been
+  booked onto yet.
+
+### API surface
+
+- `GET /jobs/open` (worker-only) — jobs across the authenticated worker's
+  own trades that are still open and within range of one of their
+  declared service areas; the reverse view of matching (one worker → many
+  jobs, instead of one job → many workers), ranked by distance band then
+  recency. Deliberately omits `address`/`landmark_narrative`/
+  `latitude`/`longitude`/`buyer_id` — matches the existing "address hidden
+  from workers until booking" principle (§4).
+- `POST /jobs/{id}/offers` (worker-only) — submit or revise an offer on a
+  still-open job. Rejected (`409`) once the job is no longer
+  `REQUESTED`/`MATCHED`, rejected (`422`) if the worker lacks the job's
+  trade skill, rejected (`409`) if the worker is already busy on another
+  active job.
+- `GET /jobs/{id}/matches` (buyer-only, unchanged route) — each returned
+  candidate now additionally carries `quoted_amount`/`availability_note`/
+  `quoted_at`, populated from a matching `JOB_OFFERS` row when one exists,
+  `null` otherwise. `POST /jobs/{id}/book` is unchanged: the buyer still
+  explicitly sets `deposit_amount` (a client can pre-fill it from the
+  chosen candidate's `quoted_amount`, but the backend doesn't enforce
+  that link).
+
+### Explicitly out of scope
+
+- Crew orders (`CrewMatchingService`/`CrewMatchCandidate`) have the
+  identical shape and would need the identical treatment later — not
+  built in this pass.
+- No reference count was added to `MatchCandidate`, even though the
+  `Applicants` wireframe shows one per candidate — that data lives only
+  in the `workers` app today and isn't wired into matching at all.
+
+## 12. Account Role at Signup (mobile wireframe gap)
+
+`POST /token` (mock login, see §9's sibling note on `GetOrCreatePersonByPhoneUseCase`)
+gained an optional `role` form field (`BUYER` default, unchanged
+behavior for existing callers) so the mobile Landing screen's role picker
+("I need work done" vs "I'm looking for work") actually determines the
+created account's role — previously every new account defaulted to
+`BUYER` regardless, with no way to create a `WORKER` account at all.
+Only applied when the phone number doesn't have an account yet; an
+existing account's stored role is authoritative and unaffected by a
+later login carrying a different role.
+
+## 13. List My Jobs (mobile wireframe gap)
+
+`GET /jobs/mine` (new, buyer-only) lists the authenticated buyer's own
+jobs, newest first, each annotated with `offer_count` (a batched count of
+`JOB_OFFERS` rows, not a stored column) — needed for the mobile Employer
+Home screen's "Your jobs" section, which previously had no endpoint to
+fetch from at all. No schema change; new queries over existing tables.
+
+## 14. List Assigned Jobs / My Offers (mobile wireframe gap)
+
+Two new worker-facing endpoints, needed for the mobile `MyWork` screen's
+Offers/Active/Done tabs, which previously had nothing to fetch from:
+`GET /jobs/assigned` (this worker's own jobs, any status, newest first)
+and `GET /jobs/my-offers` (this worker's own submitted `JOB_OFFERS` rows,
+each flattened with job trade/suburb/status so the tab renders without a
+second fetch per row). No schema change; new queries over existing
+tables. `MyWork`'s "$210 Earned · 4.8 Rating" header has no backend
+equivalent (no earnings-aggregate endpoint, no numeric rating anywhere —
+`grade` is categorical) and is intentionally not faked; the mobile screen
+shows `jobs_completed`/`on_time_rate` from the existing
+`GET /workers/me/standing` instead.
+
+## 15. Chat (real-time, per-job messaging — ADR-008)
+
+New `messaging` app: `MESSAGES` (`id`, `job_id` FK→`jobs`, `sender_id`
+FK→`persons`, `message_type` — `TEXT`/`VOICE_NOTE`/`PHOTO`/`LOCATION`,
+`body` nullable, `media_url` nullable (client-supplied URL, same honesty
+note as `problem_photo_url` and friends — no upload storage exists in
+this backend), `duration_seconds` nullable (VOICE_NOTE only),
+`latitude`/`longitude` nullable (LOCATION only), `created_at`, `read_at`
+nullable). `POST /jobs/{id}/messages`, `GET /jobs/{id}/messages`,
+`POST /jobs/{id}/messages/read`, and `WS /jobs/{id}/ws` for real-time
+delivery via Redis pub/sub — see ADR-008 for why WebSockets (not REST
+polling) and the full design.

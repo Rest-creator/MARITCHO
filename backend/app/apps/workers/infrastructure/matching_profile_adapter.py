@@ -39,6 +39,12 @@ class WorkerMatchingProfileAdapter(WorkerMatchingProfilePort):
         )
         return result.first() is not None
 
+    async def get_skills_for_worker(self, worker_id: uuid.UUID) -> set[TradeEnum]:
+        result = await self._db.execute(
+            select(SkillModel.trade).where(SkillModel.worker_id == worker_id)
+        )
+        return set(result.scalars().all())
+
     async def get_service_areas(
         self, worker_ids: set[uuid.UUID]
     ) -> dict[uuid.UUID, list[WorkerServiceAreaSnapshot]]:

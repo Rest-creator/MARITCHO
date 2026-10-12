@@ -24,6 +24,7 @@ class JobRequestCreate(BaseModel):
     longitude: Decimal | None = Field(default=None, ge=-180, le=180)
     problem_description: str = Field(min_length=1, max_length=2000)
     problem_photo_url: str | None = Field(default=None, max_length=255)
+    budget_amount: Decimal | None = Field(default=None, gt=0, max_digits=10, decimal_places=2)
 
     @field_validator("suburb", "address", "problem_description")
     @classmethod
@@ -54,12 +55,57 @@ class JobOut(BaseModel):
     longitude: Decimal | None
     problem_description: str | None
     problem_photo_url: str | None
+    budget_amount: Decimal | None
     currency: CurrencyEnum | None
     labor_amount: Decimal | None
     materials_amount: Decimal | None
     quote_amount: Decimal | None
     created_at: datetime
     updated_at: datetime
+
+
+class MyJobOut(BaseModel):
+    """JobOut plus the number of worker-submitted JobOffers — for the
+    buyer's own job list (GET /jobs/mine)."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    buyer_id: uuid.UUID
+    worker_id: uuid.UUID | None
+    status: JobStatusEnum
+    trade: TradeEnum
+    suburb: str
+    address: str
+    landmark_narrative: str | None
+    latitude: Decimal | None
+    longitude: Decimal | None
+    problem_description: str | None
+    problem_photo_url: str | None
+    budget_amount: Decimal | None
+    currency: CurrencyEnum | None
+    labor_amount: Decimal | None
+    materials_amount: Decimal | None
+    quote_amount: Decimal | None
+    created_at: datetime
+    updated_at: datetime
+    offer_count: int
+
+
+class MyOfferOut(BaseModel):
+    """A worker's own submitted JobOffer, flattened with enough job
+    context (trade/suburb/status) to render in a list without a second
+    fetch per row — for GET /jobs/my-offers."""
+
+    id: uuid.UUID
+    job_id: uuid.UUID
+    quoted_amount: Decimal
+    availability_note: str | None
+    created_at: datetime
+    updated_at: datetime
+    job_trade: TradeEnum
+    job_suburb: str
+    job_status: JobStatusEnum
 
 
 class BookingCreate(BaseModel):
@@ -173,3 +219,45 @@ class MatchCandidateOut(BaseModel):
     fill_rate: Decimal
     jobs_completed: int
     reason: str
+    quoted_amount: Decimal | None
+    availability_note: str | None
+    quoted_at: datetime | None
+
+
+class JobOfferCreate(BaseModel):
+    quoted_amount: Decimal = Field(gt=0, max_digits=10, decimal_places=2)
+    availability_note: str | None = Field(default=None, max_length=255)
+
+    @field_validator("availability_note")
+    @classmethod
+    def sanitize_availability_note(cls, value: str | None) -> str | None:
+        return strip_tags(value) if value is not None else value
+
+
+class JobOfferOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    job_id: uuid.UUID
+    worker_id: uuid.UUID
+    quoted_amount: Decimal
+    availability_note: str | None
+    created_at: datetime
+    updated_at: datetime
+
+
+class OpenJobOut(BaseModel):
+    """Worker-facing view of a still-open job — deliberately omits
+    address/landmark_narrative/latitude/longitude/buyer_id, matching the
+    existing "address hidden from workers until booking" principle."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    job_id: uuid.UUID
+    trade: TradeEnum
+    suburb: str
+    budget_amount: Decimal | None
+    problem_description: str | None
+    created_at: datetime | None
+    distance_band: DistanceBandEnum
+    distance_km: float

@@ -67,6 +67,11 @@ class WorkerMatchingProfilePort(ABC):
     async def has_skill(self, worker_id: uuid.UUID, trade: TradeEnum) -> bool: ...
 
     @abstractmethod
+    async def get_skills_for_worker(self, worker_id: uuid.UUID) -> set[TradeEnum]:
+        """The reverse direction of get_worker_ids_with_skill — needed by
+        ListOpenJobsForWorkerUseCase to know which trades to search."""
+
+    @abstractmethod
     async def get_service_areas(
         self, worker_ids: set[uuid.UUID]
     ) -> dict[uuid.UUID, list[WorkerServiceAreaSnapshot]]: ...

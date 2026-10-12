@@ -2,7 +2,16 @@ import uuid
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import CheckConstraint, DateTime, Enum, ForeignKey, Numeric, String, Text
+from sqlalchemy import (
+    CheckConstraint,
+    DateTime,
+    Enum,
+    ForeignKey,
+    Numeric,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -29,6 +38,9 @@ class JobModel(Base):
     longitude: Mapped[Decimal | None] = mapped_column(Numeric(9, 6))
     problem_description: Mapped[str | None] = mapped_column(Text)
     problem_photo_url: Mapped[str | None] = mapped_column(String(255))
+    # Buyer's optional stated budget at request time — informational only,
+    # never enforced against the eventual deposit/quote amounts.
+    budget_amount: Mapped[Decimal | None] = mapped_column(Numeric(10, 2))
     # Set once at booking (ADR-002); nullable until then. Every ledger entry
     # written afterward (BALANCE_COMMITTED, RELEASED) reuses this value.
     currency: Mapped[CurrencyEnum | None] = mapped_column(Enum(CurrencyEnum))
@@ -110,3 +122,32 @@ class RecordEntryModel(Base):
     before_photo_url: Mapped[str | None] = mapped_column(String(255))
     after_photo_url: Mapped[str | None] = mapped_column(String(255))
     signed_off_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class JobOfferModel(Base):
+    """A worker's own price + availability for a specific job, submitted
+    before any booking (hybrid matching extension) — distinct from
+    Job.labor_amount/materials_amount/quote_amount, which are set once by
+    the single already-booked worker (see SubmitQuoteUseCase)."""
+
+    __tablename__ = "job_offers"
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    job_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("jobs.id"), nullable=False, index=True
+    )
+    worker_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("persons.id"), nullable=False, index=True
+    )
+    quoted_amount: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
+    availability_note: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), default=datetime.utcnow
+    )
+    updated_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+
+    __table_args__ = (
+        UniqueConstraint("job_id", "worker_id", name="uq_job_offers_job_worker"),
+        CheckConstraint("quoted_amount > 0", name="check_job_offer_amount_positive"),
+    )

@@ -118,6 +118,9 @@ CREATE TABLE jobs (
     longitude DECIMAL(9,6), -- additive GPS pin, see §2.10
     problem_description TEXT,
     problem_photo_url VARCHAR(255),
+    -- Buyer's optional stated budget at request time (see §2.12) — informational
+    -- only, never enforced against the eventual deposit/quote amounts.
+    budget_amount DECIMAL(10,2),
     -- Set once at booking (ADR-002, see database_schema_design.md §10).
     -- Every ledger entry written afterward reuses this value.
     currency currencyenum,
@@ -135,6 +138,21 @@ CREATE TABLE jobs (
             AND materials_amount IS NOT NULL
             AND quote_amount = labor_amount + materials_amount)
     )
+);
+
+-- A worker's own price + availability for a specific job, submitted before any
+-- booking (see §2.12) — distinct from jobs.labor_amount/materials_amount/
+-- quote_amount above, which are set once by the single already-booked worker.
+-- Resubmitting upserts the existing row rather than erroring.
+CREATE TABLE job_offers (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    job_id UUID NOT NULL REFERENCES jobs(id),
+    worker_id UUID NOT NULL REFERENCES persons(id),
+    quoted_amount DECIMAL(10,2) NOT NULL CHECK (quoted_amount > 0),
+    availability_note TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uq_job_offers_job_worker UNIQUE (job_id, worker_id)
 );
 
 CREATE TABLE ledger_entries (
@@ -290,3 +308,23 @@ CREATE INDEX ix_ecocash_callback_logs_external_reference
 CREATE TRIGGER ecocash_callback_logs_immutable
     BEFORE UPDATE OR DELETE ON ecocash_callback_logs
     FOR EACH ROW EXECUTE FUNCTION prevent_mutation();
+
+-- Per-job chat between a job's buyer and its assigned worker (ADR-008).
+-- media_url is a client-supplied URL string, same as problem_photo_url /
+-- before_photo_url / after_photo_url elsewhere — no upload storage exists
+-- anywhere in this backend.
+CREATE TABLE messages (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    job_id UUID NOT NULL REFERENCES jobs(id),
+    sender_id UUID NOT NULL REFERENCES persons(id),
+    message_type messagetypeenum NOT NULL, -- TEXT, VOICE_NOTE, PHOTO, LOCATION
+    body TEXT,
+    media_url VARCHAR(255),
+    duration_seconds INTEGER, -- VOICE_NOTE only
+    latitude DECIMAL(9,6), -- LOCATION only
+    longitude DECIMAL(9,6), -- LOCATION only
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    read_at TIMESTAMP WITH TIME ZONE
+);
+CREATE INDEX ix_messages_job_id ON messages (job_id);
+CREATE INDEX ix_messages_sender_id ON messages (sender_id);

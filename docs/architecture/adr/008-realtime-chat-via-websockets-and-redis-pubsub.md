@@ -1,0 +1,34 @@
+# ADR 008: Real-Time Per-Job Chat via WebSockets and Redis Pub/Sub
+
+## Status
+Accepted and implemented (migration `6d6e6e73cc27`)
+
+## Context
+`Chat.dc.html` — the one remaining mobile wireframe screen without any backend precedent — shows a buyer and their assigned worker messaging each other about a specific job: text, voice notes, photo attachments, and location sharing. Nothing resembling a messaging system existed anywhere in this codebase before this decision.
+
+Two real choices needed making before any code: how messages are delivered (push vs. poll), and what a conversation is scoped to.
+
+## Decision
+
+**Scope: a conversation is a Job, not a generic DM thread.** The wireframe's chat header always shows job context ("Gate hinge welding", "Hired"), and the only two people who would ever see a given conversation are that job's buyer and its assigned worker — there is no scenario in this product where two people chat outside the context of a specific job. A new `app/apps/messaging/` app owns this, following the same domain/infrastructure/interface_adapters shape as every other app — `jobs` is a foundational direct dependency (same precedent as `workers`→`accounts`), needed only for the party-authorization check every message send/list/read requires.
+
+**Delivery: real-time via WebSockets, not REST polling** (explicit choice, not the path of least resistance — REST polling would have reused existing infrastructure with zero new moving parts, and was weighed and rejected for a worse user experience on a feature where immediacy matters). This is a genuinely new architectural layer: no WebSocket or pub/sub infrastructure existed in this backend before. The design:
+
+- `POST /jobs/{job_id}/messages` is the **only** way to send a message — one validation path (party check, per-`message_type` payload validation), not two. The WebSocket is **receive-only from the client's perspective**: it exists purely to push already-durably-stored messages to a connected peer in real time.
+- After `SendMessageUseCase` commits a message, it calls `ChatBroadcaster.publish(job_id, message)` — a domain-layer port, satisfied by `RedisChatBroadcaster`, which publishes to a Redis channel named `chat:{job_id}`. This keeps `redis.asyncio` out of the domain layer, same dependency-rule reasoning as every other port in this codebase (ADR-007).
+- The existing `redis` dependency (already provisioned for `/health/ready`, otherwise unused) is what makes pub/sub viable without adding a new piece of infrastructure — the fan-out mechanism was already sitting there, just never exercised for anything beyond a ping.
+- `WS /jobs/{job_id}/ws` authenticates via a `?token=` query parameter rather than a header. WebSocket handshakes can't reliably carry a custom `Authorization` header across every client platform the way a plain HTTP request can; a query-string JWT is the standard compromise most production WebSocket+JWT designs land on. The handler decodes the token, resolves the `Person`, and runs the identical job-party check the REST endpoints use — all **before** calling `websocket.accept()`. Rejecting pre-`accept()` is deliberate: under ASGI, a `websocket.close()` sent before `accept()` surfaces to the client as a flat HTTP error response (403/404 depending on cause), not a WebSocket close frame — simpler for a client to handle than parsing a close code off a connection that technically succeeded.
+- Once accepted, the handler subscribes to that job's Redis channel and runs two concurrent tasks — one forwarding published messages to the socket, one awaiting `receive()` purely to detect client disconnect — cancelling whichever didn't finish first. Publishing through Redis (rather than an in-process connection registry) means this works correctly regardless of which backend process holds a given WebSocket connection, a requirement the moment this API runs behind more than one `uvicorn` worker.
+
+**Honesty note, consistent with every other wireframe-vs-backend gap found this session**: `media_url` is a client-supplied URL string, exactly like `problem_photo_url`/`before_photo_url`/`after_photo_url` elsewhere — no file-upload storage exists anywhere in this backend, and this feature doesn't introduce any. "Share my location" is real (stored `latitude`/`longitude`), since that's genuinely just data with no storage dependency.
+
+## Consequences
+- **Positive:** Messages are delivered with no added latency beyond the Redis publish/subscribe round-trip, and the design scales past a single backend process from day one — a real requirement, not speculative, the moment this runs with `uvicorn --workers > 1` or multiple container replicas.
+- **Positive:** The one-validation-path design (REST send, WebSocket is receive-only) means the party check and the per-`message_type` payload validation exist in exactly one place (`SendMessageUseCase`) — a second write path through the socket would have meant maintaining that logic twice.
+- **Negative, disclosed, not silently accepted:** the WebSocket route itself has **no automated test**. Starlette's synchronous `TestClient` (the standard way to test an ASGI WebSocket route without a real server) drives the app from its own thread via an `anyio` `BlockingPortal`; this project's SQLAlchemy async engine is a session-scoped singleton whose pooled connections bind to whichever event loop first touches them. Mixing the two reproduced a `RuntimeError` ("got Future attached to a different loop") on the very first query, even in an isolated test, even after explicitly disposing the engine's pool before and after — see the dev-log entry documenting the investigation. The REST endpoints (send/list/mark-read, authorization, validation) are fully covered by the existing async `httpx`-based test suite; the WebSocket's actual behavior was verified with a genuine out-of-process smoke test instead — a real `uvicorn` server against the real Postgres/Redis containers, confirming a message sent via REST arrives in real time on an open socket, and that a non-party's connection is rejected. This is weaker than an automated regression test and should be revisited if a WebSocket-test-friendly pattern (e.g. a per-test engine, or a test double for the dependency) is adopted later.
+- **Negative:** introduces the project's first genuinely stateful, long-lived connection (a WebSocket, as opposed to every other endpoint's request/response shape) — load balancing, connection limits, and graceful shutdown behavior for in-flight sockets are real operational concerns this ADR does not solve, only acknowledges as now relevant.
+
+## Related
+- `docs/architecture/adr/007-clean-architecture-with-domain-apps.md` — the app/domain/infrastructure/interface_adapters shape and the port pattern this reuses
+- `docs/architecture/database_schema_design.md` §15
+- Dev-log: `Backend_and_API/MARITCHO-2026-10-12-starlette-testclient-conflicts-with-session-scoped-async-sqlalchemy-engine.md`

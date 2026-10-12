@@ -51,6 +51,7 @@ class Job:
     longitude: Decimal | None
     problem_description: str | None
     problem_photo_url: str | None
+    budget_amount: Decimal | None
     currency: CurrencyEnum | None
     labor_amount: Decimal | None
     materials_amount: Decimal | None
@@ -112,3 +113,43 @@ class MatchCandidate:
     fill_rate: Decimal
     jobs_completed: int
     reason: str
+    # Populated by GetJobMatchesUseCase from a JobOffer, if the worker has
+    # submitted one for this job — None if they haven't.
+    quoted_amount: Decimal | None = None
+    availability_note: str | None = None
+    quoted_at: datetime | None = None
+
+
+@dataclass
+class OpenJobCandidate:
+    """Worker-facing reverse view of a still-open job, flattened the same
+    way MatchCandidate is — mapped to
+    interface_adapters.schemas.OpenJobOut by the router. Deliberately
+    excludes address/landmark_narrative/latitude/longitude/buyer_id (see
+    OpenJobOut's docstring)."""
+
+    job_id: uuid.UUID
+    trade: TradeEnum
+    suburb: str
+    budget_amount: Decimal | None
+    problem_description: str | None
+    created_at: datetime | None
+    distance_band: DistanceBandEnum
+    distance_km: float
+
+
+@dataclass
+class JobOffer:
+    """A worker's own price + availability for a specific job, submitted
+    before any booking — distinct from the post-booking labor/materials
+    quote on Job itself (see SubmitQuoteUseCase), which is 1:1 with a job
+    already assigned to one worker. Resubmitting upserts (see
+    JobOfferRepository.upsert)."""
+
+    id: uuid.UUID
+    job_id: uuid.UUID
+    worker_id: uuid.UUID
+    quoted_amount: Decimal
+    availability_note: str | None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None

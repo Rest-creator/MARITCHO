@@ -16,6 +16,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 import app.apps.accounts.infrastructure.models  # noqa: F401
 import app.apps.crews.infrastructure.models  # noqa: F401
 import app.apps.jobs.infrastructure.models  # noqa: F401
+import app.apps.messaging.infrastructure.models  # noqa: F401
 import app.apps.payments.infrastructure.models  # noqa: F401
 import app.apps.suburbs.infrastructure.models  # noqa: F401
 import app.apps.workers.infrastructure.models  # noqa: F401

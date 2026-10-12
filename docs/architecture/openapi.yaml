@@ -31,6 +31,73 @@ paths:
           description: System is ready to accept traffic
         '503':
           description: Dependencies are unreachable
+  /token:
+    post:
+      summary: Log in (mock — phone number only, no real verification yet)
+      description: >
+        Finds a Person by phone, or creates one. `role` only takes effect
+        when this phone number doesn't have an account yet — an existing
+        account's role never changes via a later login. In production this
+        would be replaced by WhatsApp OTP verification (ADR-006, backlog
+        BACK-009) — this is an explicitly documented dev-only stand-in.
+        Request body is form-urlencoded (OAuth2 password-flow field
+        naming): `username` is the phone number, `password` is unused.
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required: [username]
+              properties:
+                username:
+                  type: string
+                  description: Phone number.
+                password:
+                  type: string
+                  description: Unused — accepted for OAuth2 password-flow shape only.
+                role:
+                  type: string
+                  enum: [BUYER, WORKER, AGGREGATOR, OPS]
+                  default: BUYER
+      responses:
+        '200':
+          description: Logged in
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token:
+                    type: string
+                  token_type:
+                    type: string
+                    example: bearer
+        '422':
+          description: Missing username, or role is not a recognized value
+  /users/me:
+    get:
+      summary: Fetch the authenticated user's own account
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Current user
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  phone:
+                    type: string
+                  role:
+                    type: string
+                    enum: [BUYER, WORKER, AGGREGATOR, OPS]
+        '401':
+          description: Missing or invalid bearer token
   /jobs/request:
     post:
       summary: Create a Quick Hire job request
@@ -85,6 +152,13 @@ paths:
                 problem_photo_url:
                   type: string
                   nullable: true
+                budget_amount:
+                  type: number
+                  nullable: true
+                  exclusiveMinimum: 0
+                  description: >-
+                    Optional stated budget — informational only, never
+                    enforced against the eventual deposit/quote amounts.
       responses:
         '201':
           description: Job requested successfully
@@ -100,6 +174,132 @@ paths:
           description: >-
             Invalid input (missing/blank suburb or description, unknown
             suburb, or out-of-range latitude/longitude)
+  /jobs/mine:
+    get:
+      summary: List the authenticated buyer's own jobs
+      description: >
+        This buyer's own jobs, newest first, each annotated with
+        `offer_count` (the number of worker-submitted JobOffers on it).
+        Restricted to BUYER role.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            minimum: 1
+            maximum: 200
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+            minimum: 0
+      responses:
+        '200':
+          description: This buyer's jobs (possibly empty)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MyJob'
+        '403':
+          description: Authenticated user is not a BUYER
+  /jobs/open:
+    get:
+      summary: List open jobs this worker could still submit an offer on
+      description: >
+        Jobs across the authenticated worker's own trades that are still
+        REQUESTED or MATCHED and within range (SAME_SUBURB/NEARBY/MODERATE;
+        FAR excluded) of one of their declared service areas — the
+        worker-facing reverse view of matching, for submitting a JobOffer
+        via POST /jobs/{job_id}/offers. Ranked by distance band then
+        recency. Deliberately omits address/landmark_narrative/
+        latitude/longitude/buyer_id — matches the existing "address hidden
+        from workers until booking" principle. Restricted to WORKER role.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            minimum: 1
+            maximum: 200
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+            minimum: 0
+      responses:
+        '200':
+          description: Open jobs (possibly empty)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/OpenJob'
+        '403':
+          description: Authenticated user is not a WORKER
+  /jobs/assigned:
+    get:
+      summary: List the authenticated worker's own jobs
+      description: >
+        This worker's own jobs (any status), newest first. Restricted to
+        WORKER role.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            minimum: 1
+            maximum: 200
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+            minimum: 0
+      responses:
+        '200':
+          description: This worker's jobs (possibly empty)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Job'
+        '403':
+          description: Authenticated user is not a WORKER
+  /jobs/my-offers:
+    get:
+      summary: List the authenticated worker's own submitted offers
+      description: >
+        This worker's own JobOffers, across all jobs, each flattened with
+        enough job context (trade/suburb/status) to render without a
+        second fetch per row. Restricted to WORKER role.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: This worker's offers (possibly empty)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MyOffer'
+        '403':
+          description: Authenticated user is not a WORKER
   /jobs/{job_id}:
     get:
       summary: Fetch a job
@@ -135,9 +335,12 @@ paths:
         rate) within the same band. Distance is computed via haversine
         distance between suburb centroids (see the `suburbs` reference
         table). Excludes workers currently tied to another active job. Each
-        candidate includes a `reason` explaining the match. The first call
-        on a REQUESTED job transitions it to MATCHED; a job past BOOKED no
-        longer accepts matches. Restricted to the job's buyer.
+        candidate includes a `reason` explaining the match. If a candidate
+        has submitted a JobOffer for this job (POST /jobs/{job_id}/offers),
+        `quoted_amount`/`availability_note`/`quoted_at` are populated —
+        `null` otherwise. The first call on a REQUESTED job transitions it
+        to MATCHED; a job past BOOKED no longer accepts matches. Restricted
+        to the job's buyer.
       security:
         - bearerAuth: []
       parameters:
@@ -163,6 +366,46 @@ paths:
           description: Job not found
         '409':
           description: Job is no longer accepting matches (already BOOKED or later)
+  /jobs/{job_id}/offers:
+    post:
+      summary: Submit or revise a worker's own offer on a still-open job
+      description: >
+        A worker (not yet booked) attaches their own price + availability
+        to a job that's still REQUESTED or MATCHED. Resubmitting revises
+        the existing offer (upsert) rather than erroring. Restricted to
+        WORKER role.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: job_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JobOfferCreate'
+      responses:
+        '201':
+          description: Offer submitted or revised
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobOffer'
+        '403':
+          description: Authenticated user is not a WORKER
+        '404':
+          description: Job not found
+        '409':
+          description: >-
+            Job is no longer open for offers (already BOOKED or later), or
+            the worker is already committed to another active job
+        '422':
+          description: Worker is not skilled in this job's trade
   /jobs/{job_id}/book:
     post:
       summary: Book a matched worker
@@ -485,6 +728,138 @@ paths:
           description: Authenticated user is not a party to this job
         '404':
           description: Job not found, or no record entry yet (job not completed)
+  /jobs/{job_id}/messages:
+    post:
+      summary: Send a message in this job's conversation
+      description: >-
+        Restricted to the job's buyer or assigned worker (or OPS) —
+        enforced inside the use case, not a role gate, since either role
+        may be either party. `TEXT` requires `body`; `VOICE_NOTE`/`PHOTO`
+        require `media_url` (a client-supplied URL string — no upload
+        storage exists in this backend); `LOCATION` requires
+        `latitude`/`longitude`. Published to connected WebSocket clients
+        (see below) after the write commits.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: job_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [message_type]
+              properties:
+                message_type:
+                  type: string
+                  enum: [TEXT, VOICE_NOTE, PHOTO, LOCATION]
+                body:
+                  type: string
+                  nullable: true
+                media_url:
+                  type: string
+                  nullable: true
+                duration_seconds:
+                  type: integer
+                  nullable: true
+                latitude:
+                  type: number
+                  nullable: true
+                longitude:
+                  type: number
+                  nullable: true
+      responses:
+        '201':
+          description: Message sent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '403':
+          description: Authenticated user is not a party to this job
+        '404':
+          description: Job not found
+        '422':
+          description: >-
+            message_type's required field (body/media_url/lat+lng) is missing
+    get:
+      summary: List this job's messages
+      description: Oldest-first. Restricted to the job's buyer or assigned worker (or OPS).
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: job_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            minimum: 1
+            maximum: 200
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+            minimum: 0
+      responses:
+        '200':
+          description: This job's messages (possibly empty)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Message'
+        '403':
+          description: Authenticated user is not a party to this job
+        '404':
+          description: Job not found
+  /jobs/{job_id}/messages/read:
+    post:
+      summary: Mark this job's unread messages (from the other party) as read
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: job_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Marked read
+        '403':
+          description: Authenticated user is not a party to this job
+        '404':
+          description: Job not found
+  /jobs/{job_id}/ws:
+    description: >-
+      **WebSocket**, not representable in OpenAPI 3.1's path syntax —
+      documented here in prose instead. Connect with
+      `?token=<JWT access token>` (query param, not a header — WebSocket
+      handshakes can't reliably carry a bearer Authorization header
+      across all client platforms). Rejected before `accept()` (surfaces
+      as a flat HTTP 403/404, not a WS close frame — standard ASGI
+      behavior) if the token is invalid, the job doesn't exist, or the
+      authenticated user isn't a party to it. Once accepted, the socket
+      is receive-only from the client's perspective: it pushes every
+      message sent via `POST /jobs/{job_id}/messages` above, in real
+      time, via Redis pub/sub (so it works regardless of which backend
+      process holds the connection) — sending a message always goes
+      through that REST endpoint, never through the socket itself.
   /workers/me/skills:
     post:
       summary: Register a skill (trade) for the current worker
@@ -1289,6 +1664,12 @@ components:
         problem_photo_url:
           type: string
           nullable: true
+        budget_amount:
+          type: number
+          nullable: true
+          description: >-
+            Optional stated budget — informational only, never enforced
+            against the eventual deposit/quote amounts.
         currency:
           type: string
           enum: [USD, ECOCASH, ZWG]
@@ -1311,6 +1692,14 @@ components:
         updated_at:
           type: string
           format: date-time
+    MyJob:
+      description: Job plus the number of worker-submitted JobOffers.
+      allOf:
+        - $ref: '#/components/schemas/Job'
+        - type: object
+          properties:
+            offer_count:
+              type: integer
     LedgerEntry:
       type: object
       properties:
@@ -1361,6 +1750,44 @@ components:
         signed_off_at:
           type: string
           format: date-time
+    Message:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        job_id:
+          type: string
+          format: uuid
+        sender_id:
+          type: string
+          format: uuid
+        message_type:
+          type: string
+          enum: [TEXT, VOICE_NOTE, PHOTO, LOCATION]
+        body:
+          type: string
+          nullable: true
+        media_url:
+          type: string
+          nullable: true
+          description: Client-supplied URL — no upload storage exists in this backend.
+        duration_seconds:
+          type: integer
+          nullable: true
+        latitude:
+          type: number
+          nullable: true
+        longitude:
+          type: number
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        read_at:
+          type: string
+          format: date-time
+          nullable: true
     Dispute:
       type: object
       properties:
@@ -1422,6 +1849,113 @@ components:
           type: integer
         reason:
           type: string
+        quoted_amount:
+          type: number
+          nullable: true
+          description: >-
+            Populated from this worker's JobOffer for this job, if one was
+            submitted via POST /jobs/{id}/offers — null otherwise.
+        availability_note:
+          type: string
+          nullable: true
+        quoted_at:
+          type: string
+          format: date-time
+          nullable: true
+    JobOfferCreate:
+      type: object
+      required: [quoted_amount]
+      properties:
+        quoted_amount:
+          type: number
+          exclusiveMinimum: 0
+        availability_note:
+          type: string
+          nullable: true
+    JobOffer:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        job_id:
+          type: string
+          format: uuid
+        worker_id:
+          type: string
+          format: uuid
+        quoted_amount:
+          type: number
+        availability_note:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    MyOffer:
+      description: >-
+        A worker's own submitted JobOffer, flattened with enough job
+        context to render without a second fetch per row.
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        job_id:
+          type: string
+          format: uuid
+        quoted_amount:
+          type: number
+        availability_note:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        job_trade:
+          type: string
+          enum: [PLUMBING, ELECTRICAL, SOLAR, WELDING, BUILDING, APPLIANCE_REPAIR]
+        job_suburb:
+          type: string
+        job_status:
+          type: string
+          enum: [REQUESTED, MATCHED, BOOKED, IN_PROGRESS, DISPUTED, COMPLETED, CANCELLED]
+    OpenJob:
+      type: object
+      description: >-
+        Worker-facing view of a still-open job — deliberately omits
+        address/landmark_narrative/latitude/longitude/buyer_id, matching
+        the existing "address hidden from workers until booking" principle.
+      properties:
+        job_id:
+          type: string
+          format: uuid
+        trade:
+          type: string
+          enum: [PLUMBING, ELECTRICAL, SOLAR, WELDING, BUILDING, APPLIANCE_REPAIR]
+        suburb:
+          type: string
+        budget_amount:
+          type: number
+          nullable: true
+        problem_description:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          nullable: true
+        distance_band:
+          type: string
+          enum: [SAME_SUBURB, NEARBY, MODERATE, FAR]
+        distance_km:
+          type: number
     Skill:
       type: object
       properties:

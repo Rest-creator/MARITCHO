@@ -12,13 +12,19 @@ from app.apps.jobs.domain.services import (
     GetJobMatchesUseCase,
     GetJobRecordUseCase,
     GetJobUseCase,
+    ListAssignedJobsUseCase,
     ListJobDisputesUseCase,
+    ListMyJobsUseCase,
+    ListMyOffersUseCase,
+    ListOpenJobsForWorkerUseCase,
     RaiseDisputeUseCase,
     RespondToDisputeUseCase,
+    SubmitJobOfferUseCase,
     SubmitQuoteUseCase,
 )
 from app.apps.jobs.infrastructure.repositories import (
     SqlAlchemyDisputeRepository,
+    SqlAlchemyJobOfferRepository,
     SqlAlchemyJobRepository,
     SqlAlchemyLedgerEntryRepository,
     SqlAlchemyRecordEntryRepository,
@@ -58,6 +64,12 @@ def get_record_entry_repository(
     db: AsyncSession = Depends(get_db_session),
 ) -> SqlAlchemyRecordEntryRepository:
     return SqlAlchemyRecordEntryRepository(db)
+
+
+def get_job_offer_repository(
+    db: AsyncSession = Depends(get_db_session),
+) -> SqlAlchemyJobOfferRepository:
+    return SqlAlchemyJobOfferRepository(db)
 
 
 def get_worker_matching_profile_port(
@@ -101,12 +113,50 @@ def get_get_job_use_case(
     return GetJobUseCase(jobs)
 
 
+def get_list_my_jobs_use_case(
+    jobs: SqlAlchemyJobRepository = Depends(get_job_repository),
+    offers: SqlAlchemyJobOfferRepository = Depends(get_job_offer_repository),
+) -> ListMyJobsUseCase:
+    return ListMyJobsUseCase(jobs, offers)
+
+
+def get_list_assigned_jobs_use_case(
+    jobs: SqlAlchemyJobRepository = Depends(get_job_repository),
+) -> ListAssignedJobsUseCase:
+    return ListAssignedJobsUseCase(jobs)
+
+
+def get_list_my_offers_use_case(
+    offers: SqlAlchemyJobOfferRepository = Depends(get_job_offer_repository),
+    jobs: SqlAlchemyJobRepository = Depends(get_job_repository),
+) -> ListMyOffersUseCase:
+    return ListMyOffersUseCase(offers, jobs)
+
+
 def get_get_job_matches_use_case(
     jobs: SqlAlchemyJobRepository = Depends(get_job_repository),
     matching: JobMatchingService = Depends(get_job_matching_service),
+    offers: SqlAlchemyJobOfferRepository = Depends(get_job_offer_repository),
     uow: SqlAlchemyUnitOfWork = Depends(get_unit_of_work),
 ) -> GetJobMatchesUseCase:
-    return GetJobMatchesUseCase(jobs, matching, uow)
+    return GetJobMatchesUseCase(jobs, matching, offers, uow)
+
+
+def get_list_open_jobs_use_case(
+    jobs: SqlAlchemyJobRepository = Depends(get_job_repository),
+    worker_profiles: WorkerMatchingProfileAdapter = Depends(get_worker_matching_profile_port),
+    suburbs: SqlAlchemySuburbRepository = Depends(get_suburb_repository),
+) -> ListOpenJobsForWorkerUseCase:
+    return ListOpenJobsForWorkerUseCase(jobs, worker_profiles, suburbs)
+
+
+def get_submit_job_offer_use_case(
+    jobs: SqlAlchemyJobRepository = Depends(get_job_repository),
+    worker_profiles: WorkerMatchingProfileAdapter = Depends(get_worker_matching_profile_port),
+    offers: SqlAlchemyJobOfferRepository = Depends(get_job_offer_repository),
+    uow: SqlAlchemyUnitOfWork = Depends(get_unit_of_work),
+) -> SubmitJobOfferUseCase:
+    return SubmitJobOfferUseCase(jobs, worker_profiles, offers, uow)
 
 
 def get_book_job_use_case(

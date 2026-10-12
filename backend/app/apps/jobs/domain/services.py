@@ -8,14 +8,17 @@ from app.apps.jobs.domain.entities import (
     Dispute,
     DisputeStatusEnum,
     Job,
+    JobOffer,
     JobStatusEnum,
     LedgerEntry,
     MatchCandidate,
+    OpenJobCandidate,
     RecordEntry,
 )
 from app.apps.jobs.domain.matching import JobMatchingService
 from app.apps.jobs.domain.repositories import (
     DisputeRepository,
+    JobOfferRepository,
     JobRepository,
     LedgerEntryRepository,
     RecordEntryRepository,
@@ -27,7 +30,14 @@ from app.core.exceptions import (
     NotFoundError,
     ValidationConflictError,
 )
-from app.shared_kernel.enums import CurrencyEnum, LedgerEntryTypeEnum, RoleEnum, TradeEnum
+from app.shared_kernel.enums import (
+    CurrencyEnum,
+    DistanceBandEnum,
+    LedgerEntryTypeEnum,
+    RoleEnum,
+    TradeEnum,
+)
+from app.shared_kernel.geo import BAND_RANK, classify_distance
 from app.shared_kernel.ports import (
     PaymentCollectionPort,
     SuburbLookupPort,
@@ -62,6 +72,7 @@ class CreateJobRequestUseCase:
         longitude: Decimal | None,
         problem_description: str,
         problem_photo_url: str | None,
+        budget_amount: Decimal | None = None,
     ) -> Job:
         if not await self._suburbs.exists(suburb):
             raise ValidationConflictError("Unknown suburb")
@@ -76,6 +87,7 @@ class CreateJobRequestUseCase:
             longitude=longitude,
             problem_description=problem_description,
             problem_photo_url=problem_photo_url,
+            budget_amount=budget_amount,
         )
         await self._uow.commit()
         return job
@@ -95,6 +107,38 @@ class GetJobUseCase:
         return job
 
 
+class ListMyJobsUseCase:
+    def __init__(self, jobs: JobRepository, offers: JobOfferRepository) -> None:
+        self._jobs = jobs
+        self._offers = offers
+
+    async def execute(
+        self, buyer_id: uuid.UUID, *, limit: int, offset: int
+    ) -> list[tuple[Job, int]]:
+        jobs = await self._jobs.list_by_buyer(buyer_id, limit=limit, offset=offset)
+        offer_counts = await self._offers.count_for_jobs({job.id for job in jobs})
+        return [(job, offer_counts.get(job.id, 0)) for job in jobs]
+
+
+class ListAssignedJobsUseCase:
+    def __init__(self, jobs: JobRepository) -> None:
+        self._jobs = jobs
+
+    async def execute(self, worker_id: uuid.UUID, *, limit: int, offset: int) -> list[Job]:
+        return list(await self._jobs.list_by_worker(worker_id, limit=limit, offset=offset))
+
+
+class ListMyOffersUseCase:
+    def __init__(self, offers: JobOfferRepository, jobs: JobRepository) -> None:
+        self._offers = offers
+        self._jobs = jobs
+
+    async def execute(self, worker_id: uuid.UUID) -> list[tuple[JobOffer, Job]]:
+        offers = await self._offers.list_by_worker(worker_id)
+        jobs_by_id = await self._jobs.get_many({offer.job_id for offer in offers})
+        return [(offer, jobs_by_id[offer.job_id]) for offer in offers if offer.job_id in jobs_by_id]
+
+
 class GetJobMatchesUseCase:
     """Run the matching engine and return up to 3 ranked worker candidates.
 
@@ -102,9 +146,16 @@ class GetJobMatchesUseCase:
     that lifecycle stage (BOOKED or later) no longer accepts new matches.
     """
 
-    def __init__(self, jobs: JobRepository, matching: JobMatchingService, uow: UnitOfWork) -> None:
+    def __init__(
+        self,
+        jobs: JobRepository,
+        matching: JobMatchingService,
+        offers: JobOfferRepository,
+        uow: UnitOfWork,
+    ) -> None:
         self._jobs = jobs
         self._matching = matching
+        self._offers = offers
         self._uow = uow
 
     async def execute(self, job_id: uuid.UUID, current_user_id: uuid.UUID) -> list[MatchCandidate]:
@@ -120,12 +171,136 @@ class GetJobMatchesUseCase:
 
         candidates = await self._matching.find_top_candidates(job)
 
+        offers_by_worker = await self._offers.get_for_job(job.id)
+        for candidate in candidates:
+            offer = offers_by_worker.get(candidate.worker_id)
+            if offer is not None:
+                candidate.quoted_amount = offer.quoted_amount
+                candidate.availability_note = offer.availability_note
+                candidate.quoted_at = offer.updated_at or offer.created_at
+
         if job.status == JobStatusEnum.REQUESTED:
             job.status = JobStatusEnum.MATCHED
             await self._jobs.save(job)
             await self._uow.commit()
 
         return candidates
+
+
+class ListOpenJobsForWorkerUseCase:
+    """Worker-facing reverse view of matching: given a worker, find jobs
+    (across all of that worker's trades) they could still submit a
+    JobOffer on. Mirrors JobMatchingService.find_top_candidates' distance
+    loop in the opposite direction (one worker -> many jobs instead of one
+    job -> many workers), reusing the same shared_kernel.geo helpers.
+    """
+
+    def __init__(
+        self,
+        jobs: JobRepository,
+        worker_profiles: WorkerMatchingProfilePort,
+        suburbs: SuburbLookupPort,
+    ) -> None:
+        self._jobs = jobs
+        self._worker_profiles = worker_profiles
+        self._suburbs = suburbs
+
+    async def execute(
+        self, worker_id: uuid.UUID, *, limit: int, offset: int
+    ) -> list[OpenJobCandidate]:
+        skills = await self._worker_profiles.get_skills_for_worker(worker_id)
+        if not skills:
+            return []
+
+        areas = (await self._worker_profiles.get_service_areas({worker_id})).get(worker_id, [])
+        if not areas:
+            return []
+
+        candidate_jobs: list[Job] = []
+        for trade in skills:
+            candidate_jobs.extend(await self._jobs.list_open_for_trade(trade))
+        if not candidate_jobs:
+            return []
+
+        suburb_names = {job.suburb for job in candidate_jobs} | {area.suburb for area in areas}
+        coords = await self._suburbs.get_coords(suburb_names)
+
+        ranked: list[tuple[int, datetime, OpenJobCandidate]] = []
+        for job in candidate_jobs:
+            best: tuple[int, float, DistanceBandEnum] | None = None
+            for area in areas:
+                band, km = classify_distance(job.suburb, area.suburb, coords)
+                rank = BAND_RANK[band]
+                if best is None or (rank, km) < (best[0], best[1]):
+                    best = (rank, km, band)
+
+            assert best is not None, "areas is non-empty, so best must be set"
+            band_rank, km, band = best
+            if band == DistanceBandEnum.FAR:
+                continue
+
+            candidate = OpenJobCandidate(
+                job_id=job.id,
+                trade=job.trade,
+                suburb=job.suburb,
+                budget_amount=job.budget_amount,
+                problem_description=job.problem_description,
+                created_at=job.created_at,
+                distance_band=band,
+                distance_km=round(km, 1),
+            )
+            ranked.append((band_rank, job.created_at or datetime.min, candidate))
+
+        ranked.sort(key=lambda entry: (entry[0], -entry[1].timestamp()))
+        return [candidate for _, _, candidate in ranked[offset : offset + limit]]
+
+
+class SubmitJobOfferUseCase:
+    """A worker (not yet booked) attaches their own price + availability to
+    a job that's still open (REQUESTED/MATCHED) — the hybrid matching
+    extension. Resubmitting revises the existing offer (upsert)."""
+
+    def __init__(
+        self,
+        jobs: JobRepository,
+        worker_profiles: WorkerMatchingProfilePort,
+        offers: JobOfferRepository,
+        uow: UnitOfWork,
+    ) -> None:
+        self._jobs = jobs
+        self._worker_profiles = worker_profiles
+        self._offers = offers
+        self._uow = uow
+
+    async def execute(
+        self,
+        *,
+        job_id: uuid.UUID,
+        worker_id: uuid.UUID,
+        quoted_amount: Decimal,
+        availability_note: str | None,
+    ) -> JobOffer:
+        job = await self._jobs.get(job_id)
+        if job is None:
+            raise NotFoundError("Job not found")
+
+        if job.status not in (JobStatusEnum.REQUESTED, JobStatusEnum.MATCHED):
+            raise ConflictError("Job is no longer open for offers")
+
+        if not await self._worker_profiles.has_skill(worker_id, job.trade):
+            raise ValidationConflictError("You are not skilled in this job's trade")
+
+        if await self._jobs.is_worker_busy(worker_id):
+            raise ConflictError("You are already committed to another active job")
+
+        offer = await self._offers.upsert(
+            job_id=job_id,
+            worker_id=worker_id,
+            quoted_amount=quoted_amount,
+            availability_note=availability_note,
+        )
+        await self._uow.commit()
+        return offer
 
 
 class BookJobUseCase:

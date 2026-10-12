@@ -4,7 +4,7 @@ from collections.abc import Sequence
 from datetime import datetime
 from decimal import Decimal
 
-from app.apps.jobs.domain.entities import Dispute, Job, LedgerEntry, RecordEntry
+from app.apps.jobs.domain.entities import Dispute, Job, JobOffer, LedgerEntry, RecordEntry
 from app.shared_kernel.enums import CurrencyEnum, LedgerEntryTypeEnum, TradeEnum
 
 
@@ -22,6 +22,7 @@ class JobRepository(ABC):
         longitude: Decimal | None,
         problem_description: str | None,
         problem_photo_url: str | None,
+        budget_amount: Decimal | None,
     ) -> Job:
         """Flushes (populating id/timestamps). Does not commit."""
 
@@ -43,6 +44,33 @@ class JobRepository(ABC):
     @abstractmethod
     async def is_worker_disputed(self, worker_id: uuid.UUID) -> bool:
         """True if this worker has any job currently under an open dispute."""
+
+    @abstractmethod
+    async def list_open_for_trade(self, trade: TradeEnum) -> Sequence[Job]:
+        """Jobs in REQUESTED/MATCHED status for this trade — candidates a
+        worker could still submit a JobOffer on. Ordered by created_at
+        desc. No pagination param: realistic pilot-scale volume, same
+        trade-off already accepted for the Python-side matching engine."""
+
+    @abstractmethod
+    async def list_by_buyer(
+        self, buyer_id: uuid.UUID, *, limit: int, offset: int
+    ) -> Sequence[Job]:
+        """This buyer's own jobs, newest first — user-facing and
+        potentially unbounded, unlike list_open_for_trade, so real
+        pagination applies here."""
+
+    @abstractmethod
+    async def list_by_worker(
+        self, worker_id: uuid.UUID, *, limit: int, offset: int
+    ) -> Sequence[Job]:
+        """This worker's own jobs (any status), newest first — same
+        pagination reasoning as list_by_buyer."""
+
+    @abstractmethod
+    async def get_many(self, job_ids: set[uuid.UUID]) -> dict[uuid.UUID, Job]:
+        """Batched job lookup, keyed by id — avoids N+1 when enriching a
+        worker's offer list with job context."""
 
 
 class LedgerEntryRepository(ABC):
@@ -103,3 +131,35 @@ class RecordEntryRepository(ABC):
 
     @abstractmethod
     async def get_by_job(self, job_id: uuid.UUID) -> RecordEntry | None: ...
+
+
+class JobOfferRepository(ABC):
+    @abstractmethod
+    async def upsert(
+        self,
+        *,
+        job_id: uuid.UUID,
+        worker_id: uuid.UUID,
+        quoted_amount: Decimal,
+        availability_note: str | None,
+    ) -> JobOffer:
+        """Creates or revises the (job_id, worker_id) offer. Flushes only — does not commit."""
+
+    @abstractmethod
+    async def get(self, job_id: uuid.UUID, worker_id: uuid.UUID) -> JobOffer | None: ...
+
+    @abstractmethod
+    async def get_for_job(self, job_id: uuid.UUID) -> dict[uuid.UUID, JobOffer]:
+        """Batched lookup, keyed by worker_id — avoids N+1 when enriching
+        up to 3 ranked match candidates."""
+
+    @abstractmethod
+    async def count_for_jobs(self, job_ids: set[uuid.UUID]) -> dict[uuid.UUID, int]:
+        """Batched offer count, keyed by job_id — avoids N+1 when listing
+        a buyer's own jobs."""
+
+    @abstractmethod
+    async def list_by_worker(self, worker_id: uuid.UUID) -> Sequence[JobOffer]:
+        """This worker's own submitted offers, across all jobs. No
+        pagination param: a single worker's offer count is inherently
+        small, same trade-off as list_open_for_trade."""

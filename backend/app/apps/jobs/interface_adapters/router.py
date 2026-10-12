@@ -1,11 +1,20 @@
 import uuid
 from collections.abc import Sequence
+from dataclasses import asdict
 
 from fastapi import APIRouter, Depends, status
 
 from app.apps.accounts.domain.entities import Person
 from app.apps.accounts.interface_adapters.dependencies import RequireRole, get_current_user
-from app.apps.jobs.domain.entities import Dispute, Job, LedgerEntry, MatchCandidate, RecordEntry
+from app.apps.jobs.domain.entities import (
+    Dispute,
+    Job,
+    JobOffer,
+    LedgerEntry,
+    MatchCandidate,
+    OpenJobCandidate,
+    RecordEntry,
+)
 from app.apps.jobs.domain.services import (
     BookJobUseCase,
     CompleteJobUseCase,
@@ -14,9 +23,14 @@ from app.apps.jobs.domain.services import (
     GetJobMatchesUseCase,
     GetJobRecordUseCase,
     GetJobUseCase,
+    ListAssignedJobsUseCase,
     ListJobDisputesUseCase,
+    ListMyJobsUseCase,
+    ListMyOffersUseCase,
+    ListOpenJobsForWorkerUseCase,
     RaiseDisputeUseCase,
     RespondToDisputeUseCase,
+    SubmitJobOfferUseCase,
     SubmitQuoteUseCase,
 )
 from app.apps.jobs.interface_adapters.dependencies import (
@@ -27,9 +41,14 @@ from app.apps.jobs.interface_adapters.dependencies import (
     get_get_job_matches_use_case,
     get_get_job_record_use_case,
     get_get_job_use_case,
+    get_list_assigned_jobs_use_case,
     get_list_job_disputes_use_case,
+    get_list_my_jobs_use_case,
+    get_list_my_offers_use_case,
+    get_list_open_jobs_use_case,
     get_raise_dispute_use_case,
     get_respond_to_dispute_use_case,
+    get_submit_job_offer_use_case,
     get_submit_quote_use_case,
 )
 from app.apps.jobs.interface_adapters.schemas import (
@@ -38,10 +57,15 @@ from app.apps.jobs.interface_adapters.schemas import (
     DisputeCreate,
     DisputeOut,
     DisputeResponseCreate,
+    JobOfferCreate,
+    JobOfferOut,
     JobOut,
     JobRequestCreate,
     LedgerEntryOut,
     MatchCandidateOut,
+    MyJobOut,
+    MyOfferOut,
+    OpenJobOut,
     QuoteCreate,
     RecordEntryOut,
 )
@@ -68,7 +92,91 @@ async def create_job_request(
         longitude=payload.longitude,
         problem_description=payload.problem_description,
         problem_photo_url=payload.problem_photo_url,
+        budget_amount=payload.budget_amount,
     )
+
+
+@router.get("/mine", response_model=list[MyJobOut])
+async def list_my_jobs(
+    current_user: Person = Depends(RequireRole([RoleEnum.BUYER])),
+    pagination: Pagination = Depends(pagination_params),
+    use_case: ListMyJobsUseCase = Depends(get_list_my_jobs_use_case),
+) -> list[MyJobOut]:
+    """This buyer's own jobs, newest first, each with its offer count.
+
+    Registered BEFORE `/{job_id}` below (same reason as `/open`): the
+    generic path would otherwise swallow this route and fail UUID parsing
+    on "mine".
+    """
+    pairs = await use_case.execute(
+        current_user.id, limit=pagination.limit, offset=pagination.offset
+    )
+    return [MyJobOut(**asdict(job), offer_count=count) for job, count in pairs]
+
+
+@router.get("/open", response_model=list[OpenJobOut])
+async def list_open_jobs(
+    current_user: Person = Depends(RequireRole([RoleEnum.WORKER])),
+    pagination: Pagination = Depends(pagination_params),
+    use_case: ListOpenJobsForWorkerUseCase = Depends(get_list_open_jobs_use_case),
+) -> list[OpenJobCandidate]:
+    """Jobs across this worker's trades that are still open (REQUESTED or
+    MATCHED) and within range of one of their declared service areas —
+    the worker-facing reverse view of matching, for submitting a JobOffer.
+
+    Registered BEFORE `/{job_id}` below: the generic path would otherwise
+    swallow this route and fail UUID parsing on "open".
+    """
+    return await use_case.execute(
+        current_user.id, limit=pagination.limit, offset=pagination.offset
+    )
+
+
+@router.get("/assigned", response_model=list[JobOut])
+async def list_assigned_jobs(
+    current_user: Person = Depends(RequireRole([RoleEnum.WORKER])),
+    pagination: Pagination = Depends(pagination_params),
+    use_case: ListAssignedJobsUseCase = Depends(get_list_assigned_jobs_use_case),
+) -> list[Job]:
+    """This worker's own jobs (any status), newest first.
+
+    Registered BEFORE `/{job_id}` below: same UUID-swallowing reason as
+    `/open` and `/my-offers`.
+    """
+    return await use_case.execute(
+        current_user.id, limit=pagination.limit, offset=pagination.offset
+    )
+
+
+@router.get("/my-offers", response_model=list[MyOfferOut])
+async def list_my_offers(
+    current_user: Person = Depends(RequireRole([RoleEnum.WORKER])),
+    use_case: ListMyOffersUseCase = Depends(get_list_my_offers_use_case),
+) -> list[MyOfferOut]:
+    """This worker's own submitted offers, across all jobs.
+
+    Registered BEFORE `/{job_id}` below: same UUID-swallowing reason as
+    `/open` and `/assigned`.
+    """
+    pairs = await use_case.execute(current_user.id)
+    results = []
+    for offer, job in pairs:
+        assert offer.created_at is not None, "JobOfferModel.created_at has a Python-side default"
+        assert offer.updated_at is not None, "JobOfferModel.updated_at has a Python-side default"
+        results.append(
+            MyOfferOut(
+                id=offer.id,
+                job_id=offer.job_id,
+                quoted_amount=offer.quoted_amount,
+                availability_note=offer.availability_note,
+                created_at=offer.created_at,
+                updated_at=offer.updated_at,
+                job_trade=job.trade,
+                job_suburb=job.suburb,
+                job_status=job.status,
+            )
+        )
+    return results
 
 
 @router.get("/{job_id}", response_model=JobOut)
@@ -92,6 +200,23 @@ async def get_job_matches(
     that lifecycle stage (BOOKED or later) no longer accepts new matches.
     """
     return await use_case.execute(job_id, current_user.id)
+
+
+@router.post("/{job_id}/offers", response_model=JobOfferOut, status_code=status.HTTP_201_CREATED)
+async def submit_job_offer(
+    job_id: uuid.UUID,
+    payload: JobOfferCreate,
+    current_user: Person = Depends(RequireRole([RoleEnum.WORKER])),
+    use_case: SubmitJobOfferUseCase = Depends(get_submit_job_offer_use_case),
+) -> JobOffer:
+    """A worker (not yet booked) attaches their own price + availability to
+    a still-open job. Resubmitting revises the existing offer."""
+    return await use_case.execute(
+        job_id=job_id,
+        worker_id=current_user.id,
+        quoted_amount=payload.quoted_amount,
+        availability_note=payload.availability_note,
+    )
 
 
 @router.post("/{job_id}/book", response_model=JobOut)

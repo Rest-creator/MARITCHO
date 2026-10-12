@@ -51,6 +51,7 @@ ignore = []
 extend-immutable-calls = [
     "fastapi.Depends",
     "fastapi.Query",
+    "fastapi.Form",
     "app.apps.accounts.interface_adapters.dependencies.RequireRole",
 ]
 
