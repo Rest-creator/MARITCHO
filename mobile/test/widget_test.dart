@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:mobile/core/storage/database_helper.dart';
 import 'package:mobile/core/storage/token_storage.dart';
 import 'package:mobile/features/accounts/data/repositories/auth_repository.dart';
 import 'package:mobile/features/jobs/data/repositories/jobs_repository.dart';
@@ -11,10 +12,11 @@ import 'package:mobile/main.dart';
 void main() {
   testWidgets('renders the Landing page with both role cards', (WidgetTester tester) async {
     final dio = Dio();
+    final dbHelper = DatabaseHelper();
     final authRepository = AuthRepository(dio, TokenStorage());
-    final jobsRepository = JobsRepository(dio);
+    final jobsRepository = JobsRepository(dio, dbHelper);
     final suburbsRepository = SuburbsRepository(dio);
-    final workersRepository = WorkersRepository(dio);
+    final workersRepository = WorkersRepository(dio, dbHelper);
 
     await tester.pumpWidget(
       MyApp(

@@ -18,6 +18,7 @@ import 'package:mobile/features/workers/presentation/cubit/my_work_cubit.dart';
 import 'package:mobile/features/workers/presentation/cubit/my_work_state.dart';
 import 'package:mobile/features/workers/presentation/cubit/worker_skills_cubit.dart';
 import 'package:mobile/features/workers/presentation/cubit/worker_skills_state.dart';
+import 'package:mobile/core/storage/database_helper.dart';
 
 const _openJob = OpenJob(
   jobId: 'job-1',
@@ -47,7 +48,7 @@ class _FakeWorkersRepository extends WorkersRepository {
         isFrozen: false,
       ),
     ),
-  }) : super(Dio());
+  }) : super(Dio(), DatabaseHelper());
 
   @override
   Future<Result<void, Failure>> registerSkill({
@@ -76,7 +77,7 @@ class _FakeJobsRepository extends JobsRepository {
     this.submitOfferResult = const Ok(null),
     this.listAssignedResult = const Ok([]),
     this.listMyOffersResult = const Ok([]),
-  }) : super(Dio());
+  }) : super(Dio(), DatabaseHelper());
 
   @override
   Future<Result<List<OpenJob>, Failure>> listOpen() async => listOpenResult;

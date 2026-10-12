@@ -18,8 +18,9 @@ class DatabaseHelper {
     String path = join(await getDatabasesPath(), 'maricho_offline.db');
     return await openDatabase(
       path,
-      version: 1,
+      version: 2,
       onCreate: _onCreate,
+      onUpgrade: _onUpgrade,
     );
   }
 
@@ -57,6 +58,49 @@ class DatabaseHelper {
         synced INTEGER NOT NULL DEFAULT 0
       )
     ''');
+
+    await _createCachedResponsesTable(db);
+  }
+
+  Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      await _createCachedResponsesTable(db);
+    }
+  }
+
+  Future<void> _createCachedResponsesTable(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS cached_responses (
+        cache_key TEXT PRIMARY KEY,
+        payload TEXT NOT NULL,
+        cached_at TEXT NOT NULL
+      )
+    ''');
+  }
+
+  /// Read-side offline cache: the last successful response for [cacheKey],
+  /// used as a fallback when a repository's live fetch fails (see
+  /// JobsRepository/WorkersRepository's cache-aside reads). Not the
+  /// write-side outbound queue above — that's `offline_queue`.
+  Future<void> cacheResponse(String cacheKey, String payload) async {
+    final db = await database;
+    await db.insert('cached_responses', {
+      'cache_key': cacheKey,
+      'payload': payload,
+      'cached_at': DateTime.now().toIso8601String(),
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
+  }
+
+  Future<String?> getCachedResponse(String cacheKey) async {
+    final db = await database;
+    final rows = await db.query(
+      'cached_responses',
+      where: 'cache_key = ?',
+      whereArgs: [cacheKey],
+      limit: 1,
+    );
+    if (rows.isEmpty) return null;
+    return rows.first['payload'] as String;
   }
 
   Future<void> insertOfflineAction(String type, String payload) async {

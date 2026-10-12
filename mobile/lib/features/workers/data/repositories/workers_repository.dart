@@ -1,13 +1,17 @@
+import 'dart:convert';
+
 import 'package:dio/dio.dart';
 
 import '../../../../core/error/failure.dart';
 import '../../../../core/error/result.dart';
+import '../../../../core/storage/database_helper.dart';
 import '../models/standing.dart';
 
 class WorkersRepository {
   final Dio _dio;
+  final DatabaseHelper _dbHelper;
 
-  WorkersRepository(this._dio);
+  WorkersRepository(this._dio, this._dbHelper);
 
   Future<Result<void, Failure>> registerSkill({
     required String trade,
@@ -39,11 +43,21 @@ class WorkersRepository {
     }
   }
 
+  /// Offline-first read, same cache-aside pattern as JobsRepository: try the
+  /// network first, cache the payload on success, and fall back to the last
+  /// cached standing if the live fetch fails.
   Future<Result<Standing, Failure>> getStanding() async {
+    const cacheKey = 'workers.standing';
     try {
       final response = await _dio.get<Map<String, dynamic>>('/workers/me/standing');
-      return Ok(Standing.fromJson(response.data!));
+      final raw = response.data!;
+      await _dbHelper.cacheResponse(cacheKey, jsonEncode(raw));
+      return Ok(Standing.fromJson(raw));
     } on DioException catch (e) {
+      final cached = await _dbHelper.getCachedResponse(cacheKey);
+      if (cached != null) {
+        return Ok(Standing.fromJson(jsonDecode(cached) as Map<String, dynamic>));
+      }
       return Error(_failureFor(e));
     }
   }

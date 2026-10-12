@@ -1,7 +1,10 @@
+import 'dart:convert';
+
 import 'package:dio/dio.dart';
 
 import '../../../../core/error/failure.dart';
 import '../../../../core/error/result.dart';
+import '../../../../core/storage/database_helper.dart';
 import '../models/job.dart';
 import '../models/match_candidate.dart';
 import '../models/my_offer.dart';
@@ -9,8 +12,9 @@ import '../models/open_job.dart';
 
 class JobsRepository {
   final Dio _dio;
+  final DatabaseHelper _dbHelper;
 
-  JobsRepository(this._dio);
+  JobsRepository(this._dio, this._dbHelper);
 
   Future<Result<Job, Failure>> createJob({
     required String trade,
@@ -35,19 +39,15 @@ class JobsRepository {
   }
 
   Future<Result<List<Job>, Failure>> listMine() {
-    return _call(() async {
-      final response = await _dio.get<List<dynamic>>('/jobs/mine');
-      return response.data!.map((json) => Job.fromJson(json as Map<String, dynamic>)).toList();
-    });
+    return _cachedList(cacheKey: 'jobs.listMine', path: '/jobs/mine', fromJson: Job.fromJson);
   }
 
   Future<Result<List<MatchCandidate>, Failure>> getMatches(String jobId) {
-    return _call(() async {
-      final response = await _dio.get<List<dynamic>>('/jobs/$jobId/matches');
-      return response.data!
-          .map((json) => MatchCandidate.fromJson(json as Map<String, dynamic>))
-          .toList();
-    });
+    return _cachedList(
+      cacheKey: 'jobs.matches.$jobId',
+      path: '/jobs/$jobId/matches',
+      fromJson: MatchCandidate.fromJson,
+    );
   }
 
   Future<Result<Job, Failure>> bookJob({
@@ -80,10 +80,7 @@ class JobsRepository {
   }
 
   Future<Result<List<OpenJob>, Failure>> listOpen() {
-    return _call(() async {
-      final response = await _dio.get<List<dynamic>>('/jobs/open');
-      return response.data!.map((json) => OpenJob.fromJson(json as Map<String, dynamic>)).toList();
-    });
+    return _cachedList(cacheKey: 'jobs.listOpen', path: '/jobs/open', fromJson: OpenJob.fromJson);
   }
 
   Future<Result<void, Failure>> submitOffer({
@@ -101,43 +98,62 @@ class JobsRepository {
       );
       return const Ok(null);
     } on DioException catch (e) {
-      final data = e.response?.data;
-      final detail = data is Map ? data['detail'] : null;
-      return Error(
-        NetworkFailure(
-          message: detail?.toString() ?? e.message ?? 'Could not reach the server',
-          exception: e,
-        ),
-      );
+      return Error(_failureFor(e));
     }
   }
 
   Future<Result<List<Job>, Failure>> listAssigned() {
-    return _call(() async {
-      final response = await _dio.get<List<dynamic>>('/jobs/assigned');
-      return response.data!.map((json) => Job.fromJson(json as Map<String, dynamic>)).toList();
-    });
+    return _cachedList(cacheKey: 'jobs.listAssigned', path: '/jobs/assigned', fromJson: Job.fromJson);
   }
 
   Future<Result<List<MyOffer>, Failure>> listMyOffers() {
-    return _call(() async {
-      final response = await _dio.get<List<dynamic>>('/jobs/my-offers');
-      return response.data!.map((json) => MyOffer.fromJson(json as Map<String, dynamic>)).toList();
-    });
+    return _cachedList(
+      cacheKey: 'jobs.listMyOffers',
+      path: '/jobs/my-offers',
+      fromJson: MyOffer.fromJson,
+    );
+  }
+
+  /// Offline-first read: fetch, cache the raw payload on success, and —
+  /// if the live fetch fails (no connectivity, backend unreachable) — fall
+  /// back to the last cached payload instead of surfacing an empty screen.
+  /// Mirrors the Mobile App Agent-First Development Guide's "Abstracting
+  /// the Offline Data Layer" pattern (try remote, fall back to local cache
+  /// on failure), applied to every list-reading endpoint in this repository.
+  Future<Result<List<T>, Failure>> _cachedList<T>({
+    required String cacheKey,
+    required String path,
+    required T Function(Map<String, dynamic>) fromJson,
+  }) async {
+    try {
+      final response = await _dio.get<List<dynamic>>(path);
+      final raw = response.data!;
+      await _dbHelper.cacheResponse(cacheKey, jsonEncode(raw));
+      return Ok(raw.map((json) => fromJson(json as Map<String, dynamic>)).toList());
+    } on DioException catch (e) {
+      final cached = await _dbHelper.getCachedResponse(cacheKey);
+      if (cached != null) {
+        final raw = jsonDecode(cached) as List<dynamic>;
+        return Ok(raw.map((json) => fromJson(json as Map<String, dynamic>)).toList());
+      }
+      return Error(_failureFor(e));
+    }
   }
 
   Future<Result<T, Failure>> _call<T>(Future<T> Function() request) async {
     try {
       return Ok(await request());
     } on DioException catch (e) {
-      final data = e.response?.data;
-      final detail = data is Map ? data['detail'] : null;
-      return Error(
-        NetworkFailure(
-          message: detail?.toString() ?? e.message ?? 'Could not reach the server',
-          exception: e,
-        ),
-      );
+      return Error(_failureFor(e));
     }
+  }
+
+  Failure _failureFor(DioException e) {
+    final data = e.response?.data;
+    final detail = data is Map ? data['detail'] : null;
+    return NetworkFailure(
+      message: detail?.toString() ?? e.message ?? 'Could not reach the server',
+      exception: e,
+    );
   }
 }

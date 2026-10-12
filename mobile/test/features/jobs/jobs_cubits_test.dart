@@ -14,6 +14,7 @@ import 'package:mobile/features/jobs/presentation/cubit/job_tracking_cubit.dart'
 import 'package:mobile/features/jobs/presentation/cubit/job_tracking_state.dart';
 import 'package:mobile/features/jobs/presentation/cubit/post_job_cubit.dart';
 import 'package:mobile/features/jobs/presentation/cubit/post_job_state.dart';
+import 'package:mobile/core/storage/database_helper.dart';
 
 Job _job({String status = 'REQUESTED', int? offerCount}) => Job(
   id: 'job-1',
@@ -77,7 +78,7 @@ class _FakeJobsRepository extends JobsRepository {
               suburb: 'Nkulumane', address: 'x', problemDescription: null, budgetAmount: null,
               currency: null, quoteAmount: null, createdAt: _defaultCreatedAt,
             )),
-       super(Dio());
+       super(Dio(), DatabaseHelper());
 
   @override
   Future<Result<List<Job>, Failure>> listMine() async => listMineResult;

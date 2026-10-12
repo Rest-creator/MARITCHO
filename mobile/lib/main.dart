@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'core/navigation/app_router.dart';
 import 'core/network/api_client.dart';
+import 'core/storage/database_helper.dart';
 import 'core/storage/token_storage.dart';
 import 'core/theme/app_theme.dart';
 import 'features/accounts/data/repositories/auth_repository.dart';
@@ -14,11 +15,12 @@ void main() {
   WidgetsFlutterBinding.ensureInitialized();
 
   final tokenStorage = TokenStorage();
+  final dbHelper = DatabaseHelper();
   final dio = buildApiDio(tokenStorage);
   final authRepository = AuthRepository(dio, tokenStorage);
-  final jobsRepository = JobsRepository(dio);
+  final jobsRepository = JobsRepository(dio, dbHelper);
   final suburbsRepository = SuburbsRepository(dio);
-  final workersRepository = WorkersRepository(dio);
+  final workersRepository = WorkersRepository(dio, dbHelper);
 
   runApp(
     MyApp(
