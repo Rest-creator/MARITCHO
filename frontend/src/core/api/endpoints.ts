@@ -75,6 +75,11 @@ export interface RaiseDisputeInput {
   reason: string;
 }
 
+export interface RespondToDisputeInput {
+  jobId: string;
+  response: string;
+}
+
 export interface SendMessageInput {
   jobId: string;
   message_type: MessageType;
@@ -160,6 +165,20 @@ export function completeJob({ jobId, ...body }: CompleteJobInput): Promise<Job> 
 
 export function raiseDispute({ jobId, ...body }: RaiseDisputeInput): Promise<Dispute> {
   return apiRequest(`/jobs/${encodeURIComponent(jobId)}/dispute`, {
+    method: "POST",
+    body,
+    schema: disputeSchema,
+  });
+}
+
+export function fetchDisputes(jobId: string): Promise<Dispute[]> {
+  return apiRequest(`/jobs/${encodeURIComponent(jobId)}/disputes`, {
+    schema: z.array(disputeSchema),
+  });
+}
+
+export function respondToDispute({ jobId, ...body }: RespondToDisputeInput): Promise<Dispute> {
+  return apiRequest(`/jobs/${encodeURIComponent(jobId)}/dispute/respond`, {
     method: "POST",
     body,
     schema: disputeSchema,

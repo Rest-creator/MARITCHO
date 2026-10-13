@@ -7,6 +7,7 @@ import {
   raiseDispute,
   registerServiceArea,
   registerSkill,
+  respondToDispute,
   sendMessage,
   submitOffer,
   submitQuote,
@@ -15,6 +16,7 @@ import {
   type CreateJobInput,
   type RaiseDisputeInput,
   type RegisterServiceAreaInput,
+  type RespondToDisputeInput,
   type SendMessageInput,
   type SubmitOfferInput,
   type SubmitQuoteInput,
@@ -105,6 +107,12 @@ export function createQueryClient(): QueryClient {
     queryKeys.myJobs,
     queryKeys.job(v.jobId),
   ]);
+  registerReplayable<RespondToDisputeInput>(
+    client,
+    mutationKeys.respondToDispute,
+    respondToDispute,
+    (v) => [queryKeys.assignedJobs, queryKeys.disputes(v.jobId), queryKeys.job(v.jobId)],
+  );
   registerReplayable<SendMessageInput>(client, mutationKeys.sendMessage, sendMessage, (v) => [
     queryKeys.messages(v.jobId),
   ]);

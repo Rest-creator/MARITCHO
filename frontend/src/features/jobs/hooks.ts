@@ -2,6 +2,7 @@ import { useMutation, useQuery, type UseQueryResult } from "@tanstack/react-quer
 
 import {
   fetchAssignedJobs,
+  fetchDisputes,
   fetchJob,
   fetchMatches,
   fetchMyJobs,
@@ -12,6 +13,7 @@ import {
   type CompleteJobInput,
   type CreateJobInput,
   type RaiseDisputeInput,
+  type RespondToDisputeInput,
   type SubmitOfferInput,
   type SubmitQuoteInput,
 } from "@/core/api/endpoints";
@@ -56,6 +58,14 @@ export function useRecord(jobId: string, isEnabled: boolean): UseQueryResult<Rec
   });
 }
 
+export function useDisputes(jobId: string, isEnabled: boolean): UseQueryResult<Dispute[]> {
+  return useQuery({
+    queryKey: queryKeys.disputes(jobId),
+    queryFn: () => fetchDisputes(jobId),
+    enabled: isEnabled,
+  });
+}
+
 export function useOpenJobs(): UseQueryResult<OpenJob[]> {
   return useQuery({ queryKey: queryKeys.openJobs, queryFn: fetchOpenJobs });
 }
@@ -96,4 +106,10 @@ export function useCompleteJob() {
 
 export function useRaiseDispute() {
   return useMutation<Dispute, Error, RaiseDisputeInput>({ mutationKey: mutationKeys.raiseDispute });
+}
+
+export function useRespondToDispute() {
+  return useMutation<Dispute, Error, RespondToDisputeInput>({
+    mutationKey: mutationKeys.respondToDispute,
+  });
 }
