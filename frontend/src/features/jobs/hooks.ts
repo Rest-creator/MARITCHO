@@ -39,6 +39,13 @@ export function useJob(jobId: string): UseQueryResult<Job> {
   return useQuery({ queryKey: queryKeys.job(jobId), queryFn: () => fetchJob(jobId) });
 }
 
+/** How often a buyer waiting on an open job checks for new offers. */
+const OFFER_POLL_MS = 30_000;
+
+/**
+ * Offers arrive while the buyer watches, so this list is never treated as
+ * fresh: refetch on every visit and every 30 s while the job is open.
+ */
 export function useMatches(
   jobId: string,
   isEnabled: boolean = true,
@@ -47,6 +54,8 @@ export function useMatches(
     queryKey: queryKeys.matches(jobId),
     queryFn: () => fetchMatches(jobId),
     enabled: isEnabled,
+    staleTime: 0,
+    refetchInterval: isEnabled ? OFFER_POLL_MS : false,
   });
 }
 

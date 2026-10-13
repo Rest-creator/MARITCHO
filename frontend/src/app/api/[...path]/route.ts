@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 
-import { backendUrl, isProxyPathAllowed, readSessionToken } from "@/server/backend";
+import { backendFetch, isProxyPathAllowed, readSessionToken } from "@/server/backend";
 
 type RouteContext = { params: Promise<{ path: string[] }> };
 
@@ -31,14 +31,13 @@ async function proxy(request: NextRequest, context: RouteContext): Promise<Respo
   }
 
   const hasBody = request.method !== "GET" && request.method !== "HEAD";
-  const target = `${backendUrl(`/${path.map(encodeURIComponent).join("/")}`)}${request.nextUrl.search}`;
+  const target = `/${path.map(encodeURIComponent).join("/")}${request.nextUrl.search}`;
 
   try {
-    const upstream = await fetch(target, {
+    const upstream = await backendFetch(target, {
       method: request.method,
       headers,
       body: hasBody ? await request.arrayBuffer() : undefined,
-      cache: "no-store",
     });
     const responseHeaders = new Headers();
     const contentType = upstream.headers.get("content-type");

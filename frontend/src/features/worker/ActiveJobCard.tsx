@@ -17,7 +17,7 @@ function directionsUrl(job: Job): string {
   if (job.latitude !== null && job.longitude !== null) {
     return `https://www.google.com/maps/dir/?api=1&destination=${job.latitude},${job.longitude}`;
   }
-  const query = encodeURIComponent(`${job.address}, ${job.suburb}, Harare`);
+  const query = encodeURIComponent(`${job.address}, ${job.suburb}, Zimbabwe`);
   return `https://www.google.com/maps/search/?api=1&query=${query}`;
 }
 

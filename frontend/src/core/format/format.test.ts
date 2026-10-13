@@ -94,7 +94,8 @@ describe("labels", () => {
   it("formats distances and rates", () => {
     expect(formatKm(3.24)).toBe("3.2 km");
     expect(formatKm(12.6)).toBe("13 km");
-    expect(formatPercent(0.925)).toBe("93%");
+    expect(formatPercent(92.5)).toBe("93%");
+    expect(formatPercent(100)).toBe("100%");
   });
 
   it("maps enums to plain words", () => {

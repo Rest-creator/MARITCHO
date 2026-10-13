@@ -7,18 +7,21 @@ Conventions follow the ECC React / TypeScript / web rules.
 ## Run it
 
 ```bash
-cp .env.example .env.local      # BACKEND_URL defaults to http://localhost:8000
+cp .env.example .env.local      # BACKEND_URL defaults to http://127.0.0.1:8000
 npm install
 npm run dev                     # http://localhost:3000
 ```
 
-The backend must be running (see [`/backend`](../backend)). When starting it with Docker
-Compose, give it its own project name so it can't collide with other projects whose folder
-is also called `backend`:
+The backend must be running (see [`/backend`](../backend)):
 
 ```bash
-cd ../backend && docker compose -p maricho up -d --build
+cd ../backend && docker compose up -d --build     # project is named "maricho" in the file
+# If 5432/6379 are taken on your machine, move the host ports (the API doesn't need them):
+MARICHO_DB_PORT=15433 MARICHO_REDIS_PORT=16380 docker compose up -d --build
 ```
+
+Use `127.0.0.1`, not `localhost`, in `BACKEND_URL`: Node can resolve `localhost` to `::1`,
+which Docker Desktop's port forwarding doesn't answer.
 
 ## Checks
 

@@ -4,7 +4,7 @@ import { z } from "zod";
 import { tokenSchema, userSchema } from "@/core/api/schemas";
 import {
   SESSION_COOKIE,
-  backendUrl,
+  backendFetch,
   readSessionToken,
   sessionCookieOptions,
 } from "@/server/backend";
@@ -22,10 +22,7 @@ function unreachable(): NextResponse {
 }
 
 async function fetchMe(token: string): Promise<Response> {
-  return fetch(backendUrl("/users/me"), {
-    headers: { authorization: `Bearer ${token}` },
-    cache: "no-store",
-  });
+  return backendFetch("/users/me", { headers: { authorization: `Bearer ${token}` } });
 }
 
 /** Who is signed in — `null` when nobody is (not an error for an anonymous visit). */
@@ -66,11 +63,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       password: "",
       role: parsed.data.role,
     });
-    const tokenResponse = await fetch(backendUrl("/token"), {
+    const tokenResponse = await backendFetch("/token", {
       method: "POST",
       headers: { "content-type": "application/x-www-form-urlencoded" },
       body: form,
-      cache: "no-store",
     });
     if (!tokenResponse.ok) {
       return NextResponse.json({ detail: "Sign-in failed" }, { status: tokenResponse.status });

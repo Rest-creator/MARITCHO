@@ -36,6 +36,17 @@ function notifyUnauthorized(error: unknown): void {
   }
 }
 
+/**
+ * A signed-out (`null`) session is never written to the device: restoring a
+ * stale `null` right after signing in would bounce the person back to sign-up.
+ * A signed-in session *is* kept, so the app still opens offline.
+ */
+export function shouldPersistQuery(queryKey: QueryKey, data: unknown): boolean {
+  const isSession =
+    queryKey.length === queryKeys.session.length && queryKey[0] === queryKeys.session[0];
+  return !(isSession && data === null);
+}
+
 export function shouldRetry(failureCount: number, error: unknown): boolean {
   if (error instanceof ApiError && !error.isNetwork && error.status < 500) {
     return false;

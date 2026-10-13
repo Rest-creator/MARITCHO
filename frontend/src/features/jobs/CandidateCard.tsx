@@ -17,7 +17,7 @@ type Props = {
 /** One person who offered to help (design E4). */
 export function CandidateCard({ job, candidate, isTopPick, onHire }: Props) {
   const title = candidateTitle(candidate, job.trade);
-  const availability = candidate.availability_note ?? candidate.reason;
+  const availability = candidate.availability_note ?? "Hasn't offered yet";
 
   return (
     <article
@@ -47,7 +47,9 @@ export function CandidateCard({ job, candidate, isTopPick, onHire }: Props) {
                   <Icon name="clock" size={12} strokeWidth={2.4} />
                   {formatPercent(candidate.on_time_rate)} on time
                 </span>
-                <span>{candidate.jobs_completed} jobs done</span>
+                <span>
+                  {candidate.jobs_completed} {candidate.jobs_completed === 1 ? "job" : "jobs"} done
+                </span>
               </>
             )}
           </div>

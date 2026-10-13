@@ -78,8 +78,8 @@ export function formatKm(km: number): string {
 }
 
 export function formatPercent(rate: number): string {
-  // Backend rates are 0–1 fractions.
-  return `${Math.round(rate * 100)}%`;
+  // Backend rates are already percentages (0–100), e.g. Decimal("100.00").
+  return `${Math.round(rate)}%`;
 }
 
 const DISTANCE_BAND_LABELS: Record<DistanceBand, string> = {

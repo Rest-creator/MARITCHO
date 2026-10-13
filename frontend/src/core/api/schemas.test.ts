@@ -25,9 +25,9 @@ describe("backend contracts", () => {
       distance_band: "FAR",
       distance_km: 12,
       grade: "APPRENTICE",
-      on_time_rate: "0.80",
+      on_time_rate: "80.00",
       dispute_rate: "0.00",
-      fill_rate: "1.00",
+      fill_rate: "100.00",
       jobs_completed: 4,
       reason: "Skilled",
       quoted_amount: null,
@@ -35,7 +35,7 @@ describe("backend contracts", () => {
       quoted_at: null,
     });
     expect(parsed.quoted_amount).toBeNull();
-    expect(parsed.on_time_rate).toBe(0.8);
+    expect(parsed.on_time_rate).toBe(80);
   });
 
   it("rejects values outside the backend enums", () => {

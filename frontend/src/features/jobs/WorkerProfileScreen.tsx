@@ -19,7 +19,12 @@ import {
 import { tradeLabel } from "@/core/format/trades";
 import { HireSheet } from "@/features/jobs/HireSheet";
 import { useJob, useMatches } from "@/features/jobs/hooks";
-import { candidatePrice, candidateTitle, isOpenStatus } from "@/features/jobs/job-helpers";
+import {
+  candidatePrice,
+  candidateTitle,
+  isOpenStatus,
+  matchExplanation,
+} from "@/features/jobs/job-helpers";
 
 type Props = { jobId: string; workerId: string };
 
@@ -137,7 +142,7 @@ export function WorkerProfileScreen({ jobId, workerId }: Props) {
             className="meta meta--secondary"
             style={{ marginTop: 8, fontSize: 13, lineHeight: 1.5 }}
           >
-            {candidate.reason}
+            {matchExplanation(candidate, job.data.trade)}
           </p>
           {candidate.availability_note && (
             <div

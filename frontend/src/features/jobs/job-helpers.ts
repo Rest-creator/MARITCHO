@@ -1,5 +1,5 @@
 import type { Job, JobStatus, MatchCandidate, MyJob } from "@/core/api/schemas";
-import { gradeLabel } from "@/core/format/format";
+import { distanceBandLabel, formatKm, formatPercent, gradeLabel } from "@/core/format/format";
 import { tradeLabel } from "@/core/format/trades";
 
 /** Jobs still collecting offers — the buyer reviews applicants. */
@@ -131,4 +131,33 @@ export function splitTiming(description: string | null): { text: string; timing:
     return { text: lines.slice(0, -1).join("\n").trim(), timing: last.slice(NEEDED_PREFIX.length) };
   }
   return { text: description, timing: null };
+}
+
+/**
+ * Plain-language "why we matched them", built from the structured fields.
+ * The backend's `reason` string is an audit trail, not copy for people.
+ */
+export function matchExplanation(
+  candidate: Pick<
+    MatchCandidate,
+    | "suburb"
+    | "distance_band"
+    | "distance_km"
+    | "grade"
+    | "jobs_completed"
+    | "on_time_rate"
+    | "dispute_rate"
+  >,
+  trade: Job["trade"],
+): string {
+  const where = `${distanceBandLabel(candidate.distance_band).toLowerCase()} — based in ${candidate.suburb}, ${formatKm(candidate.distance_km)} away`;
+  const skill = `Registered for ${tradeLabel(trade).toLowerCase()} work`;
+  if (candidate.jobs_completed === 0) {
+    return `${skill}, ${where}. New on Maricho, so there's no track record yet.`;
+  }
+  return (
+    `${skill}, ${where}. ${gradeLabel(candidate.grade)} with ${candidate.jobs_completed} ` +
+    `${candidate.jobs_completed === 1 ? "job" : "jobs"} done: ${formatPercent(candidate.on_time_rate)} on time, ` +
+    `${formatPercent(candidate.dispute_rate)} disputed.`
+  );
 }

@@ -11,6 +11,7 @@ import {
   employerJobHref,
   finishedJobs,
   isOpenStatus,
+  matchExplanation,
   sortCandidates,
   splitTiming,
   summariseJob,
@@ -25,9 +26,9 @@ function candidate(overrides: Partial<MatchCandidate>): MatchCandidate {
     distance_band: "NEARBY",
     distance_km: 3,
     grade: "JOURNEYMAN",
-    on_time_rate: 0.9,
+    on_time_rate: 90,
     dispute_rate: 0,
-    fill_rate: 0.95,
+    fill_rate: 95,
     jobs_completed: 10,
     reason: "Skilled in plumbing",
     quoted_amount: null,
@@ -180,5 +181,31 @@ describe("timing in descriptions", () => {
   it("handles descriptions without timing", () => {
     expect(splitTiming("Just a leak")).toEqual({ text: "Just a leak", timing: null });
     expect(splitTiming(null)).toEqual({ text: "", timing: null });
+  });
+});
+
+describe("matchExplanation", () => {
+  it("explains a new worker without inventing a record", () => {
+    const text = matchExplanation(
+      candidate({
+        jobs_completed: 0,
+        distance_band: "SAME_SUBURB",
+        distance_km: 0,
+        suburb: "Entumbane",
+      }),
+      "PLUMBING",
+    );
+    expect(text).toBe(
+      "Registered for plumber work, same suburb — based in Entumbane, 0.0 km away. New on Maricho, so there's no track record yet.",
+    );
+  });
+
+  it("summarises an experienced worker's record", () => {
+    const text = matchExplanation(
+      candidate({ grade: "EXPERT", jobs_completed: 31, on_time_rate: 96, dispute_rate: 2 }),
+      "PLUMBING",
+    );
+    expect(text).toContain("Expert with 31 jobs done: 96% on time, 2% disputed.");
+    expect(text).not.toMatch(/Enum|PLUMBING/);
   });
 });

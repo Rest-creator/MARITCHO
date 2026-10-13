@@ -2,9 +2,10 @@
 
 import { useState, type ReactNode } from "react";
 import { createSyncStoragePersister } from "@tanstack/query-sync-storage-persister";
+import { defaultShouldDehydrateQuery } from "@tanstack/react-query";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 
-import { CACHE_MAX_AGE_MS, createQueryClient } from "@/core/query/query-client";
+import { CACHE_MAX_AGE_MS, createQueryClient, shouldPersistQuery } from "@/core/query/query-client";
 
 /** Bump when a cached payload shape changes, so stale caches are discarded. */
 const CACHE_BUSTER = "maricho-v1";
@@ -39,6 +40,9 @@ export function QueryProvider({ children }: Props) {
         dehydrateOptions: {
           // Keep paused (offline-queued) mutations so they survive a reload.
           shouldDehydrateMutation: (mutation) => mutation.state.isPaused,
+          shouldDehydrateQuery: (query) =>
+            defaultShouldDehydrateQuery(query) &&
+            shouldPersistQuery(query.queryKey, query.state.data),
         },
       }}
       onSuccess={() => {

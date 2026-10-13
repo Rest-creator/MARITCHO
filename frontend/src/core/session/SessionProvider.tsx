@@ -106,7 +106,8 @@ export function SessionProvider({ children }: Props) {
   const value = useMemo<SessionValue>(
     () => ({
       user: session.data ?? null,
-      isLoading: session.isPending,
+      // A `null` still being re-checked is not yet a reason to send anyone to sign-up.
+      isLoading: session.isPending || (session.data === null && session.isFetching),
       signIn: signInAsync,
       isSigningIn,
       signInError: signInFailure instanceof Error ? signInFailure.message : null,
@@ -119,7 +120,16 @@ export function SessionProvider({ children }: Props) {
         router.replace("/");
       },
     }),
-    [session.data, session.isPending, signInAsync, isSigningIn, signInFailure, queryClient, router],
+    [
+      session.data,
+      session.isPending,
+      session.isFetching,
+      signInAsync,
+      isSigningIn,
+      signInFailure,
+      queryClient,
+      router,
+    ],
   );
 
   return <SessionContext value={value}>{children}</SessionContext>;
