@@ -64,6 +64,7 @@ export function WorkerProfileScreen({ jobId, workerId }: Props) {
 
   const title = candidateTitle(candidate, job.data.trade);
   const price = candidatePrice(candidate, job.data);
+  const hasHistory = candidate.jobs_completed > 0;
 
   return (
     <Screen glow="worker" isPadded={false}>
@@ -90,7 +91,9 @@ export function WorkerProfileScreen({ jobId, workerId }: Props) {
 
         <div className="stat-grid">
           <div className="stat-tile">
-            <div className="stat__value text-amber">{formatPercent(candidate.on_time_rate)}</div>
+            <div className="stat__value text-amber">
+              {hasHistory ? formatPercent(candidate.on_time_rate) : "New"}
+            </div>
             <div className="stat__label">On time</div>
           </div>
           <div className="stat-tile">
@@ -98,7 +101,9 @@ export function WorkerProfileScreen({ jobId, workerId }: Props) {
             <div className="stat__label">Jobs done</div>
           </div>
           <div className="stat-tile">
-            <div className="stat__value">{formatPercent(candidate.fill_rate)}</div>
+            <div className="stat__value">
+              {hasHistory ? formatPercent(candidate.fill_rate) : "—"}
+            </div>
             <div className="stat__label">Shows up</div>
           </div>
         </div>
@@ -112,7 +117,9 @@ export function WorkerProfileScreen({ jobId, workerId }: Props) {
               )}
               {gradeLabel(candidate.grade)} · {tradeLabel(job.data.trade)}
             </span>
-            <span className="tag">{formatPercent(candidate.dispute_rate)} of jobs disputed</span>
+            {hasHistory && (
+              <span className="tag">{formatPercent(candidate.dispute_rate)} of jobs disputed</span>
+            )}
             {candidate.travel_means && (
               <span className="tag">Travels by {candidate.travel_means}</span>
             )}

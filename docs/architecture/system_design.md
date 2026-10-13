@@ -6,7 +6,7 @@ Maricho utilizes a modular monolithic backend designed for self-hosted container
 Internally, the backend follows Clean Architecture combined with domain-based "apps" (`app/apps/{accounts,suburbs,payments,workers,jobs,crews}/`, each with `domain/`/`infrastructure/`/`interface_adapters/` layers), plus `app/core/` (shared framework code) and `app/shared_kernel/` (framework-free vocabulary and cross-app ports) — see ADR-007 for the full rationale. This is an internal code-organization decision only: the HTTP contract, Postgres schema, and business behavior described below are unchanged by it.
 
 The architecture consists of:
-- **Client Tier:** React Native (Expo) mobile clients for offline-first capabilities (Sprint 3, `APP-00x`, not yet started). Next.js PWA for web access (not yet started). **WhatsApp Business API intake (planned, not yet built):** named as explicit Stage One scope in `docs/discovery/business_case.md`, but no WhatsApp integration code exists anywhere in `app/` today — see ADR-006. This line previously read as if the integration existed; corrected 2026-09-18.
+- **Client Tier:** React Native (Expo) mobile clients for offline-first capabilities (Sprint 3, `APP-00x`, not yet started). Next.js PWA for web access in `frontend/` (WEB-001..003, 2026-10-13): talks to the API only through its own `/api/*` backend-for-frontend proxy, which holds the JWT in an httpOnly cookie; chat connects straight to `/jobs/{id}/ws`. **WhatsApp Business API intake (planned, not yet built):** named as explicit Stage One scope in `docs/discovery/business_case.md`, but no WhatsApp integration code exists anywhere in `app/` today — see ADR-006. This line previously read as if the integration existed; corrected 2026-09-18.
 - **API Gateway / App Server:** FastAPI (Python) serving a REST API and auto-generating OpenAPI schemas. Handles routing, auth, and request validation.
 - **Message Broker (planned, not yet built):** Redis is provisioned in
   `docker-compose.yml` and reserved for background job queues (Celery/ARQ)
@@ -32,8 +32,8 @@ graph TD
     Worker -.-> DB
 ```
 The dashed edges mark the parts of this diagram that are aspirational: the
-FastAPI backend and its PostgreSQL connection are real and tested today; no
-PWA, no mobile app, no WhatsApp integration, and no background worker exist
+FastAPI backend and its PostgreSQL connection are real and tested today, and
+the `frontend/` PWA now calls it through its BFF proxy; no mobile app, no WhatsApp integration, and no background worker exist
 yet. Today the API is exercised directly (tests, curl/Postman, the
 auto-generated OpenAPI docs) rather than through any of the dashed clients.
 

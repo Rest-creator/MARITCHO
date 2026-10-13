@@ -39,7 +39,7 @@ export function EmployerHomeScreen() {
   const name = firstName(profile.name);
 
   return (
-    <Screen hasTabBar bodyClassName="screen__body--roomy">
+    <Screen hasTabBar bodyClassName="screen__body--roomy screen__body--fab">
       <header className="topbar topbar--split">
         <div>
           <div className="meta" style={{ fontSize: 13 }}>

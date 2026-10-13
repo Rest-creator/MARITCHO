@@ -28,11 +28,11 @@ async function fetchMe(token: string): Promise<Response> {
   });
 }
 
-/** Who is signed in (or 401). */
+/** Who is signed in — `null` when nobody is (not an error for an anonymous visit). */
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const token = readSessionToken(request);
   if (token === null) {
-    return NextResponse.json({ detail: "Not signed in" }, { status: 401 });
+    return NextResponse.json(null);
   }
   try {
     const me = await fetchMe(token);

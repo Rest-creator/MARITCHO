@@ -39,11 +39,17 @@ export function CandidateCard({ job, candidate, isTopPick, onHire }: Props) {
             {tradeLabel(job.trade)} · {formatKm(candidate.distance_km)} away · {availability}
           </div>
           <div className="row meta meta--secondary" style={{ marginTop: 6, gap: 10 }}>
-            <span className="rating">
-              <Icon name="clock" size={12} strokeWidth={2.4} />
-              {formatPercent(candidate.on_time_rate)} on time
-            </span>
-            <span>{candidate.jobs_completed} jobs done</span>
+            {candidate.jobs_completed === 0 ? (
+              <span>No jobs on Maricho yet</span>
+            ) : (
+              <>
+                <span className="rating">
+                  <Icon name="clock" size={12} strokeWidth={2.4} />
+                  {formatPercent(candidate.on_time_rate)} on time
+                </span>
+                <span>{candidate.jobs_completed} jobs done</span>
+              </>
+            )}
           </div>
         </div>
         <div style={{ textAlign: "right" }}>

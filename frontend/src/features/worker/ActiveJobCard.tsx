@@ -26,7 +26,7 @@ export function ActiveJobCard({ job, offeredAmount }: Props) {
   const [sheet, setSheet] = useState<"quote" | "respond" | null>(null);
   const { text, timing } = splitTiming(job.problem_description);
   const title = text.split("\n")[0] || tradeLabel(job.trade);
-  const price = job.quote_amount ?? offeredAmount;
+  const price = job.quote_amount ?? offeredAmount ?? job.budget_amount;
 
   const badge =
     job.status === "BOOKED"

@@ -87,6 +87,11 @@
   padding-bottom: 110px;
 }
 
+/* Room to scroll the last item clear of the floating "Post a job" button. */
+.screen__body--fab {
+  padding-bottom: 170px;
+}
+
 .screen__body--roomy {
   gap: 20px;
 }
@@ -276,6 +281,11 @@ a.card:hover {
   border-color: var(--line-bold);
 }
 
+/* A card that is also a row keeps the row's flex layout. */
+.card.row {
+  display: flex;
+}
+
 .card--compact {
   padding: 12px 14px;
 }
@@ -423,7 +433,9 @@ a.card:hover {
 }
 
 .btn--sm {
+  padding: 0 8px;
   font-size: var(--text-md);
+  white-space: nowrap;
 }
 
 .btn--block {

@@ -49,7 +49,7 @@ async function fetchSession(): Promise<User | null> {
   if (!response.ok) {
     throw new ApiError("Could not check your sign-in", response.status);
   }
-  return userSchema.parse(await readJson(response));
+  return userSchema.nullable().parse(await readJson(response));
 }
 
 async function postSession(input: SignInInput): Promise<User> {
