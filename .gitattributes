@@ -1,0 +1,4 @@
+# Shell scripts run inside Linux containers: never convert them to CRLF,
+# whatever core.autocrlf says on a Windows checkout.
+*.sh text eol=lf
+Dockerfile text eol=lf

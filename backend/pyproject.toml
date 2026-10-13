@@ -9,7 +9,7 @@ description = "FastAPI backend for Maricho skilled work platform"
 requires-python = ">=3.11"
 dependencies = [
     "fastapi>=0.110.0",
-    "uvicorn>=0.29.0",
+    "uvicorn[standard]>=0.29.0",  # [standard] brings `websockets`, needed by /jobs/{id}/ws
     "pydantic>=2.6.0",
     "pydantic-settings>=2.2.0",
     "sqlalchemy[asyncio]>=2.0.29",

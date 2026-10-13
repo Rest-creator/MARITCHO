@@ -30,6 +30,8 @@ async def test_matching_returns_eligible_worker(client, buyer, worker_factory):
     candidates = response.json()
     assert len(candidates) == 1
     assert candidates[0]["reason"]
+    # Enum values, not reprs like "GradeEnum.REGISTERED", in the explanation.
+    assert "Enum." not in candidates[0]["reason"]
 
 
 async def test_matching_excludes_wrong_trade(client, buyer, worker_factory):

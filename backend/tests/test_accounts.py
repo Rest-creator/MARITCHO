@@ -46,3 +46,16 @@ async def test_login_rejects_invalid_role(client):
         "/token", data={"username": "+263771234570", "password": "", "role": "NOT_A_ROLE"}
     )
     assert response.status_code == 422
+
+
+async def test_login_token_lasts_the_configured_seven_days(client):
+    """Regression: /token used to fall back to a 15-minute expiry."""
+    from datetime import datetime, timezone
+
+    from app.core.security import ACCESS_TOKEN_EXPIRE_MINUTES, decode_access_token
+
+    response = await client.post("/token", data={"username": "+263771234570", "password": ""})
+    claims = decode_access_token(response.json()["access_token"])
+
+    remaining_minutes = (claims["exp"] - datetime.now(timezone.utc).timestamp()) / 60
+    assert remaining_minutes > ACCESS_TOKEN_EXPIRE_MINUTES - 5

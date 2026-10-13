@@ -94,7 +94,7 @@ class JobMatchingService:
             score = _standing_score(grade, on_time_rate, dispute_rate, fill_rate)
             reason = (
                 f"{job.trade.value} skill; {area.suburb} is {band.value} ({km:.1f}km) "
-                f"to {job.suburb}; grade {grade}, {on_time_rate}% on-time, "
+                f"to {job.suburb}; grade {grade.value}, {on_time_rate}% on-time, "
                 f"{dispute_rate}% disputed, {fill_rate}% fill rate"
             )
 

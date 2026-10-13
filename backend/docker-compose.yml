@@ -1,3 +1,7 @@
+# Explicit project name: the folder is called "backend", which collides with other
+# compose projects on the same machine when left to the default.
+name: maricho
+
 services:
   db:
     image: postgres:15
@@ -6,7 +10,7 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: maricho
     ports:
-      - "5432:5432"
+      - "${MARICHO_DB_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -18,7 +22,7 @@ services:
   redis:
     image: redis:7
     ports:
-      - "6379:6379"
+      - "${MARICHO_REDIS_PORT:-6379}:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -35,7 +39,7 @@ services:
       # Dev-only placeholder — override with a real secret outside local dev.
       SECRET_KEY: dev-only-secret-change-in-real-deployments
     ports:
-      - "8000:8000"
+      - "${MARICHO_API_PORT:-8000}:8000"
     depends_on:
       db:
         condition: service_healthy
