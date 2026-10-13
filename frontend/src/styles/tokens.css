@@ -1,0 +1,110 @@
+/*
+ * Maricho design tokens — lifted from the approved app UI (wireframes/README.md).
+ * Every colour, radius and size used by components must come from here.
+ */
+:root {
+  color-scheme: dark;
+
+  /* Surfaces */
+  --color-bg: #0f172a;
+  --color-bg-raised: #1e293b;
+  --color-sheet: rgba(30, 41, 59, 0.82);
+  --color-scrim: rgba(2, 6, 23, 0.55);
+  --color-bar: rgba(15, 23, 42, 0.75);
+  --color-nav: rgba(30, 41, 59, 0.7);
+
+  /* Glass */
+  --glass-faint: rgba(255, 255, 255, 0.04);
+  --glass-subtle: rgba(255, 255, 255, 0.05);
+  --glass: rgba(255, 255, 255, 0.06);
+  --glass-strong: rgba(255, 255, 255, 0.07);
+  --glass-bold: rgba(255, 255, 255, 0.08);
+  --glass-selected: rgba(255, 255, 255, 0.14);
+  --line-faint: rgba(255, 255, 255, 0.08);
+  --line-subtle: rgba(255, 255, 255, 0.1);
+  --line: rgba(255, 255, 255, 0.12);
+  --line-strong: rgba(255, 255, 255, 0.14);
+  --line-bold: rgba(255, 255, 255, 0.18);
+  --line-dashed: rgba(255, 255, 255, 0.25);
+  --blur-card: blur(20px);
+  --blur-bar: blur(24px);
+  --blur-sheet: blur(28px);
+
+  /* Text */
+  --text: #f1f5f9;
+  --text-soft: #e2e8f0;
+  --text-secondary: #cbd5e1;
+  --text-muted: #94a3b8;
+  --text-dim: #64748b;
+
+  /* Employer / primary accent — amber */
+  --amber: #f59e0b;
+  --amber-light: #fbbf24;
+  --amber-lighter: #fcd34d;
+  --amber-pale: #fde68a;
+  --amber-ink: #1c1917;
+  --amber-tint: rgba(245, 158, 11, 0.16);
+  --amber-tint-soft: rgba(245, 158, 11, 0.12);
+  --amber-edge: rgba(245, 158, 11, 0.4);
+  --amber-glow: #b45309;
+
+  /* Worker accent — emerald */
+  --emerald: #10b981;
+  --emerald-light: #34d399;
+  --emerald-lighter: #6ee7b7;
+  --emerald-pale: #a7f3d0;
+  --emerald-mist: #d1fae5;
+  --emerald-ink: #052e1f;
+  --emerald-tint: rgba(16, 185, 129, 0.14);
+  --emerald-tint-soft: rgba(16, 185, 129, 0.1);
+  --emerald-edge: rgba(16, 185, 129, 0.3);
+  --moss-glow: #3f6b57;
+  --slate-glow: #334155;
+
+  --danger: #f87171;
+  --danger-tint: rgba(248, 113, 113, 0.12);
+  --danger-edge: rgba(248, 113, 113, 0.35);
+
+  /* Avatar fills */
+  --avatar-slate: #475569;
+  --avatar-stone: #57534e;
+  --avatar-moss: #3f6b57;
+  --avatar-warm: #78716c;
+
+  /* Typography */
+  --font-sans: var(--font-jakarta), "Plus Jakarta Sans", system-ui, sans-serif;
+  --text-2xs: 10px;
+  --text-xs: 11px;
+  --text-sm: 12px;
+  --text-md: 13px;
+  --text-base: 14px;
+  --text-lg: 15px;
+  --text-xl: 16px;
+  --text-2xl: 17px;
+  --text-3xl: 20px;
+  --text-4xl: 22px;
+  --text-5xl: 26px;
+  --text-6xl: 28px;
+  --text-hero: 34px;
+
+  /* Radii */
+  --radius-xs: 8px;
+  --radius-sm: 10px;
+  --radius-md: 12px;
+  --radius-lg: 14px;
+  --radius-xl: 16px;
+  --radius-2xl: 18px;
+  --radius-nav: 20px;
+  --radius-sheet: 28px;
+
+  /* Sizing */
+  --tap-min: 44px;
+  --cta-height: 56px;
+  --input-height: 54px;
+  --gutter: 20px;
+  --app-max-width: 480px;
+
+  --duration-fast: 150ms;
+  --duration-normal: 250ms;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+}
