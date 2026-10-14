@@ -57,15 +57,27 @@ npm run test:visual:update   # accept intended UI changes as the new baselines
 ## How it fits together
 
 ```
-browser ──/api/*──▶ Next.js route handler (BFF) ──Bearer JWT──▶ FastAPI
-   │                     └─ JWT lives in an httpOnly cookie, never in page JS
-   └──ws──▶ FastAPI /jobs/{id}/ws   (chat push; token fetched from /api/session/socket-token)
+browser ────/api/*──┐
+                    ├─▶ Next.js route handlers (the BFF) ──Bearer JWT──▶ FastAPI
+mobile app ─/api/*──┘     web: JWT in an httpOnly cookie, never in page JS
+                          app: JWT returned at sign-in, sent as Authorization: Bearer
+browser / app ──ws──▶ FastAPI /jobs/{id}/ws   (chat push; can't go through route handlers)
 ```
+
+This server is the **one backend-for-frontend for both the website and the mobile app**
+([ADR-009](../docs/architecture/adr/009-single-bff-for-web-and-mobile.md)). It owns the client
+contract; every FastAPI address it depends on is listed in `src/server/backend-routes.ts`. When
+the backend renames something, change that file, not the apps. The lifecycle E2E job checks
+the list against the running backend's `/openapi.json`, so drift fails CI.
+
+The mobile app signs in through the same `POST /api/session` with `X-Maricho-Client: mobile`
+and gets `{ user, access_token }` back instead of a cookie.
 
 | Path                 | What lives there                                                                          |
 | -------------------- | ----------------------------------------------------------------------------------------- |
 | `src/app/`           | Routes only — thin pages that hand params to feature screens                              |
-| `src/app/api/`       | BFF: `[...path]` proxy (allow-listed roots), `session` sign-in/out                        |
+| `src/app/api/`       | BFF: `[...path]` proxy, `session` (+ `/code`), `media` upload                             |
+| `src/server/`        | BFF internals: `backend-routes.ts` (the FastAPI contract), auth, sign-in-code rules       |
 | `src/core/api/`      | `http.ts` fetch wrapper, `schemas.ts` zod contracts, `endpoints.ts`                       |
 | `src/core/query/`    | Query client, keys, offline persistence and mutation replay                               |
 | `src/core/session/`  | Session context and the on-device profile (name, radius, availability)                    |

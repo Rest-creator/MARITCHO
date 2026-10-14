@@ -146,7 +146,12 @@ class SyncService {
           '/media',
           data: FormData.fromMap(<String, Object>{
             'kind': 'photo',
-            'file': await MultipartFile.fromFile(path, filename: 'photo.jpg'),
+            // The backend checks the type and refuses a generic octet-stream.
+            'file': await MultipartFile.fromFile(
+              path,
+              filename: 'photo.jpg',
+              contentType: DioMediaType('image', 'jpeg'),
+            ),
           }),
           options: Options(
             headers: <String, Object?>{

@@ -3,10 +3,10 @@ import "server-only";
 /*
  * Pure helpers for the 6-digit sign-in code (WEB-005), kept apart from the
  * route handlers so they can be tested without a server. The backend
- * contract is the one proposed in issue #5:
+ * paths live in backend-routes.ts (ADR-009); the shapes are:
  *
- *   POST /auth/otp/request { phone }             -> 202 { resend_after_seconds? }
- *   POST /auth/otp/verify  { phone, code, role } -> 200 TokenOut
+ *   POST otpRequest { phone }             -> 2xx { resend_after_seconds? }
+ *   POST otpVerify  { phone, code, role } -> 200 TokenOut
  */
 
 /** Wait this long before offering "send a new code" if the backend doesn't say. */
@@ -55,9 +55,12 @@ export function readCodeRequestOutcome(status: number, payload: unknown): CodeRe
     };
   }
   if (status === 429) {
+    // The backend's own wording ("OTP already requested") isn't for people.
     return {
       status: 429,
-      body: { detail: detailOf(payload) ?? "Too many codes asked for. Wait a few minutes." },
+      body: {
+        detail: "We sent you a code a moment ago. Use that one, or ask again in a few minutes.",
+      },
     };
   }
   return {

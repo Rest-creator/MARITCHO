@@ -1,16 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../data/repositories/auth_repository.dart';
-import '../cubit/auth_cubit.dart';
-import '../cubit/auth_state.dart';
+import 'package:mobile/features/accounts/data/repositories/auth_repository.dart';
+import 'package:mobile/features/accounts/presentation/cubit/auth_cubit.dart';
+import 'package:mobile/features/accounts/presentation/cubit/auth_state.dart';
+import 'package:mobile/features/accounts/presentation/widgets/sign_in_code_view.dart';
 
-/// Ports SignUp.dc.html's name+phone step only. The wireframe's 6-digit
-/// SMS OTP step is dropped: the backend doesn't perform real OTP
-/// verification yet (it's an explicitly documented dev mock pending
-/// WhatsApp OTP, ADR-006/BACK-009) — showing a code-entry UI that
-/// verifies nothing would be dishonest. "Continue" submits name+phone+role
-/// directly against the real /token endpoint.
+/// Ports SignUp.dc.html: name + phone, then the 6-digit code when the
+/// backend sent one (through the BFF, ADR-009). While the backend can't
+/// send codes, the BFF says so and "Continue" signs straight in — no code
+/// screen that verifies nothing.
 class SignUpPage extends StatefulWidget {
   final String role;
 
@@ -56,6 +55,15 @@ class _SignUpPageState extends State<SignUpPage> {
             }
           },
           builder: (context, state) {
+            if (state is AuthCodeRequired) {
+              final AuthCubit cubit = context.read<AuthCubit>();
+              return SignInCodeView(
+                state: state,
+                onVerify: cubit.verify,
+                onResend: cubit.resend,
+                onChangeNumber: cubit.changeNumber,
+              );
+            }
             final isLoading = state is AuthLoading;
             return Padding(
               padding: const EdgeInsets.all(24.0),
@@ -102,7 +110,7 @@ class _SignUpPageState extends State<SignUpPage> {
                               );
                               return;
                             }
-                            context.read<AuthCubit>().login(
+                            context.read<AuthCubit>().start(
                               phone: phone,
                               role: widget.role,
                             );

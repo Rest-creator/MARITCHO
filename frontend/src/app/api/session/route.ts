@@ -5,9 +5,11 @@ import { tokenSchema, userSchema } from "@/core/api/schemas";
 import {
   SESSION_COOKIE,
   backendFetch,
-  readSessionToken,
+  isMobileClient,
+  readAccessToken,
   sessionCookieOptions,
 } from "@/server/backend";
+import { BACKEND_ROUTES } from "@/server/backend-routes";
 import { codeRejectedMessage } from "@/server/sign-in-code";
 
 const loginSchema = z.object({
@@ -28,12 +30,17 @@ function unreachable(): NextResponse {
 }
 
 async function fetchMe(token: string): Promise<Response> {
-  return backendFetch("/users/me", { headers: { authorization: `Bearer ${token}` } });
+  return backendFetch(BACKEND_ROUTES.me.path, {
+    headers: { authorization: `Bearer ${token}` },
+  });
 }
 
-/** Who is signed in — `null` when nobody is (not an error for an anonymous visit). */
+/**
+ * Who is signed in — `null` when nobody is (not an error for an anonymous
+ * visit). Works for the web cookie and the mobile bearer token alike.
+ */
 export async function GET(request: NextRequest): Promise<NextResponse> {
-  const token = readSessionToken(request);
+  const token = readAccessToken(request);
   if (token === null) {
     return NextResponse.json(null);
   }
@@ -52,17 +59,17 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
 /** Exchange a 6-digit code for a token (issue #5); `role` applies to new accounts only. */
 function verifyCode(phone: string, code: string, role: string): Promise<Response> {
-  return backendFetch("/auth/otp/verify", {
-    method: "POST",
+  return backendFetch(BACKEND_ROUTES.otpVerify.path, {
+    method: BACKEND_ROUTES.otpVerify.method,
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ phone, code, role }),
   });
 }
 
-/** The backend's `/token` development mock (ADR-006): trusts the phone number. */
+/** The backend's development-only sign-in (ADR-006): trusts the phone number. */
 function mockToken(phone: string, role: string): Promise<Response> {
-  return backendFetch("/token", {
-    method: "POST",
+  return backendFetch(BACKEND_ROUTES.devToken.path, {
+    method: BACKEND_ROUTES.devToken.method,
     headers: { "content-type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({ username: phone, password: "", role }),
   });
@@ -70,7 +77,12 @@ function mockToken(phone: string, role: string): Promise<Response> {
 
 /**
  * Sign in — with the 6-digit code when the backend sent one, otherwise
- * through the `/token` mock (BACK-009). `role` only applies on first sign-in.
+ * through the development-only `/token` (BACK-009). `role` only applies on
+ * first sign-in.
+ *
+ * The web app gets an httpOnly cookie and the user. The mobile app
+ * (`X-Maricho-Client: mobile`, ADR-009) gets `{ user, access_token }` to
+ * keep in its own secure storage and send back as a bearer token.
  */
 export async function POST(request: NextRequest): Promise<NextResponse> {
   const parsed = loginSchema.safeParse(await request.json().catch(() => null));
@@ -101,7 +113,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     if (!me.ok) {
       return NextResponse.json({ detail: "Sign-in failed" }, { status: me.status });
     }
-    const response = NextResponse.json(userSchema.parse(await me.json()));
+    const user = userSchema.parse(await me.json());
+    if (isMobileClient(request)) {
+      return NextResponse.json(
+        { user, access_token: token },
+        { headers: { "cache-control": "no-store" } },
+      );
+    }
+    const response = NextResponse.json(user);
     response.cookies.set(SESSION_COOKIE, token, sessionCookieOptions());
     return response;
   } catch {

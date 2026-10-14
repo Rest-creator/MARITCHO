@@ -242,6 +242,8 @@ void main() {
           '/jobs/job-1/messages',
         ]);
         expect(adapter.requests.first.headers['Idempotency-Key'], 'k1');
+        final FormData form = adapter.requests.first.data as FormData;
+        expect(form.files.single.value.contentType.toString(), 'image/jpeg');
         expect(adapter.requests.last.data, <String, Object?>{
           'message_type': 'PHOTO',
           'media_url': '/media/p1.jpg',

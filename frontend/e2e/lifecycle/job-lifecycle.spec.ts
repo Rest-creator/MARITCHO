@@ -15,6 +15,21 @@ import { freshPhone, signUp } from "../support/people";
 const SUBURB = "Hillside";
 const PRICE = 40;
 
+/** A small real JPEG, drawn in the page, to attach as the job photo. */
+async function photoOfTheLeak(page: Page): Promise<Buffer> {
+  const base64 = await page.evaluate(() => {
+    const canvas = document.createElement("canvas");
+    canvas.width = 800;
+    canvas.height = 600;
+    const context = canvas.getContext("2d");
+    if (context === null) throw new Error("no canvas");
+    context.fillStyle = "#1e3a8a";
+    context.fillRect(0, 0, 800, 600);
+    return canvas.toDataURL("image/jpeg", 0.8).split(",")[1] ?? "";
+  });
+  return Buffer.from(base64, "base64");
+}
+
 /** Reload until `check` passes: for screens that only refetch on load. */
 async function untilAfterReload(page: Page, check: () => Promise<void>): Promise<void> {
   await expect(async () => {
@@ -54,7 +69,17 @@ test("a job goes from posted to paid", async ({ browser }) => {
     await sheet.getByLabel("Street address").fill("14 Harrow Rd");
     await sheet.getByRole("button", { name: "Use this place" }).click();
     await buyer.getByLabel("Your budget (optional)").fill(String(PRICE));
+    // A real upload: BFF /api/media -> backend /media/upload (ADR-009).
+    await buyer.locator('input[type="file"]').setInputFiles({
+      name: "leak.jpg",
+      mimeType: "image/jpeg",
+      buffer: await photoOfTheLeak(buyer),
+    });
+    const upload = buyer.waitForResponse(
+      (response) => response.url().endsWith("/api/media") && response.request().method() === "POST",
+    );
     await buyer.getByRole("button", { name: "Find someone for this job" }).click();
+    expect((await upload).status()).toBe(201);
     await expect(buyer).toHaveURL(/\/employer\/jobs\/[^/]+$/);
     await expect(buyer.getByRole("heading", { name: jobText })).toBeVisible();
     jobUrl = buyer.url();
@@ -98,6 +123,14 @@ test("a job goes from posted to paid", async ({ browser }) => {
   await test.step("both sides chat live", async () => {
     await buyer.goto(`${jobUrl}/track`);
     await expect(buyer.getByText(`Price confirmed: $${PRICE}`)).toBeVisible();
+    // The photo comes back through the BFF with the buyer's session.
+    await buyer.getByRole("button", { name: /Your photo · tap to load/ }).click();
+    await expect(buyer.getByRole("img", { name: "Your photo" })).toHaveJSProperty("complete", true);
+    expect(
+      await buyer
+        .getByRole("img", { name: "Your photo" })
+        .evaluate((image: HTMLImageElement) => image.naturalWidth),
+    ).toBe(800);
     await buyer.getByRole("link", { name: "Message" }).click();
     await expect(buyer).toHaveURL(/\/chat\/[^/]+$/);
     const chatUrl = buyer.url();
@@ -109,13 +142,13 @@ test("a job goes from posted to paid", async ({ browser }) => {
 
     const hello = `Gate code is 1234 (${runId})`;
     await buyer.getByLabel("Message").fill(hello);
-    await buyer.getByRole("button", { name: "Send" }).click();
+    await buyer.getByRole("button", { name: "Send", exact: true }).click();
     // No reload: it has to arrive over the WebSocket.
     await expect(worker.getByText(hello)).toBeVisible();
 
     const reply = `Thanks, see you soon (${runId})`;
     await worker.getByLabel("Message").fill(reply);
-    await worker.getByRole("button", { name: "Send" }).click();
+    await worker.getByRole("button", { name: "Send", exact: true }).click();
     await expect(buyer.getByText(reply)).toBeVisible();
   });
 

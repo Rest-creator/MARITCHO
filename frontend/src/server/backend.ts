@@ -32,6 +32,27 @@ export function readSessionToken(request: NextRequest): string | null {
   return request.cookies.get(SESSION_COOKIE)?.value ?? null;
 }
 
+const BEARER = /^Bearer\s+(\S+)$/i;
+
+/**
+ * The caller's access token (ADR-009): the web app's httpOnly cookie, or the
+ * mobile app's `Authorization: Bearer` header. The cookie wins if both are
+ * present, so a page can never be signed in as someone else by a header.
+ */
+export function readAccessToken(request: NextRequest): string | null {
+  const fromCookie = readSessionToken(request);
+  if (fromCookie !== null) return fromCookie;
+  const match = BEARER.exec(request.headers.get("authorization") ?? "");
+  return match?.[1] ?? null;
+}
+
+/** Header the mobile app sends so sign-in returns the token instead of a cookie. */
+export const CLIENT_HEADER = "x-maricho-client";
+
+export function isMobileClient(request: NextRequest): boolean {
+  return request.headers.get(CLIENT_HEADER)?.toLowerCase() === "mobile";
+}
+
 export function sessionCookieOptions(maxAge: number = SESSION_MAX_AGE_SECONDS) {
   return {
     httpOnly: true,

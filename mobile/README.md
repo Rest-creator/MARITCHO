@@ -8,11 +8,14 @@ Cubits, `Result` instead of exceptions, explicit types).
 
 ```bash
 flutter pub get
-flutter run --dart-define=API_BASE_URL=http://10.0.2.2:8000   # Android emulator → host backend
+flutter run --dart-define=API_BASE_URL=http://10.0.2.2:3000/api   # emulator → the BFF on your computer
 ```
 
-`10.0.2.2` is the emulator's name for your computer; start the backend with docker-compose
-first (see `backend/`).
+The app talks to the **BFF** (the Next.js server's `/api`), not to FastAPI directly
+([ADR-009](../docs/architecture/adr/009-single-bff-for-web-and-mobile.md)): start the backend
+with docker-compose and the website with `npm run dev` in `frontend/` first. `10.0.2.2` is the
+emulator's name for your computer. Sign-in uses the same two steps as the website (ask for a
+code, then sign in with it); in development the backend's code is always `123456`.
 
 ## Checks
 

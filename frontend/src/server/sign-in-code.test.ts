@@ -33,9 +33,11 @@ describe("readCodeRequestOutcome", () => {
   });
 
   it("passes rate limits through and hides backend failures behind 502", () => {
-    expect(readCodeRequestOutcome(429, null)).toEqual({
+    expect(readCodeRequestOutcome(429, { detail: "OTP already requested" })).toEqual({
       status: 429,
-      body: { detail: "Too many codes asked for. Wait a few minutes." },
+      body: {
+        detail: "We sent you a code a moment ago. Use that one, or ask again in a few minutes.",
+      },
     });
     expect(readCodeRequestOutcome(500, { detail: "boom" }).status).toBe(502);
     expect(readCodeRequestOutcome(422, { detail: "Bad phone" })).toEqual({

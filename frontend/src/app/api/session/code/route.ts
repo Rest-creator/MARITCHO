@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 
 import { backendFetch } from "@/server/backend";
+import { BACKEND_ROUTES } from "@/server/backend-routes";
 import { readCodeRequestOutcome } from "@/server/sign-in-code";
 
 const requestSchema = z.object({
@@ -11,7 +12,7 @@ const requestSchema = z.object({
 /**
  * Ask the backend to send a 6-digit sign-in code (BACK-009, issue #5).
  *
- * Until the backend has `/auth/otp/request`, it answers 404 and this
+ * Until the backend can send codes, it answers 404 and this
  * replies `{ code_required: false }`, so sign-up carries on without the
  * code step instead of claiming a code was sent when it wasn't.
  */
@@ -25,8 +26,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   }
 
   try {
-    const upstream = await backendFetch("/auth/otp/request", {
-      method: "POST",
+    const upstream = await backendFetch(BACKEND_ROUTES.otpRequest.path, {
+      method: BACKEND_ROUTES.otpRequest.method,
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ phone: parsed.data.phone }),
     });

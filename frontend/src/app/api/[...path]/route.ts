@@ -4,7 +4,7 @@ import {
   MAX_UPLOAD_BYTES,
   backendFetch,
   isProxyPathAllowed,
-  readSessionToken,
+  readAccessToken,
 } from "@/server/backend";
 
 type RouteContext = { params: Promise<{ path: string[] }> };
@@ -53,7 +53,7 @@ async function proxy(request: NextRequest, context: RouteContext): Promise<Respo
       headers.set(name, value);
     }
   }
-  const token = readSessionToken(request);
+  const token = readAccessToken(request);
   if (token !== null) {
     headers.set("authorization", `Bearer ${token}`);
   }
