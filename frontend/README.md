@@ -29,6 +29,28 @@ which Docker Desktop's port forwarding doesn't answer.
 npm run format:check && npm run lint && npm run typecheck && npm test && npm run build
 ```
 
+### End-to-end (Playwright, needs Docker)
+
+```bash
+npx playwright install chromium   # once
+
+npm run test:e2e             # one job, posted → paid, against a real backend
+npm run test:visual          # screenshots of the 13 designed screens
+npm run test:visual:update   # accept intended UI changes as the new baselines
+```
+
+- **Lifecycle** (`e2e/lifecycle/`): a worker and a buyer in two browsers sign up, post, offer,
+  hire, chat over the live socket, price on site, review and sign off. `test:e2e` starts its own
+  docker-compose project (`maricho-e2e`, API on port 18000) with an empty database and deletes
+  it afterwards, so your dev stack and data are untouched. `KEEP_E2E_STACK=1` keeps it running.
+- **Visual** (`e2e/visual/`): every `/api/*` call is answered from fixed fixtures at a fixed
+  time, so a screenshot changes only when the UI does. It runs inside the
+  `mcr.microsoft.com/playwright` Linux image (same as CI) because fonts render differently on
+  Windows and macOS. Baselines live in `e2e/visual/__screenshots__/`; review the diff images
+  before running `test:visual:update`.
+- CI: `.github/workflows/frontend-e2e.yml` runs both on frontend and backend changes and
+  uploads the report (traces, screenshot diffs) when something fails.
+
 ## How it fits together
 
 ```

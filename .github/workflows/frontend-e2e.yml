@@ -1,0 +1,84 @@
+name: Frontend E2E
+
+# The lifecycle suite drives the real backend, so backend changes run it too.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "frontend/**"
+      - "backend/**"
+      - ".github/workflows/frontend-e2e.yml"
+  pull_request:
+    paths:
+      - "frontend/**"
+      - "backend/**"
+      - ".github/workflows/frontend-e2e.yml"
+
+jobs:
+  visual:
+    name: Visual regression (13 screens)
+    runs-on: ubuntu-latest
+    # Same image `npm run test:visual` uses locally, so fonts render identically.
+    # Keep the tag in step with @playwright/test in frontend/package.json.
+    container:
+      image: mcr.microsoft.com/playwright:v1.63.0-noble
+      options: --ipc=host
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install
+        run: npm ci
+
+      - name: Screenshots match the baselines
+        run: npx playwright test --project=visual
+
+      - name: Upload report (diffs) on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: visual-report
+          path: |
+            frontend/playwright-report
+            frontend/e2e/.results
+          retention-days: 7
+
+  lifecycle:
+    name: Job lifecycle against docker-compose backend
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install
+        working-directory: frontend
+        run: npm ci
+
+      - name: Install Chromium
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+
+      # Starts a throwaway docker-compose backend, runs the suite, prints the
+      # API logs if it fails, and tears the stack down (e2e/run-lifecycle.mjs).
+      - name: Post, offer, hire, chat, price, sign off
+        working-directory: frontend
+        run: npm run test:e2e
+
+      - name: Upload report (traces) on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lifecycle-report
+          path: |
+            frontend/playwright-report
+            frontend/e2e/.results
+          retention-days: 7

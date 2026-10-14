@@ -31,12 +31,24 @@ import { mutationKeys, queryKeys } from "@/core/query/keys";
 
 /* Reads — cached on the device and served first when offline. */
 
+/**
+ * Jobs and offers are changed by the *other* person (a new job posted, an
+ * offer accepted, a price confirmed on site), so the cached copy is shown
+ * straight away but always re-checked when a screen opens. Otherwise a
+ * reload within the default 30 s keeps showing the old list.
+ */
+const CHANGED_BY_OTHERS = { staleTime: 0 } as const;
+
 export function useMyJobs(): UseQueryResult<MyJob[]> {
-  return useQuery({ queryKey: queryKeys.myJobs, queryFn: fetchMyJobs });
+  return useQuery({ queryKey: queryKeys.myJobs, queryFn: fetchMyJobs, ...CHANGED_BY_OTHERS });
 }
 
 export function useJob(jobId: string): UseQueryResult<Job> {
-  return useQuery({ queryKey: queryKeys.job(jobId), queryFn: () => fetchJob(jobId) });
+  return useQuery({
+    queryKey: queryKeys.job(jobId),
+    queryFn: () => fetchJob(jobId),
+    ...CHANGED_BY_OTHERS,
+  });
 }
 
 /** How often a buyer waiting on an open job checks for new offers. */
@@ -76,15 +88,19 @@ export function useDisputes(jobId: string, isEnabled: boolean): UseQueryResult<D
 }
 
 export function useOpenJobs(): UseQueryResult<OpenJob[]> {
-  return useQuery({ queryKey: queryKeys.openJobs, queryFn: fetchOpenJobs });
+  return useQuery({ queryKey: queryKeys.openJobs, queryFn: fetchOpenJobs, ...CHANGED_BY_OTHERS });
 }
 
 export function useAssignedJobs(): UseQueryResult<Job[]> {
-  return useQuery({ queryKey: queryKeys.assignedJobs, queryFn: fetchAssignedJobs });
+  return useQuery({
+    queryKey: queryKeys.assignedJobs,
+    queryFn: fetchAssignedJobs,
+    ...CHANGED_BY_OTHERS,
+  });
 }
 
 export function useMyOffers(): UseQueryResult<MyOffer[]> {
-  return useQuery({ queryKey: queryKeys.myOffers, queryFn: fetchMyOffers });
+  return useQuery({ queryKey: queryKeys.myOffers, queryFn: fetchMyOffers, ...CHANGED_BY_OTHERS });
 }
 
 /*

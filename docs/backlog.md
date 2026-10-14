@@ -65,4 +65,4 @@ behind each item below — all four are now `DONE`.
 | **WEB-003** | `DONE` | High | Worker flow screens: skills + travel radius (W1), jobs near you (W2), job detail + offer (W3), my work with on-site quote and dispute response (W4). | WEB-001 | - |
 | **WEB-004** | `TODO` | Medium | Upload job/work photos and voice notes (currently on-device previews only) — needs a backend media upload endpoint; `problem_photo_url`, `media_url` etc. already exist. | WEB-002 | - |
 | **WEB-005** | `TODO` | Medium | Add the design's 6-digit code step to sign-up once real OTP delivery exists (BACK-009). | WEB-001 | - |
-| **WEB-006** | `TODO` | Medium | Playwright E2E + visual regression in CI against the docker-compose backend (a fixture-backend run passes locally for all 13 screens). | WEB-003 | - |
+| **WEB-006** | `DONE` | Medium | Playwright E2E + visual regression in CI: job lifecycle against a throwaway docker-compose backend, plus screenshots of all 13 screens from fixtures. Found #7 (offering workers missing from `/matches`). | WEB-003 | - |
