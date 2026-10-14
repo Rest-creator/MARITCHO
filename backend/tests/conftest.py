@@ -54,6 +54,9 @@ APP_TABLES = [
     "service_areas",
     "skills",
     "persons",
+    "reviews",
+    "otp_requests",
+    "media_files",
 ]
 
 

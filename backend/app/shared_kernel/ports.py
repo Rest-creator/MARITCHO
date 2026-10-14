@@ -14,6 +14,7 @@ from decimal import Decimal
 from app.shared_kernel.enums import TradeEnum
 from app.shared_kernel.value_objects import (
     WorkerJobStats,
+    WorkerProfileSnapshot,
     WorkerServiceAreaSnapshot,
     WorkerStandingSnapshot,
 )
@@ -80,6 +81,11 @@ class WorkerMatchingProfilePort(ABC):
     async def get_standings(
         self, worker_ids: set[uuid.UUID]
     ) -> dict[uuid.UUID, WorkerStandingSnapshot]: ...
+
+    @abstractmethod
+    async def get_profiles(
+        self, worker_ids: set[uuid.UUID]
+    ) -> dict[uuid.UUID, WorkerProfileSnapshot]: ...
 
 
 class PaymentCollectionPort(ABC):

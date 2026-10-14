@@ -10,6 +10,8 @@ from app.shared_kernel.enums import (
     DistanceBandEnum,
     GradeEnum,
     LedgerEntryTypeEnum,
+    NeededByEnum,
+    ReviewTagEnum,
     TradeEnum,
 )
 from app.shared_kernel.text import strip_tags
@@ -25,6 +27,7 @@ class JobRequestCreate(BaseModel):
     problem_description: str = Field(min_length=1, max_length=2000)
     problem_photo_url: str | None = Field(default=None, max_length=255)
     budget_amount: Decimal | None = Field(default=None, gt=0, max_digits=10, decimal_places=2)
+    needed_by: NeededByEnum = NeededByEnum.FLEXIBLE
 
     @field_validator("suburb", "address", "problem_description")
     @classmethod
@@ -62,6 +65,8 @@ class JobOut(BaseModel):
     quote_amount: Decimal | None
     created_at: datetime
     updated_at: datetime
+    needed_by: NeededByEnum = NeededByEnum.FLEXIBLE
+    worker_display_name: str | None = None
 
 
 class MyJobOut(BaseModel):
@@ -89,6 +94,8 @@ class MyJobOut(BaseModel):
     quote_amount: Decimal | None
     created_at: datetime
     updated_at: datetime
+    needed_by: NeededByEnum = NeededByEnum.FLEXIBLE
+    worker_display_name: str | None = None
     offer_count: int
 
 
@@ -106,6 +113,7 @@ class MyOfferOut(BaseModel):
     job_trade: TradeEnum
     job_suburb: str
     job_status: JobStatusEnum
+    needed_by: NeededByEnum = NeededByEnum.FLEXIBLE
 
 
 class BookingCreate(BaseModel):
@@ -136,6 +144,17 @@ class CompletionCreate(BaseModel):
     @field_validator("client_words")
     @classmethod
     def sanitize_client_words(cls, value: str | None) -> str | None:
+        return strip_tags(value) if value is not None else value
+
+
+class ReviewCreate(BaseModel):
+    rating: int = Field(ge=1, le=5)
+    tags: list[ReviewTagEnum] = Field(default_factory=list, max_length=3)
+    comment: str | None = Field(default=None, max_length=1000)
+
+    @field_validator("comment")
+    @classmethod
+    def sanitize_comment(cls, value: str | None) -> str | None:
         return strip_tags(value) if value is not None else value
 
 
@@ -222,6 +241,9 @@ class MatchCandidateOut(BaseModel):
     quoted_amount: Decimal | None
     availability_note: str | None
     quoted_at: datetime | None
+    display_name: str | None = None
+    rating_average: Decimal | None = None
+    rating_count: int = 0
 
 
 class JobOfferCreate(BaseModel):
@@ -244,6 +266,7 @@ class JobOfferOut(BaseModel):
     availability_note: str | None
     created_at: datetime
     updated_at: datetime
+    worker_display_name: str | None = None
 
 
 class OpenJobOut(BaseModel):
@@ -261,3 +284,4 @@ class OpenJobOut(BaseModel):
     created_at: datetime | None
     distance_band: DistanceBandEnum
     distance_km: float
+    needed_by: NeededByEnum = NeededByEnum.FLEXIBLE

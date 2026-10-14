@@ -13,3 +13,7 @@ class Person:
     next_of_kin_phone: str | None = None
     guarantor_id: uuid.UUID | None = None
     created_at: datetime | None = None
+    display_name: str | None = None
+    is_available: bool = True
+    travel_km: int = 50
+    home_suburb: str | None = None

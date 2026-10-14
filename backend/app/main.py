@@ -11,6 +11,7 @@ from app.apps.accounts.interface_adapters.dependencies import RequireRole
 from app.apps.accounts.interface_adapters.router import router as accounts_router
 from app.apps.crews.interface_adapters.router import crew_orders_router, crews_router
 from app.apps.jobs.interface_adapters.router import router as jobs_router
+from app.apps.media.router import router as media_router
 from app.apps.messaging.interface_adapters.router import router as messaging_router
 from app.apps.payments.interface_adapters.router import router as payment_gateways_router
 from app.apps.suburbs.interface_adapters.router import router as suburbs_router
@@ -36,21 +37,20 @@ app.include_router(suburbs_router)
 app.include_router(crews_router)
 app.include_router(crew_orders_router)
 app.include_router(payment_gateways_router)
+app.include_router(media_router)
+
 
 @app.get("/health/live", status_code=status.HTTP_200_OK)
 def liveness_probe() -> dict[str, Any]:
     """Liveness probe to verify process is running."""
-    return {
-        "status": "UP",
-        "timestamp": time.time(),
-        "component": "maricho-api"
-    }
+    return {"status": "UP", "timestamp": time.time(), "component": "maricho-api"}
+
 
 @app.get("/health/ready", status_code=status.HTTP_200_OK)
 async def readiness_probe(
     response: Response,
     db: AsyncSession = Depends(get_db_session),
-    redis_client: aioredis.Redis = Depends(get_redis_client)
+    redis_client: aioredis.Redis = Depends(get_redis_client),
 ) -> dict[str, Any]:
     """
     Readiness probe to verify downstream dependencies (PostgreSQL, Redis).
@@ -64,7 +64,7 @@ async def readiness_probe(
         await db.execute(text("SELECT 1"))
         details["database"] = {
             "status": "UP",
-            "latency_ms": round((time.monotonic() - start_time) * 1000, 2)
+            "latency_ms": round((time.monotonic() - start_time) * 1000, 2),
         }
     except Exception as exc:
         health_status = "DOWN"
@@ -77,7 +77,7 @@ async def readiness_probe(
         await redis_client.ping()
         details["redis"] = {
             "status": "UP",
-            "latency_ms": round((time.monotonic() - start_time) * 1000, 2)
+            "latency_ms": round((time.monotonic() - start_time) * 1000, 2),
         }
     except Exception as exc:
         health_status = "DOWN"
@@ -87,15 +87,12 @@ async def readiness_probe(
     if health_status == "DOWN":
         response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
 
-    return {
-        "status": health_status,
-        "timestamp": time.time(),
-        "dependencies": details
-    }
+    return {"status": health_status, "timestamp": time.time(), "dependencies": details}
+
 
 @app.get("/ops/dashboard")
 async def read_ops_dashboard(
-    current_user: Person = Depends(RequireRole([RoleEnum.OPS]))
+    current_user: Person = Depends(RequireRole([RoleEnum.OPS])),
 ) -> dict[str, Any]:
     """Protected endpoint requiring OPS role."""
     return {"message": f"Welcome to Ops Dashboard, {current_user.phone}!"}

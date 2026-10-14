@@ -1,15 +1,17 @@
 import uuid
 from collections.abc import Sequence
 from dataclasses import asdict
+from datetime import datetime
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.apps.accounts.domain.entities import Person
 from app.apps.accounts.interface_adapters.dependencies import RequireRole, get_current_user
 from app.apps.jobs.domain.entities import (
     Dispute,
     Job,
-    JobOffer,
     LedgerEntry,
     MatchCandidate,
     OpenJobCandidate,
@@ -33,6 +35,8 @@ from app.apps.jobs.domain.services import (
     SubmitJobOfferUseCase,
     SubmitQuoteUseCase,
 )
+from app.apps.jobs.infrastructure.models import JobModel
+from app.apps.jobs.infrastructure.review_models import ReviewModel
 from app.apps.jobs.interface_adapters.dependencies import (
     get_book_job_use_case,
     get_complete_job_use_case,
@@ -68,7 +72,9 @@ from app.apps.jobs.interface_adapters.schemas import (
     OpenJobOut,
     QuoteCreate,
     RecordEntryOut,
+    ReviewCreate,
 )
+from app.core.database import get_db_session
 from app.core.pagination import Pagination, pagination_params
 from app.shared_kernel.enums import RoleEnum
 
@@ -93,6 +99,7 @@ async def create_job_request(
         problem_description=payload.problem_description,
         problem_photo_url=payload.problem_photo_url,
         budget_amount=payload.budget_amount,
+        needed_by=payload.needed_by,
     )
 
 
@@ -127,9 +134,7 @@ async def list_open_jobs(
     Registered BEFORE `/{job_id}` below: the generic path would otherwise
     swallow this route and fail UUID parsing on "open".
     """
-    return await use_case.execute(
-        current_user.id, limit=pagination.limit, offset=pagination.offset
-    )
+    return await use_case.execute(current_user.id, limit=pagination.limit, offset=pagination.offset)
 
 
 @router.get("/assigned", response_model=list[JobOut])
@@ -143,9 +148,7 @@ async def list_assigned_jobs(
     Registered BEFORE `/{job_id}` below: same UUID-swallowing reason as
     `/open` and `/my-offers`.
     """
-    return await use_case.execute(
-        current_user.id, limit=pagination.limit, offset=pagination.offset
-    )
+    return await use_case.execute(current_user.id, limit=pagination.limit, offset=pagination.offset)
 
 
 @router.get("/my-offers", response_model=list[MyOfferOut])
@@ -174,6 +177,7 @@ async def list_my_offers(
                 job_trade=job.trade,
                 job_suburb=job.suburb,
                 job_status=job.status,
+                needed_by=job.needed_by,
             )
         )
     return results
@@ -185,7 +189,8 @@ async def get_job(
     current_user: Person = Depends(get_current_user),
     use_case: GetJobUseCase = Depends(get_get_job_use_case),
 ) -> Job:
-    return await use_case.execute(job_id, current_user.id, current_user.role)
+    job = await use_case.execute(job_id, current_user.id, current_user.role)
+    return job
 
 
 @router.get("/{job_id}/matches", response_model=list[MatchCandidateOut])
@@ -208,15 +213,16 @@ async def submit_job_offer(
     payload: JobOfferCreate,
     current_user: Person = Depends(RequireRole([RoleEnum.WORKER])),
     use_case: SubmitJobOfferUseCase = Depends(get_submit_job_offer_use_case),
-) -> JobOffer:
+) -> dict[str, object]:
     """A worker (not yet booked) attaches their own price + availability to
     a still-open job. Resubmitting revises the existing offer."""
-    return await use_case.execute(
+    offer = await use_case.execute(
         job_id=job_id,
         worker_id=current_user.id,
         quoted_amount=payload.quoted_amount,
         availability_note=payload.availability_note,
     )
+    return {**asdict(offer), "worker_display_name": current_user.display_name}
 
 
 @router.post("/{job_id}/book", response_model=JobOut)
@@ -277,6 +283,42 @@ async def complete_job(
         before_photo_url=payload.before_photo_url,
         after_photo_url=payload.after_photo_url,
     )
+
+
+@router.post("/{job_id}/review", status_code=status.HTTP_201_CREATED)
+async def review_completed_job(
+    job_id: uuid.UUID,
+    payload: ReviewCreate,
+    current_user: Person = Depends(RequireRole([RoleEnum.BUYER])),
+    db: AsyncSession = Depends(get_db_session),
+) -> dict[str, object]:
+    job = await db.get(JobModel, job_id)
+    if job is None or job.buyer_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Job not found")
+    if job.status.value != "COMPLETED" or job.worker_id is None:
+        raise HTTPException(status_code=409, detail="Job must be completed before review")
+    existing = await db.scalar(select(ReviewModel).where(ReviewModel.job_id == job_id))
+    if existing:
+        raise HTTPException(status_code=409, detail="Job already reviewed")
+    review = ReviewModel(
+        id=uuid.uuid4(),
+        job_id=job_id,
+        buyer_id=current_user.id,
+        worker_id=job.worker_id,
+        rating=payload.rating,
+        tags=payload.tags,
+        comment=payload.comment,
+        created_at=datetime.utcnow(),
+    )
+    db.add(review)
+    await db.commit()
+    return {
+        "id": str(review.id),
+        "job_id": str(job_id),
+        "rating": review.rating,
+        "tags": [tag.value for tag in review.tags],
+        "comment": review.comment,
+    }
 
 
 @router.post("/{job_id}/dispute", response_model=DisputeOut, status_code=status.HTTP_201_CREATED)

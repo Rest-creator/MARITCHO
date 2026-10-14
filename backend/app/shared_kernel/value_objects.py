@@ -21,12 +21,22 @@ class WorkerStandingSnapshot:
     dispute_rate: Decimal
     fill_rate: Decimal
     jobs_completed: int
+    rating_average: Decimal | None = None
+    rating_count: int = 0
 
 
 @dataclass(frozen=True)
 class WorkerServiceAreaSnapshot:
     suburb: str
     travel_means: str | None
+
+
+@dataclass(frozen=True)
+class WorkerProfileSnapshot:
+    display_name: str | None
+    is_available: bool
+    travel_km: int
+    home_suburb: str | None
 
 
 @dataclass(frozen=True)

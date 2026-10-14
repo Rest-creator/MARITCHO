@@ -5,7 +5,7 @@ from datetime import datetime
 from decimal import Decimal
 
 from app.apps.jobs.domain.entities import Dispute, Job, JobOffer, LedgerEntry, RecordEntry
-from app.shared_kernel.enums import CurrencyEnum, LedgerEntryTypeEnum, TradeEnum
+from app.shared_kernel.enums import CurrencyEnum, LedgerEntryTypeEnum, NeededByEnum, TradeEnum
 
 
 class JobRepository(ABC):
@@ -23,6 +23,7 @@ class JobRepository(ABC):
         problem_description: str | None,
         problem_photo_url: str | None,
         budget_amount: Decimal | None,
+        needed_by: NeededByEnum = NeededByEnum.FLEXIBLE,
     ) -> Job:
         """Flushes (populating id/timestamps). Does not commit."""
 
@@ -53,9 +54,7 @@ class JobRepository(ABC):
         trade-off already accepted for the Python-side matching engine."""
 
     @abstractmethod
-    async def list_by_buyer(
-        self, buyer_id: uuid.UUID, *, limit: int, offset: int
-    ) -> Sequence[Job]:
+    async def list_by_buyer(self, buyer_id: uuid.UUID, *, limit: int, offset: int) -> Sequence[Job]:
         """This buyer's own jobs, newest first — user-facing and
         potentially unbounded, unlike list_open_for_trade, so real
         pagination applies here."""
