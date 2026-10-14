@@ -11,7 +11,10 @@ class SuburbsRepository {
 
   Future<Result<List<Suburb>, Failure>> listSuburbs() async {
     try {
-      final response = await _dio.get<List<dynamic>>('/suburbs', queryParameters: {'limit': 200});
+      final response = await _dio.get<List<dynamic>>(
+        '/suburbs',
+        queryParameters: {'limit': 200},
+      );
       final suburbs = response.data!
           .map((json) => Suburb.fromJson(json as Map<String, dynamic>))
           .toList();
@@ -21,7 +24,8 @@ class SuburbsRepository {
       final detail = data is Map ? data['detail'] : null;
       return Error(
         NetworkFailure(
-          message: detail?.toString() ?? e.message ?? 'Could not reach the server',
+          message:
+              detail?.toString() ?? e.message ?? 'Could not reach the server',
           exception: e,
         ),
       );

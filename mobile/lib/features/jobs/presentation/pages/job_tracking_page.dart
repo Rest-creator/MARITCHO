@@ -61,7 +61,10 @@ class _JobTrackingViewState extends State<_JobTrackingView> {
             Navigator.of(context).popUntil((route) => route.isFirst);
           } else if (state is JobTrackingFailure) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(state.errorMessage), backgroundColor: Colors.red),
+              SnackBar(
+                content: Text(state.errorMessage),
+                backgroundColor: Colors.red,
+              ),
             );
           }
         },
@@ -73,7 +76,10 @@ class _JobTrackingViewState extends State<_JobTrackingView> {
             padding: const EdgeInsets.all(20),
             child: ListView(
               children: [
-                Text('Status: ${widget.job.status}', style: Theme.of(context).textTheme.titleLarge),
+                Text(
+                  'Status: ${widget.job.status}',
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
                 const SizedBox(height: 8),
                 Text('${widget.job.suburb} · ${widget.job.address}'),
                 const SizedBox(height: 24),
@@ -88,14 +94,18 @@ class _JobTrackingViewState extends State<_JobTrackingView> {
                     controller: _whatWasDoneController,
                     enabled: !isSubmitting,
                     maxLines: 3,
-                    decoration: const InputDecoration(labelText: 'What was done?'),
+                    decoration: const InputDecoration(
+                      labelText: 'What was done?',
+                    ),
                   ),
                   const SizedBox(height: 16),
                   TextField(
                     controller: _reviewController,
                     enabled: !isSubmitting,
                     maxLines: 3,
-                    decoration: const InputDecoration(labelText: 'A few words about the worker (optional)'),
+                    decoration: const InputDecoration(
+                      labelText: 'A few words about the worker (optional)',
+                    ),
                   ),
                   const SizedBox(height: 24),
                   ElevatedButton(
@@ -104,7 +114,10 @@ class _JobTrackingViewState extends State<_JobTrackingView> {
                         ? const SizedBox(
                             width: 20,
                             height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
                           )
                         : const Text('Confirm job done'),
                   ),
@@ -128,9 +141,9 @@ class _JobTrackingViewState extends State<_JobTrackingView> {
 
     final review = _reviewController.text.trim();
     context.read<JobTrackingCubit>().completeJob(
-          jobId: widget.job.id,
-          whatWasDone: whatWasDone,
-          clientWords: review.isEmpty ? null : review,
-        );
+      jobId: widget.job.id,
+      whatWasDone: whatWasDone,
+      clientWords: review.isEmpty ? null : review,
+    );
   }
 }

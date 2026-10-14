@@ -41,24 +41,33 @@ void main() {
       cubit.close();
     });
 
-    test('ends in AuthSuccess with the logged-in Person when login succeeds', () async {
-      final cubit = AuthCubit(_FakeSuccessAuthRepository());
+    test(
+      'ends in AuthSuccess with the logged-in Person when login succeeds',
+      () async {
+        final cubit = AuthCubit(_FakeSuccessAuthRepository());
 
-      await cubit.login(phone: '+263771234567', role: 'WORKER');
+        await cubit.login(phone: '+263771234567', role: 'WORKER');
 
-      expect(cubit.state, isA<AuthSuccess>());
-      expect((cubit.state as AuthSuccess).person.role, 'WORKER');
-      await cubit.close();
-    });
+        expect(cubit.state, isA<AuthSuccess>());
+        expect((cubit.state as AuthSuccess).person.role, 'WORKER');
+        await cubit.close();
+      },
+    );
 
-    test('ends in AuthFailure with the failure message when login fails', () async {
-      final cubit = AuthCubit(_FakeFailureAuthRepository());
+    test(
+      'ends in AuthFailure with the failure message when login fails',
+      () async {
+        final cubit = AuthCubit(_FakeFailureAuthRepository());
 
-      await cubit.login(phone: '+263771234567', role: 'WORKER');
+        await cubit.login(phone: '+263771234567', role: 'WORKER');
 
-      expect(cubit.state, isA<AuthFailure>());
-      expect((cubit.state as AuthFailure).errorMessage, 'Could not reach the server');
-      await cubit.close();
-    });
+        expect(cubit.state, isA<AuthFailure>());
+        expect(
+          (cubit.state as AuthFailure).errorMessage,
+          'Could not reach the server',
+        );
+        await cubit.close();
+      },
+    );
   });
 }

@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'package:mobile/core/json/json_number.dart';
 
 /// Mirrors the backend's OpenJobOut — the pre-booking, address-hidden
 /// shape a worker sees before submitting an offer. Distinct from Job
@@ -27,10 +28,10 @@ class OpenJob extends Equatable {
       jobId: json['job_id'] as String,
       trade: json['trade'] as String,
       suburb: json['suburb'] as String,
-      budgetAmount: (json['budget_amount'] as num?)?.toDouble(),
+      budgetAmount: readDecimal(json['budget_amount']),
       problemDescription: json['problem_description'] as String?,
       distanceBand: json['distance_band'] as String,
-      distanceKm: (json['distance_km'] as num).toDouble(),
+      distanceKm: readRequiredDecimal(json['distance_km']),
     );
   }
 

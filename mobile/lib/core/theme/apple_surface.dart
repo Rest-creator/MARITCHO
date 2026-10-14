@@ -1,4 +1,5 @@
 import 'dart:ui';
+
 import 'package:flutter/material.dart';
 
 /// An Apple-inspired translucent surface using BackdropFilter.
@@ -20,10 +21,7 @@ class AppleTranslucentSurface extends StatelessWidget {
     return ClipRect(
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: blurSigma, sigmaY: blurSigma),
-        child: Container(
-          color: baseColor,
-          child: child,
-        ),
+        child: Container(color: baseColor, child: child),
       ),
     );
   }
@@ -44,7 +42,8 @@ class AppleSpringButton extends StatefulWidget {
   State<AppleSpringButton> createState() => _AppleSpringButtonState();
 }
 
-class _AppleSpringButtonState extends State<AppleSpringButton> with SingleTickerProviderStateMixin {
+class _AppleSpringButtonState extends State<AppleSpringButton>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _scaleAnimation;
 
@@ -56,13 +55,13 @@ class _AppleSpringButtonState extends State<AppleSpringButton> with SingleTicker
       duration: const Duration(milliseconds: 150), // Snappy press
       reverseDuration: const Duration(milliseconds: 400), // Springy release
     );
-    
-    // Simulating a spring using easeOutElastic for the release
+
+    // Simulating a spring using elasticOut for the release
     _scaleAnimation = Tween<double>(begin: 1.0, end: 0.95).animate(
       CurvedAnimation(
         parent: _controller,
         curve: Curves.easeOut,
-        reverseCurve: Curves.easeOutElastic, 
+        reverseCurve: Curves.elasticOut,
       ),
     );
   }
@@ -93,10 +92,7 @@ class _AppleSpringButtonState extends State<AppleSpringButton> with SingleTicker
       onTapUp: _onTapUp,
       onTapCancel: _onTapCancel,
       behavior: HitTestBehavior.opaque,
-      child: ScaleTransition(
-        scale: _scaleAnimation,
-        child: widget.child,
-      ),
+      child: ScaleTransition(scale: _scaleAnimation, child: widget.child),
     );
   }
 }

@@ -40,6 +40,9 @@ dependencies:
   path_provider: ^2.1.6
   dio: ^5.11.1
   equatable: ^3.0.0
+  # Camera for on-site job photos (APP-002).
+  image_picker: ^1.2.3
+  path: ^1.9.1
 
 dev_dependencies:
   flutter_test:

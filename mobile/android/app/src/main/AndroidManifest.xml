@@ -1,4 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Flutter only adds this to debug/profile builds; release needs it to reach the backend. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
     <application
         android:label="mobile"
         android:name="${applicationName}"

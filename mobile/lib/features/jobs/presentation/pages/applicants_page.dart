@@ -19,7 +19,8 @@ class ApplicantsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (ctx) => ApplicantsCubit(ctx.read<JobsRepository>())..loadMatches(jobId),
+      create: (ctx) =>
+          ApplicantsCubit(ctx.read<JobsRepository>())..loadMatches(jobId),
       child: _ApplicantsView(jobId: jobId),
     );
   }
@@ -36,13 +37,19 @@ class _ApplicantsView extends StatelessWidget {
       appBar: AppBar(title: const Text('Applicants')),
       body: BlocConsumer<ApplicantsCubit, ApplicantsState>(
         listener: (context, state) {
-          if (!context.mounted) return; // Engineering Standard: Async Gap Safety
+          if (!context.mounted) {
+            return; // Engineering Standard: Async Gap Safety
+          }
 
           if (state is ApplicantsBooked) {
-            Navigator.of(context).pushReplacementNamed('/job-tracking', arguments: state.job);
+            Navigator.of(context)
+                .pushReplacementNamed('/job-tracking', arguments: state.job);
           } else if (state is ApplicantsFailure) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(state.errorMessage), backgroundColor: Colors.red),
+              SnackBar(
+                content: Text(state.errorMessage),
+                backgroundColor: Colors.red,
+              ),
             );
           }
         },
@@ -83,7 +90,10 @@ class _ApplicantsView extends StatelessWidget {
     );
   }
 
-  Future<void> _promptAndHire(BuildContext context, MatchCandidate candidate) async {
+  Future<void> _promptAndHire(
+    BuildContext context,
+    MatchCandidate candidate,
+  ) async {
     final controller = TextEditingController(
       text: candidate.quotedAmount?.toStringAsFixed(2) ?? '',
     );
@@ -104,7 +114,9 @@ class _ApplicantsView extends StatelessWidget {
             child: const Text('Cancel'),
           ),
           FilledButton(
-            onPressed: () => Navigator.of(dialogContext).pop(double.tryParse(controller.text)),
+            onPressed: () =>
+                Navigator.of(dialogContext)
+                    .pop(double.tryParse(controller.text)),
             child: const Text('Hire'),
           ),
         ],
@@ -114,10 +126,10 @@ class _ApplicantsView extends StatelessWidget {
     if (depositAmount == null || !context.mounted) return;
 
     context.read<ApplicantsCubit>().hireWorker(
-          jobId: jobId,
-          workerId: candidate.workerId,
-          depositAmount: depositAmount,
-        );
+      jobId: jobId,
+      workerId: candidate.workerId,
+      depositAmount: depositAmount,
+    );
   }
 }
 
@@ -126,7 +138,11 @@ class _CandidateCard extends StatelessWidget {
   final bool isBooking;
   final VoidCallback onHire;
 
-  const _CandidateCard({required this.candidate, required this.isBooking, required this.onHire});
+  const _CandidateCard({
+    required this.candidate,
+    required this.isBooking,
+    required this.onHire,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -139,14 +155,22 @@ class _CandidateCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                CircleAvatar(backgroundColor: AppTheme.lightBlueGray, child: Text(candidate.grade.substring(0, 1))),
+                CircleAvatar(
+                  backgroundColor: AppTheme.lightBlueGray,
+                  child: Text(candidate.grade.substring(0, 1)),
+                ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('${candidate.grade} · ${candidate.distanceBand}', style: const TextStyle(fontWeight: FontWeight.bold)),
-                      Text('${candidate.suburb} · ${candidate.distanceKm.toStringAsFixed(1)}km'),
+                      Text(
+                        '${candidate.grade} · ${candidate.distanceBand}',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      Text(
+                        '${candidate.suburb} · ${candidate.distanceKm.toStringAsFixed(1)}km',
+                      ),
                     ],
                   ),
                 ),
@@ -154,17 +178,33 @@ class _CandidateCard extends StatelessWidget {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      Text('\$${candidate.quotedAmount!.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                      Text(
+                        '\$${candidate.quotedAmount!.toStringAsFixed(2)}',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
                       const Text('quote', style: TextStyle(fontSize: 11)),
                     ],
                   ),
               ],
             ),
             const SizedBox(height: 8),
-            Text(candidate.reason, style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontSize: 12)),
+            Text(
+              candidate.reason,
+              style: Theme.of(context).textTheme.bodyMedium
+                  ?.copyWith(fontSize: 12),
+            ),
             if (candidate.availabilityNote != null) ...[
               const SizedBox(height: 6),
-              Text(candidate.availabilityNote!, style: const TextStyle(fontStyle: FontStyle.italic, fontSize: 12)),
+              Text(
+                candidate.availabilityNote!,
+                style: const TextStyle(
+                  fontStyle: FontStyle.italic,
+                  fontSize: 12,
+                ),
+              ),
             ],
             const SizedBox(height: 12),
             SizedBox(

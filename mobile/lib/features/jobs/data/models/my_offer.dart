@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'package:mobile/core/json/json_number.dart';
 
 /// Mirrors the backend's MyOfferOut.
 class MyOffer extends Equatable {
@@ -24,7 +25,7 @@ class MyOffer extends Equatable {
     return MyOffer(
       id: json['id'] as String,
       jobId: json['job_id'] as String,
-      quotedAmount: (json['quoted_amount'] as num).toDouble(),
+      quotedAmount: readRequiredDecimal(json['quoted_amount']),
       availabilityNote: json['availability_note'] as String?,
       jobTrade: json['job_trade'] as String,
       jobSuburb: json['job_suburb'] as String,

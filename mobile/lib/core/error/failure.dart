@@ -21,3 +21,8 @@ class StorageFailure extends Failure {
 class UnknownFailure extends Failure {
   const UnknownFailure({required super.message, super.exception});
 }
+
+/// The input can't be sent as it is (e.g. a price of zero).
+class ValidationFailure extends Failure {
+  const ValidationFailure({required super.message});
+}

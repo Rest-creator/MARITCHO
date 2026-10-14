@@ -17,7 +17,8 @@ class EmployerHomePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (ctx) => EmployerHomeCubit(ctx.read<JobsRepository>())..loadJobs(),
+      create: (ctx) =>
+          EmployerHomeCubit(ctx.read<JobsRepository>())..loadJobs(),
       child: const _EmployerHomeView(),
     );
   }
@@ -46,14 +47,24 @@ class _EmployerHomeView extends StatelessWidget {
           children: [
             Card(
               child: ListTile(
-                leading: const Icon(Icons.search, color: AppTheme.primaryBlueGray),
-                title: const Text('What needs doing?', style: TextStyle(fontWeight: FontWeight.bold)),
+                leading: const Icon(
+                  Icons.search,
+                  color: AppTheme.primaryBlueGray,
+                ),
+                title: const Text(
+                  'What needs doing?',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
                 subtitle: const Text('A leaking tap, a cut lawn, a driver…'),
                 onTap: () => Navigator.of(context).pushNamed('/post-job'),
               ),
             ),
             const SizedBox(height: 20),
-            Text('Popular near you', style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.bold)),
+            Text(
+              'Popular near you',
+              style: Theme.of(context).textTheme.bodyMedium
+                  ?.copyWith(fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 12),
             GridView.count(
               crossAxisCount: 4,
@@ -66,23 +77,34 @@ class _EmployerHomeView extends StatelessWidget {
                   _TradeTile(
                     label: label,
                     icon: icon,
-                    onTap: () => Navigator.of(context).pushNamed('/post-job', arguments: trade),
+                    onTap: () =>
+                        Navigator.of(context)
+                            .pushNamed('/post-job', arguments: trade),
                   ),
               ],
             ),
             const SizedBox(height: 24),
-            Text('Your jobs', style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.bold)),
+            Text(
+              'Your jobs',
+              style: Theme.of(context).textTheme.bodyMedium
+                  ?.copyWith(fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 12),
             BlocBuilder<EmployerHomeCubit, EmployerHomeState>(
               builder: (context, state) {
-                if (state is EmployerHomeLoading || state is EmployerHomeInitial) {
-                  return const Center(child: Padding(
-                    padding: EdgeInsets.all(24),
-                    child: CircularProgressIndicator(),
-                  ));
+                if (state is EmployerHomeLoading ||
+                    state is EmployerHomeInitial) {
+                  return const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(24),
+                      child: CircularProgressIndicator(),
+                    ),
+                  );
                 }
                 if (state is EmployerHomeFailure) {
-                  return Text('Could not load your jobs: ${state.errorMessage}');
+                  return Text(
+                    'Could not load your jobs: ${state.errorMessage}',
+                  );
                 }
                 final jobs = (state as EmployerHomeLoaded).jobs;
                 if (jobs.isEmpty) {
@@ -105,7 +127,11 @@ class _TradeTile extends StatelessWidget {
   final IconData icon;
   final VoidCallback onTap;
 
-  const _TradeTile({required this.label, required this.icon, required this.onTap});
+  const _TradeTile({
+    required this.label,
+    required this.icon,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -123,7 +149,11 @@ class _TradeTile extends StatelessWidget {
           children: [
             Icon(icon, color: AppTheme.darkBlueGray),
             const SizedBox(height: 6),
-            Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600), textAlign: TextAlign.center),
+            Text(
+              label,
+              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+              textAlign: TextAlign.center,
+            ),
           ],
         ),
       ),
@@ -138,7 +168,8 @@ class _JobCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final notBookedYet = job.workerId == null &&
+    final notBookedYet =
+        job.workerId == null &&
         (job.status == 'REQUESTED' || job.status == 'MATCHED');
 
     return Card(
