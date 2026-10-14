@@ -1,5 +1,7 @@
 import { Icon } from "@/components/ui/Icon";
+import { TapToLoadPhoto } from "@/components/ui/TapToLoadPhoto";
 import type { Message } from "@/core/api/schemas";
+import { mediaSrc } from "@/core/media/upload";
 
 type Props = {
   message: Pick<
@@ -47,13 +49,15 @@ export function MessageBubble({ message, isMine, isPending = false }: Props) {
   }
 
   if (message.message_type === "VOICE_NOTE") {
+    const src = mediaSrc(message.media_url);
     return (
       <div
         className={classes}
         style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px" }}
       >
-        {message.media_url ? (
-          <audio controls preload="none" src={message.media_url} style={{ maxWidth: 200 }} />
+        {src ? (
+          // preload="none": nothing downloads until play is tapped.
+          <audio controls preload="none" src={src} style={{ maxWidth: 200 }} />
         ) : (
           <div className="voice-wave" aria-hidden="true">
             {WAVE_HEIGHTS.map((height, index) => (
@@ -69,8 +73,7 @@ export function MessageBubble({ message, isMine, isPending = false }: Props) {
   if (message.message_type === "PHOTO" && message.media_url) {
     return (
       <div className={classes} style={{ padding: 6 }}>
-        {/* eslint-disable-next-line @next/next/no-img-element -- remote user media, size unknown */}
-        <img src={message.media_url} alt="Photo sent in chat" loading="lazy" />
+        <TapToLoadPhoto url={message.media_url} label="Photo" />
         {message.body && <div style={{ padding: "6px 8px 2px" }}>{message.body}</div>}
       </div>
     );

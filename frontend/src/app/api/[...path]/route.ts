@@ -1,10 +1,38 @@
 import { NextResponse, type NextRequest } from "next/server";
 
-import { backendFetch, isProxyPathAllowed, readSessionToken } from "@/server/backend";
+import {
+  MAX_UPLOAD_BYTES,
+  backendFetch,
+  isProxyPathAllowed,
+  readSessionToken,
+} from "@/server/backend";
 
 type RouteContext = { params: Promise<{ path: string[] }> };
 
-const FORWARDED_REQUEST_HEADERS = ["content-type", "accept", "traceparent", "tracestate"] as const;
+const FORWARDED_REQUEST_HEADERS = [
+  "content-type",
+  "accept",
+  "traceparent",
+  "tracestate",
+  // Lets the backend recognise a replayed upload and return the same file.
+  "idempotency-key",
+  // Voice notes are streamed: the audio player asks for byte ranges.
+  "range",
+] as const;
+
+const FORWARDED_RESPONSE_HEADERS = [
+  "content-type",
+  "content-range",
+  "accept-ranges",
+  "etag",
+] as const;
+
+/** Uploaded media never changes, so the phone may keep it for a week. */
+const MEDIA_CACHE_CONTROL = "private, max-age=604800, immutable";
+
+function tooBig(): NextResponse {
+  return NextResponse.json({ detail: "That file is too big to send." }, { status: 413 });
+}
 
 /**
  * Backend-for-frontend proxy: the browser only ever talks to this origin,
@@ -31,22 +59,32 @@ async function proxy(request: NextRequest, context: RouteContext): Promise<Respo
   }
 
   const hasBody = request.method !== "GET" && request.method !== "HEAD";
+  if (hasBody && Number(request.headers.get("content-length") ?? "0") > MAX_UPLOAD_BYTES) {
+    return tooBig();
+  }
   const target = `/${path.map(encodeURIComponent).join("/")}${request.nextUrl.search}`;
 
   try {
-    const upstream = await backendFetch(target, {
-      method: request.method,
-      headers,
-      body: hasBody ? await request.arrayBuffer() : undefined,
-    });
-    const responseHeaders = new Headers();
-    const contentType = upstream.headers.get("content-type");
-    if (contentType !== null) {
-      responseHeaders.set("content-type", contentType);
+    const body = hasBody ? await request.arrayBuffer() : undefined;
+    // Content-Length can be missing (chunked uploads), so check what arrived too.
+    if (body !== undefined && body.byteLength > MAX_UPLOAD_BYTES) {
+      return tooBig();
     }
-    responseHeaders.set("cache-control", "no-store");
-    const body = upstream.status === 204 ? null : await upstream.arrayBuffer();
-    return new Response(body, { status: upstream.status, headers: responseHeaders });
+    const upstream = await backendFetch(target, { method: request.method, headers, body });
+    const responseHeaders = new Headers();
+    for (const name of FORWARDED_RESPONSE_HEADERS) {
+      const value = upstream.headers.get(name);
+      if (value !== null) {
+        responseHeaders.set(name, value);
+      }
+    }
+    const isMediaFile = path[0] === "media" && path.length > 1 && request.method === "GET";
+    responseHeaders.set(
+      "cache-control",
+      isMediaFile && upstream.ok ? MEDIA_CACHE_CONTROL : "no-store",
+    );
+    const responseBody = upstream.status === 204 ? null : await upstream.arrayBuffer();
+    return new Response(responseBody, { status: upstream.status, headers: responseHeaders });
   } catch {
     return NextResponse.json(
       { detail: "Maricho is unreachable right now. Your changes are saved and will send later." },

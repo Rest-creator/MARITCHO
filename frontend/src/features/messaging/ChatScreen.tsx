@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useMutationState } from "@tanstack/react-query";
 
 import { Avatar } from "@/components/ui/Avatar";
@@ -12,10 +12,13 @@ import type { SendMessageInput } from "@/core/api/endpoints";
 import type { Message } from "@/core/api/schemas";
 import { formatClock, formatDayLabel, formatMoney, jobStatusLabel } from "@/core/format/format";
 import { tradeIcon, tradeLabel } from "@/core/format/trades";
+import { useMediaUploads } from "@/core/media/use-media-uploads";
+import { useOnlineStatus } from "@/core/offline/use-online-status";
 import { mutationKeys } from "@/core/query/keys";
 import { useSession } from "@/core/session/SessionProvider";
 import { useJob } from "@/features/jobs/hooks";
 import { splitTiming } from "@/features/jobs/job-helpers";
+import { ChatComposer } from "@/features/messaging/ChatComposer";
 import { MessageBubble } from "@/features/messaging/MessageBubble";
 import {
   useChatSocket,
@@ -52,7 +55,8 @@ export function ChatScreen({ jobId }: Props) {
   const isLive = useChatSocket(jobId);
   const messages = useMessages(jobId, isLive);
   const sendMessage = useSendMessage(jobId);
-  const [draft, setDraft] = useState("");
+  const canUpload = useMediaUploads();
+  const isOnline = useOnlineStatus();
   const [locationError, setLocationError] = useState<string | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
 
@@ -78,13 +82,11 @@ export function ChatScreen({ jobId }: Props) {
     : "Messages";
   const lastMine = [...list].reverse().find((message) => message.sender_id === user?.id);
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>): void {
-    event.preventDefault();
-    const body = draft.trim();
-    if (body === "") return;
-    sendMessage.mutate({ jobId, message_type: "TEXT", body });
-    setDraft("");
-  }
+  const { mutate: send } = sendMessage;
+  const handleSend = useCallback(
+    (message: Omit<SendMessageInput, "jobId">) => send({ jobId, ...message }),
+    [jobId, send],
+  );
 
   function shareLocation(): void {
     setLocationError(null);
@@ -178,8 +180,8 @@ export function ChatScreen({ jobId }: Props) {
               message={{
                 message_type: variables.message_type,
                 body: variables.body ?? null,
-                media_url: null,
-                duration_seconds: null,
+                media_url: variables.media_url ?? null,
+                duration_seconds: variables.duration_seconds ?? null,
                 latitude: variables.latitude ?? null,
                 longitude: variables.longitude ?? null,
               }}
@@ -199,30 +201,7 @@ export function ChatScreen({ jobId }: Props) {
             Share my location
           </button>
         </div>
-        <form className="chat__composer" onSubmit={handleSubmit}>
-          <label htmlFor="chat-msg" className="visually-hidden">
-            Message
-          </label>
-          <div className="composer">
-            <input
-              id="chat-msg"
-              type="text"
-              placeholder="Type a message…"
-              autoComplete="off"
-              maxLength={2000}
-              value={draft}
-              onChange={(event) => setDraft(event.target.value)}
-            />
-          </div>
-          <button
-            type="submit"
-            className="round-btn"
-            aria-label="Send"
-            disabled={draft.trim() === ""}
-          >
-            <Icon name="send" />
-          </button>
-        </form>
+        <ChatComposer canAttach={canUpload && isOnline} onSend={handleSend} />
       </div>
     </Screen>
   );

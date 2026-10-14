@@ -43,6 +43,7 @@ export interface CreateJobInput {
   problem_description: string;
   landmark_narrative?: string;
   budget_amount?: number;
+  problem_photo_url?: string;
 }
 
 export interface SubmitOfferInput {

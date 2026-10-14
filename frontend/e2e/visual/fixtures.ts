@@ -69,7 +69,7 @@ export const OPEN_JOB_ID = "job-open";
 export const LIVE_JOB_ID = "job-live";
 export const EXPERT_ID = "worker-expert";
 
-const OPEN_JOB = job({ id: OPEN_JOB_ID, status: "MATCHED", offer_count: 2 });
+export const OPEN_JOB = job({ id: OPEN_JOB_ID, status: "MATCHED", offer_count: 2 });
 const LIVE_JOB = job({
   id: LIVE_JOB_ID,
   status: "IN_PROGRESS",
@@ -83,6 +83,7 @@ const LIVE_JOB = job({
   labor_amount: 35,
   materials_amount: 10,
   quote_amount: 45,
+  problem_photo_url: "/media/lounge-switch.jpg",
   created_at: minutesAgo(60 * 26),
   updated_at: minutesAgo(40),
 });
@@ -95,6 +96,7 @@ const BOOKED_JOB = job({
   address: "22 Lobengula St",
   problem_description: "Geyser is dripping from the overflow pipe\nNeeded: Today",
   budget_amount: 60,
+  problem_photo_url: "/media/geyser.jpg",
   created_at: minutesAgo(90),
   updated_at: minutesAgo(15),
 });
@@ -249,35 +251,51 @@ const STANDING: Standing = {
 
 type Who = "BUYER" | "WORKER" | null;
 
-function responsesFor(who: Who): Record<string, unknown> {
+/** A stubbed answer: a JSON body, or a status with an optional body. */
+export type Reply = { status: number; json?: unknown } | { json: unknown };
+
+function ok(json: unknown): Reply {
+  return { json };
+}
+
+function responsesFor(who: Who): Record<string, Reply> {
   const user = who === "BUYER" ? BUYER : who === "WORKER" ? WORKER : null;
   return {
-    "GET session": user,
-    "GET suburbs": SUBURBS,
-    "GET jobs/mine": [OPEN_JOB, LIVE_JOB, DONE_JOB],
-    [`GET jobs/${OPEN_JOB_ID}`]: OPEN_JOB,
-    [`GET jobs/${LIVE_JOB_ID}`]: LIVE_JOB,
-    [`GET jobs/${OPEN_JOB_ID}/matches`]: MATCHES,
-    [`GET jobs/${LIVE_JOB_ID}/messages`]: MESSAGES,
-    [`POST jobs/${LIVE_JOB_ID}/messages/read`]: null,
-    "GET jobs/open": OPEN_JOBS,
-    "GET jobs/assigned": [BOOKED_JOB, LIVE_JOB, DONE_JOB],
-    "GET jobs/my-offers": MY_OFFERS,
-    "GET workers/me/skills": SKILLS,
-    "GET workers/me/service-areas": SERVICE_AREAS,
-    "GET workers/me/standing": STANDING,
-    "GET workers/me/references": [],
+    "GET session": ok(user),
+    "GET suburbs": ok(SUBURBS),
+    "GET jobs/mine": ok([OPEN_JOB, LIVE_JOB, DONE_JOB]),
+    [`GET jobs/${OPEN_JOB_ID}`]: ok(OPEN_JOB),
+    [`GET jobs/${LIVE_JOB_ID}`]: ok(LIVE_JOB),
+    [`GET jobs/${OPEN_JOB_ID}/matches`]: ok(MATCHES),
+    [`GET jobs/${LIVE_JOB_ID}/messages`]: ok(MESSAGES),
+    [`POST jobs/${LIVE_JOB_ID}/messages/read`]: { status: 204 },
+    "GET jobs/open": ok(OPEN_JOBS),
+    "GET jobs/assigned": ok([BOOKED_JOB, LIVE_JOB, DONE_JOB]),
+    "GET jobs/my-offers": ok(MY_OFFERS),
+    "GET workers/me/skills": ok(SKILLS),
+    "GET workers/me/service-areas": ok(SERVICE_AREAS),
+    "GET workers/me/standing": ok(STANDING),
+    "GET workers/me/references": ok([]),
+    // The world as designed: uploads exist (POST-only route → 405 on GET)
+    // and sign-up sends a 6-digit code.
+    "GET media": { status: 405, json: { detail: "Method Not Allowed" } },
+    "POST session/code": ok({ code_required: true, resend_after_seconds: 30 }),
   };
 }
 
 /**
  * Answer every `/api/*` call from the fixed world above, signed in as
- * `who` (or nobody). Anything unexpected fails loudly rather than letting
- * a screenshot capture an error state by accident.
+ * `who` (or nobody); `overrides` replace or add answers for one test.
+ * Anything unexpected fails loudly rather than letting a screenshot
+ * capture an error state by accident.
  */
-export async function stubWorld(page: Page, who: Who): Promise<string[]> {
+export async function stubWorld(
+  page: Page,
+  who: Who,
+  overrides: Record<string, Reply> = {},
+): Promise<string[]> {
   const unexpected: string[] = [];
-  const responses = responsesFor(who);
+  const responses = { ...responsesFor(who), ...overrides };
 
   await page.clock.setFixedTime(NOW);
   if (who !== null) {
@@ -296,11 +314,9 @@ export async function stubWorld(page: Page, who: Who): Promise<string[]> {
       return;
     }
     const key = `${request.method()} ${path}`;
-    if (key in responses) {
-      const body = responses[key];
-      await route.fulfill(
-        body === null && request.method() === "POST" ? { status: 204 } : { json: body },
-      );
+    const reply = responses[key];
+    if (reply !== undefined) {
+      await route.fulfill(reply);
       return;
     }
     unexpected.push(key);

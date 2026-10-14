@@ -35,7 +35,7 @@ npm run format:check && npm run lint && npm run typecheck && npm test && npm run
 npx playwright install chromium   # once
 
 npm run test:e2e             # one job, posted → paid, against a real backend
-npm run test:visual          # screenshots of the 13 designed screens
+npm run test:visual          # screenshots of the 14 designed screens
 npm run test:visual:update   # accept intended UI changes as the new baselines
 ```
 
@@ -48,6 +48,9 @@ npm run test:visual:update   # accept intended UI changes as the new baselines
   `mcr.microsoft.com/playwright` Linux image (same as CI) because fonts render differently on
   Windows and macOS. Baselines live in `e2e/visual/__screenshots__/`; review the diff images
   before running `test:visual:update`.
+- **Flows** (`e2e/flows/`): sign-in codes and photo uploads in a real browser against the
+  stubbed contract from issues #1 and #5, including the on-phone photo shrinking.
+  `npx playwright test --project=flows` (no Docker needed).
 - CI: `.github/workflows/frontend-e2e.yml` runs both on frontend and backend changes and
   uploads the report (traces, screenshot diffs) when something fails.
 
@@ -83,10 +86,17 @@ browser ──/api/*──▶ Next.js route handler (BFF) ──Bearer JWT──
 - **No names:** the backend stores phone numbers only, so the display name is kept on the
   device and workers are introduced by grade and trade ("Expert plumber").
 - **Trades:** the backend has six trades; other skills in the picker are marked _soon_.
-- **No OTP:** sign-up skips the 6-digit code step — `/token` is a development mock (BACK-009).
-- **No uploads:** photos are previewed on the device but not sent (WEB-004).
+- **Sign-in code (WEB-005):** built, waiting on the backend ([#5]). `/api/session/code` asks
+  `/auth/otp/request`; while that is 404, sign-up skips the code step and uses the `/token` mock.
+- **Photos and voice notes (WEB-004):** built, waiting on the backend ([#1]). The app checks
+  `GET /media` (404 = not yet); until then photos stay on the phone and chat hides the
+  camera/mic. When it's on, photos are shrunk to ≤1280 px JPEG (GPS stripped) before upload, and
+  uploaded photos only download when tapped.
 - **No ratings endpoint:** the star rating and tags are written into the job's sign-off
   record (`client_words`).
 - **Job timing** ("Today", "This week") is carried as a `Needed:` line in the description.
 
 See WEB-004 – WEB-006 in [`docs/backlog.md`](../docs/backlog.md).
+
+[#1]: https://github.com/Rest-creator/MARITCHO/issues/1
+[#5]: https://github.com/Rest-creator/MARITCHO/issues/5

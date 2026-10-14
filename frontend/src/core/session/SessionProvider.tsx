@@ -14,6 +14,8 @@ export type SignInRole = "BUYER" | "WORKER";
 export interface SignInInput {
   phone: string;
   role: SignInRole;
+  /** The 6-digit code, when one was sent (see requestSignInCode). */
+  code?: string;
 }
 
 interface SessionValue {

@@ -55,6 +55,11 @@ function fallbackMessage(status: number): string {
   return "Something went wrong. Please try again.";
 }
 
+/** The ApiError for a failed BFF response, using the backend's `detail` when it has one. */
+export function apiErrorFrom(status: number, payload: unknown): ApiError {
+  return new ApiError(detailMessage(payload, fallbackMessage(status)), status);
+}
+
 /**
  * Same-origin request to the BFF (`/api/...` → FastAPI). Throws ApiError so
  * TanStack Query can drive retry, pause-while-offline and error states.
@@ -82,7 +87,7 @@ export async function apiRequest<S extends z.ZodType | undefined = undefined>(
   const payload: unknown = response.status === 204 ? null : await response.json().catch(() => null);
 
   if (!response.ok) {
-    throw new ApiError(detailMessage(payload, fallbackMessage(response.status)), response.status);
+    throw apiErrorFrom(response.status, payload);
   }
   if (schema === undefined) {
     return undefined as Parsed<S>;

@@ -54,7 +54,15 @@ const PROXY_ALLOWED_ROOTS: ReadonlySet<string> = new Set([
   "users",
   "crews",
   "crew-orders",
+  // Photo and voice-note uploads, and reading them back (WEB-004, issue #1).
+  "media",
 ]);
+
+/**
+ * Largest upload the proxy passes on. Photos are shrunk on the phone to well
+ * under this; anything bigger is refused before it costs anyone data twice.
+ */
+export const MAX_UPLOAD_BYTES = 4 * 1024 * 1024;
 
 export function isProxyPathAllowed(segments: readonly string[]): boolean {
   const [root] = segments;

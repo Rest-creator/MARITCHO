@@ -9,7 +9,9 @@ import { Icon } from "@/components/ui/Icon";
 import { Screen } from "@/components/ui/Screen";
 import { formatLocalPhone, toInternationalPhone } from "@/core/format/format";
 import { updateProfile, useLocalProfile } from "@/core/session/profile-store";
+import { requestSignInCode } from "@/core/session/sign-in-code";
 import { homeFor, useSession, type SignInRole } from "@/core/session/SessionProvider";
+import { SignInCodeStep } from "@/features/accounts/SignInCodeStep";
 
 type Props = {
   initialRole: SignInRole;
@@ -28,12 +30,19 @@ export function validateSignUp(name: string, localPhone: string, isLogin: boolea
   return null;
 }
 
+/** A code was sent; waiting for the person to type it in. */
+interface CodeStep {
+  phone: string;
+  resendAfterSeconds: number;
+}
+
 /**
- * Design 2 · Sign up with phone number.
+ * Design 2 · Sign up with phone number, then the 6-digit code (2b).
  *
- * The design's 6-digit SMS code step is intentionally not shown yet: the
- * backend's `/token` is a development mock with no OTP delivery (ADR-006,
- * BACK-009). Showing "code sent" when nothing was sent would mislead.
+ * The code step only appears when the backend actually sent a code
+ * (BACK-009, issue #5). Until it can, sign-in goes straight through the
+ * `/token` development mock: showing "code sent" when nothing was sent
+ * would mislead.
  */
 export function SignUpScreen({ initialRole, isLogin, isExpired }: Props) {
   const router = useRouter();
@@ -43,24 +52,68 @@ export function SignUpScreen({ initialRole, isLogin, isExpired }: Props) {
   const [name, setName] = useState(profile.name);
   const [phone, setPhone] = useState(profile.phone === "" ? "" : formatLocalPhone(profile.phone));
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [requestError, setRequestError] = useState<string | null>(null);
+  const [isRequestingCode, setIsRequestingCode] = useState(false);
+  const [codeStep, setCodeStep] = useState<CodeStep | null>(null);
 
   const isWorker = role === "WORKER";
-  const error = validationError ?? signInError;
+  const error = validationError ?? requestError ?? signInError;
+  const isBusy = isSigningIn || isRequestingCode;
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
-    event.preventDefault();
-    const problem = validateSignUp(name, phone, isLogin);
-    setValidationError(problem);
-    if (problem !== null) return;
-
-    const international = toInternationalPhone(phone);
+  async function completeSignIn(international: string, code?: string): Promise<void> {
     try {
-      const user = await signIn({ phone: international, role });
+      const user = await signIn({ phone: international, role, ...(code ? { code } : {}) });
       updateProfile({ phone: international, ...(name.trim() === "" ? {} : { name: name.trim() }) });
       router.replace(user.role === "WORKER" && !isLogin ? "/worker/skills" : homeFor(user.role));
     } catch {
       // signInError carries the message.
     }
+  }
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    const problem = validateSignUp(name, phone, isLogin);
+    setValidationError(problem);
+    setRequestError(null);
+    if (problem !== null) return;
+
+    const international = toInternationalPhone(phone);
+    setIsRequestingCode(true);
+    try {
+      const request = await requestSignInCode(international);
+      if (request.isCodeRequired) {
+        setCodeStep({ phone: international, resendAfterSeconds: request.resendAfterSeconds });
+        return;
+      }
+    } catch (failure: unknown) {
+      setRequestError(failure instanceof Error ? failure.message : "Could not send a code.");
+      return;
+    } finally {
+      setIsRequestingCode(false);
+    }
+    await completeSignIn(international);
+  }
+
+  async function handleResend(): Promise<number> {
+    if (codeStep === null) return 0;
+    const request = await requestSignInCode(codeStep.phone);
+    return request.isCodeRequired ? request.resendAfterSeconds : 0;
+  }
+
+  if (codeStep !== null) {
+    return (
+      <Screen glow={isWorker ? "worker" : "employer"}>
+        <SignInCodeStep
+          phone={codeStep.phone}
+          resendAfterSeconds={codeStep.resendAfterSeconds}
+          isVerifying={isSigningIn}
+          error={signInError}
+          onVerify={(code) => void completeSignIn(codeStep.phone, code)}
+          onResend={handleResend}
+          onChangeNumber={() => setCodeStep(null)}
+        />
+      </Screen>
+    );
   }
 
   return (
@@ -182,9 +235,9 @@ export function SignUpScreen({ initialRole, isLogin, isExpired }: Props) {
 
         <div className="spacer" style={{ minHeight: 32 }} />
 
-        <button type="submit" className="btn btn--primary btn--cta" disabled={isSigningIn}>
-          {isSigningIn ? "Signing you in…" : "Continue"}
-          {!isSigningIn && <Icon name="arrowRight" size={18} strokeWidth={2.2} />}
+        <button type="submit" className="btn btn--primary btn--cta" disabled={isBusy}>
+          {isRequestingCode ? "Sending your code…" : isSigningIn ? "Signing you in…" : "Continue"}
+          {!isBusy && <Icon name="arrowRight" size={18} strokeWidth={2.2} />}
         </button>
         <p className="meta" style={{ marginTop: 14, textAlign: "center", lineHeight: 1.5 }}>
           By continuing you agree to our{" "}

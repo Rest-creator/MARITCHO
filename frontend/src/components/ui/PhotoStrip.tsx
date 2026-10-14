@@ -7,6 +7,7 @@ import { Icon } from "@/components/ui/Icon";
 interface LocalPhoto {
   id: string;
   url: string;
+  file: File;
 }
 
 type Props = {
@@ -14,13 +15,15 @@ type Props = {
   addLabel?: string;
   /** Rendered as a row of thumbnails (post a job) or a 3-column grid (show your work). */
   layout?: "row" | "grid";
+  /** Called with the chosen photos (in order) whenever they change. */
+  onChange?: (files: File[]) => void;
 };
 
 /**
- * Camera/gallery picker with on-device previews. The backend accepts photo
- * URLs but has no upload endpoint yet, so photos stay on the phone for now.
+ * Camera/gallery picker with on-device previews. Uploading is the parent's
+ * job (`onChange` hands it the files); nothing is sent from here.
  */
-export function PhotoStrip({ max = 3, addLabel = "Add photo", layout = "row" }: Props) {
+export function PhotoStrip({ max = 3, addLabel = "Add photo", layout = "row", onChange }: Props) {
   const [photos, setPhotos] = useState<LocalPhoto[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
   const photosRef = useRef<LocalPhoto[]>([]);
@@ -29,6 +32,10 @@ export function PhotoStrip({ max = 3, addLabel = "Add photo", layout = "row" }: 
     photosRef.current = photos;
   }, [photos]);
 
+  useEffect(() => {
+    onChange?.(photos.map((photo) => photo.file));
+  }, [photos, onChange]);
+
   useEffect(() => () => photosRef.current.forEach((photo) => URL.revokeObjectURL(photo.url)), []);
 
   function handleChange(event: ChangeEvent<HTMLInputElement>): void {
@@ -36,6 +43,7 @@ export function PhotoStrip({ max = 3, addLabel = "Add photo", layout = "row" }: 
     const added = files.map((file) => ({
       id: `${file.name}-${file.lastModified}`,
       url: URL.createObjectURL(file),
+      file,
     }));
     setPhotos((current) => [...current, ...added]);
     event.target.value = "";

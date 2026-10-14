@@ -8,10 +8,16 @@ import {
   readSessionToken,
   sessionCookieOptions,
 } from "@/server/backend";
+import { codeRejectedMessage } from "@/server/sign-in-code";
 
 const loginSchema = z.object({
   phone: z.string().regex(/^\+?\d{9,15}$/, "Enter a valid phone number"),
   role: z.enum(["BUYER", "WORKER"]),
+  /** The 6-digit code, once the backend sends one (WEB-005). */
+  code: z
+    .string()
+    .regex(/^\d{6}$/, "The code is 6 digits")
+    .optional(),
 });
 
 function unreachable(): NextResponse {
@@ -44,9 +50,27 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   }
 }
 
+/** Exchange a 6-digit code for a token (issue #5); `role` applies to new accounts only. */
+function verifyCode(phone: string, code: string, role: string): Promise<Response> {
+  return backendFetch("/auth/otp/verify", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ phone, code, role }),
+  });
+}
+
+/** The backend's `/token` development mock (ADR-006): trusts the phone number. */
+function mockToken(phone: string, role: string): Promise<Response> {
+  return backendFetch("/token", {
+    method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ username: phone, password: "", role }),
+  });
+}
+
 /**
- * Sign in. The backend's `/token` is a development mock (ADR-006, BACK-009):
- * it trusts the phone number and only applies `role` on first sign-in.
+ * Sign in — with the 6-digit code when the backend sent one, otherwise
+ * through the `/token` mock (BACK-009). `role` only applies on first sign-in.
  */
 export async function POST(request: NextRequest): Promise<NextResponse> {
   const parsed = loginSchema.safeParse(await request.json().catch(() => null));
@@ -56,20 +80,20 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       { status: 422 },
     );
   }
+  const { phone, role, code } = parsed.data;
 
   try {
-    const form = new URLSearchParams({
-      username: parsed.data.phone,
-      password: "",
-      role: parsed.data.role,
-    });
-    const tokenResponse = await backendFetch("/token", {
-      method: "POST",
-      headers: { "content-type": "application/x-www-form-urlencoded" },
-      body: form,
-    });
+    const tokenResponse =
+      code === undefined ? await mockToken(phone, role) : await verifyCode(phone, code, role);
     if (!tokenResponse.ok) {
-      return NextResponse.json({ detail: "Sign-in failed" }, { status: tokenResponse.status });
+      const payload: unknown = await tokenResponse.json().catch(() => null);
+      return code === undefined
+        ? NextResponse.json({ detail: "Sign-in failed" }, { status: tokenResponse.status })
+        : NextResponse.json(
+            { detail: codeRejectedMessage(tokenResponse.status, payload) },
+            // Never 401: that would read as "your session expired" to the app.
+            { status: tokenResponse.status === 429 ? 429 : 400 },
+          );
     }
     const { access_token: token } = tokenSchema.parse(await tokenResponse.json());
 

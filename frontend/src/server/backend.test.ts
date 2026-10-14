@@ -14,6 +14,8 @@ describe("isProxyPathAllowed", () => {
   it.each([
     [["jobs", "open"], true],
     [["workers", "me", "skills"], true],
+    [["media"], true],
+    [["media", "abc123"], true],
     [["suburbs"], true],
     [["users", "me"], true],
     [["admin", "payment-gateways", "ecocash"], false],

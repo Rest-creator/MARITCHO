@@ -17,7 +17,10 @@ import {
   tradeLabel,
   type SkillOption,
 } from "@/core/format/trades";
+import { isUploadUnavailable } from "@/core/media/upload";
 import { useDictation } from "@/core/media/use-dictation";
+import { useMediaUploads } from "@/core/media/use-media-uploads";
+import { useUpload } from "@/core/media/use-upload";
 import { updateProfile, useLocalProfile } from "@/core/session/profile-store";
 import { useCreateJob } from "@/features/jobs/hooks";
 import { withTiming } from "@/features/jobs/job-helpers";
@@ -62,6 +65,8 @@ export function PostJobScreen({ initialTrade, initialSkillId, shouldOpenPicker }
   const router = useRouter();
   const profile = useLocalProfile();
   const createJob = useCreateJob();
+  const canUpload = useMediaUploads();
+  const { upload, isUploading } = useUpload();
 
   const [skill, setSkill] = useState<SkillOption | null>(() =>
     initialSkill(initialTrade, initialSkillId),
@@ -78,6 +83,8 @@ export function PostJobScreen({ initialTrade, initialSkillId, shouldOpenPicker }
   const [date, setDate] = useState("");
   const [budget, setBudget] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
+  const [photos, setPhotos] = useState<File[]>([]);
+  const [hasPhotoFailed, setHasPhotoFailed] = useState(false);
 
   const dictation = useDictation((text) =>
     setDescription((current) =>
@@ -96,11 +103,29 @@ export function PostJobScreen({ initialTrade, initialSkillId, shouldOpenPicker }
         });
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>): void {
-    event.preventDefault();
+  /** Upload the photo if it can go now; `undefined` means post without one. */
+  async function photoUrlFor(photo: File | undefined): Promise<string | undefined | "failed"> {
+    if (photo === undefined || !canUpload || !onlineManager.isOnline()) return undefined;
+    try {
+      return await upload(photo, "photo");
+    } catch (failure: unknown) {
+      if (isUploadUnavailable(failure)) return undefined;
+      setFormError(
+        `The photo didn't send${failure instanceof Error ? ` (${failure.message})` : ""}. Try again, or post without it.`,
+      );
+      setHasPhotoFailed(true);
+      return "failed";
+    }
+  }
+
+  async function submit(isWithoutPhoto: boolean): Promise<void> {
     const problem = validatePostJob(skill, description, location);
     setFormError(problem);
     if (problem !== null || skill === null || skill.trade === null) return;
+
+    const photoUrl = isWithoutPhoto ? undefined : await photoUrlFor(photos[0]);
+    if (photoUrl === "failed") return;
+    setHasPhotoFailed(false);
 
     const budgetAmount = Number(budget);
     updateProfile({ lastSuburb: location.suburb, lastAddress: location.address });
@@ -111,6 +136,7 @@ export function PostJobScreen({ initialTrade, initialSkillId, shouldOpenPicker }
       ...(location.landmark === "" ? {} : { landmark_narrative: location.landmark }),
       problem_description: withTiming(describeWithSkill(skill, description), timingLabel()),
       ...(budget !== "" && budgetAmount > 0 ? { budget_amount: budgetAmount } : {}),
+      ...(photoUrl === undefined ? {} : { problem_photo_url: photoUrl }),
     };
 
     if (!onlineManager.isOnline()) {
@@ -120,6 +146,11 @@ export function PostJobScreen({ initialTrade, initialSkillId, shouldOpenPicker }
       return;
     }
     createJob.mutate(input, { onSuccess: (job) => router.replace(`/employer/jobs/${job.id}`) });
+  }
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>): void {
+    event.preventDefault();
+    void submit(false);
   }
 
   const locationText =
@@ -176,7 +207,7 @@ export function PostJobScreen({ initialTrade, initialSkillId, shouldOpenPicker }
             onChange={(event) => setDescription(event.target.value)}
           />
           <div className="row" style={{ marginTop: 10, gap: 8 }}>
-            <PhotoStrip />
+            <PhotoStrip max={1} onChange={setPhotos} />
             {dictation.isSupported && (
               <button
                 type="button"
@@ -190,6 +221,11 @@ export function PostJobScreen({ initialTrade, initialSkillId, shouldOpenPicker }
               </button>
             )}
           </div>
+          {photos.length > 0 && !canUpload && (
+            <p className="meta" style={{ marginTop: 8 }}>
+              The photo stays on your phone for now. Say what&apos;s wrong in words too.
+            </p>
+          )}
         </div>
 
         <button
@@ -276,12 +312,26 @@ export function PostJobScreen({ initialTrade, initialSkillId, shouldOpenPicker }
         )}
 
         <div className="spacer" />
+        {hasPhotoFailed && (
+          <button
+            type="button"
+            className="btn btn--ghost"
+            disabled={isUploading}
+            onClick={() => void submit(true)}
+          >
+            Post without the photo
+          </button>
+        )}
         <button
           type="submit"
           className="btn btn--primary btn--cta"
-          disabled={createJob.isPending && !createJob.isPaused}
+          disabled={isUploading || (createJob.isPending && !createJob.isPaused)}
         >
-          {createJob.isPending && !createJob.isPaused ? "Posting…" : "Find someone for this job"}
+          {isUploading
+            ? "Sending photo…"
+            : createJob.isPending && !createJob.isPaused
+              ? "Posting…"
+              : "Find someone for this job"}
           <Icon name="arrowRight" size={18} strokeWidth={2.2} />
         </button>
       </form>

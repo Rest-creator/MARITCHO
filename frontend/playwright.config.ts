@@ -41,7 +41,9 @@ export default defineConfig({
   timeout: 60_000,
   expect: {
     timeout: 10_000,
-    toHaveScreenshot: { animations: "disabled", caret: "hide", maxDiffPixelRatio: 0.002 },
+    // Rendered in one Linux image, so pixels match exactly; a small allowance only
+    // absorbs anti-aliasing. A ratio would let a whole missing icon through.
+    toHaveScreenshot: { animations: "disabled", caret: "hide", maxDiffPixels: 20 },
   },
   use: {
     baseURL,
@@ -61,6 +63,13 @@ export default defineConfig({
       name: "visual",
       testMatch: "visual/**/*.spec.ts",
       // A service worker would answer requests before the API stubs could.
+      use: { ...phone, serviceWorkers: "block" },
+    },
+    {
+      // Features whose backend isn't there yet (uploads, sign-in codes),
+      // driven in a real browser against the stubbed API.
+      name: "flows",
+      testMatch: "flows/**/*.spec.ts",
       use: { ...phone, serviceWorkers: "block" },
     },
   ],

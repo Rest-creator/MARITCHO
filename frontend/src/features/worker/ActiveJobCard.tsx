@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 
 import { Icon } from "@/components/ui/Icon";
+import { TapToLoadPhoto } from "@/components/ui/TapToLoadPhoto";
 import type { Job } from "@/core/api/schemas";
 import { formatMoney } from "@/core/format/format";
 import { tradeLabel } from "@/core/format/trades";
@@ -48,6 +49,12 @@ export function ActiveJobCard({ job, offeredAmount }: Props) {
       {job.landmark_narrative && (
         <div className="meta" style={{ marginTop: 2 }}>
           {job.landmark_narrative}
+        </div>
+      )}
+
+      {job.problem_photo_url && (
+        <div style={{ marginTop: 10 }}>
+          <TapToLoadPhoto url={job.problem_photo_url} label="Photo of the problem" />
         </div>
       )}
 

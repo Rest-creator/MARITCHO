@@ -60,8 +60,23 @@ for (const screen of SCREENS) {
     const unexpected = await stubWorld(page, screen.who);
     await page.goto(screen.path);
     await expect(page.getByText(screen.ready).first()).toBeVisible();
+    // Late answers (e.g. "can this phone send photos?") still change the screen.
+    await page.waitForLoadState("networkidle");
     await page.evaluate(() => document.fonts.ready);
     await expect(page).toHaveScreenshot(`${screen.name}.png`);
     expect(unexpected, "API calls with no fixture").toEqual([]);
   });
 }
+
+test("02b-sign-in-code", async ({ page }) => {
+  const unexpected = await stubWorld(page, null);
+  await page.goto("/signup?role=buyer");
+  await page.getByLabel("Your name").fill("Rudo Ncube");
+  await page.getByLabel("Phone number").fill("77 412 3089");
+  await page.getByRole("button", { name: "Continue" }).click();
+  await expect(page.getByRole("heading", { name: "Enter your code" })).toBeVisible();
+  await page.waitForLoadState("networkidle");
+  await page.evaluate(() => document.fonts.ready);
+  await expect(page).toHaveScreenshot("02b-sign-in-code.png");
+  expect(unexpected, "API calls with no fixture").toEqual([]);
+});

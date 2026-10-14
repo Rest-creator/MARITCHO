@@ -16,7 +16,7 @@ on:
 
 jobs:
   visual:
-    name: Visual regression (13 screens)
+    name: Visual regression (14 screens) + stubbed flows
     runs-on: ubuntu-latest
     # Same image `npm run test:visual` uses locally, so fonts render identically.
     # Keep the tag in step with @playwright/test in frontend/package.json.
@@ -34,7 +34,7 @@ jobs:
         run: npm ci
 
       - name: Screenshots match the baselines
-        run: npx playwright test --project=visual
+        run: npx playwright test --project=visual --project=flows
 
       - name: Upload report (diffs) on failure
         if: failure()

@@ -15,6 +15,7 @@ export const queryKeys = {
   standing: ["workers", "standing"] as const,
   references: ["workers", "references"] as const,
   suburbs: ["suburbs"] as const,
+  mediaUploads: ["media", "uploads-available"] as const,
 };
 
 /**

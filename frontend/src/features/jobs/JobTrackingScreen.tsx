@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Avatar } from "@/components/ui/Avatar";
 import { BackButton } from "@/components/ui/BackButton";
 import { Icon } from "@/components/ui/Icon";
+import { TapToLoadPhoto } from "@/components/ui/TapToLoadPhoto";
 import { Screen } from "@/components/ui/Screen";
 import { ErrorState, Skeleton } from "@/components/ui/States";
 import type { Job } from "@/core/api/schemas";
@@ -140,6 +141,11 @@ export function JobTrackingScreen({ jobId }: Props) {
             <div className="meta">{copy.detail}</div>
           </div>
         </div>
+        {data.problem_photo_url && (
+          <div style={{ marginTop: 12 }}>
+            <TapToLoadPhoto url={data.problem_photo_url} label="Your photo" />
+          </div>
+        )}
         <div className="card__divider row row--between">
           <span className="meta meta--secondary truncate">
             {data.address}, {data.suburb}
