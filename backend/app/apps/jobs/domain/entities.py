@@ -9,6 +9,7 @@ from app.shared_kernel.enums import (
     DistanceBandEnum,
     GradeEnum,
     LedgerEntryTypeEnum,
+    NeededByEnum,
     TradeEnum,
 )
 
@@ -58,6 +59,7 @@ class Job:
     quote_amount: Decimal | None
     created_at: datetime | None = None
     updated_at: datetime | None = None
+    needed_by: NeededByEnum = NeededByEnum.FLEXIBLE
 
 
 @dataclass
@@ -118,6 +120,9 @@ class MatchCandidate:
     quoted_amount: Decimal | None = None
     availability_note: str | None = None
     quoted_at: datetime | None = None
+    display_name: str | None = None
+    rating_average: Decimal | None = None
+    rating_count: int = 0
 
 
 @dataclass
@@ -136,6 +141,7 @@ class OpenJobCandidate:
     created_at: datetime | None
     distance_band: DistanceBandEnum
     distance_km: float
+    needed_by: NeededByEnum = NeededByEnum.FLEXIBLE
 
 
 @dataclass

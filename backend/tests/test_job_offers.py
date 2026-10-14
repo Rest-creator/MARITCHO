@@ -129,6 +129,32 @@ async def test_matches_surface_a_submitted_offer(client, buyer, worker_factory):
     assert candidates[0]["quoted_at"] is not None
 
 
+async def test_matches_include_offering_worker_beyond_three_suggestions(
+    client, buyer, worker_factory
+):
+    best = await worker_factory(TradeEnum.PLUMBING, "Nkulumane")
+    second = await worker_factory(TradeEnum.PLUMBING, "Nkulumane")
+    third = await worker_factory(TradeEnum.PLUMBING, "Nkulumane")
+    offering_worker = await worker_factory(TradeEnum.PLUMBING, "Nkulumane")
+    job = await _create_job(client, buyer)
+
+    await client.post(
+        f"/jobs/{job['id']}/offers",
+        json={"quoted_amount": "35.00"},
+        headers=auth_headers(offering_worker),
+    )
+
+    response = await client.get(f"/jobs/{job['id']}/matches", headers=auth_headers(buyer))
+
+    assert response.status_code == 200
+    candidates = response.json()
+    returned_ids = [candidate["worker_id"] for candidate in candidates]
+    assert str(offering_worker.id) in returned_ids
+    assert len(returned_ids) == 4
+    assert returned_ids[0] == str(offering_worker.id)
+    assert {str(best.id), str(second.id), str(third.id)}.issubset(returned_ids)
+
+
 async def test_matches_have_null_offer_fields_when_no_offer_submitted(
     client, buyer, worker_factory
 ):

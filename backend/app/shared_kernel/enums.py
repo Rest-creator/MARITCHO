@@ -22,6 +22,28 @@ class TradeEnum(str, enum.Enum):
     WELDING = "WELDING"
     BUILDING = "BUILDING"
     APPLIANCE_REPAIR = "APPLIANCE_REPAIR"
+    GARDENING = "GARDENING"
+    CARPENTRY = "CARPENTRY"
+    PAINTING = "PAINTING"
+    TILING = "TILING"
+    ROOFING = "ROOFING"
+    GENERAL_MAINTENANCE = "GENERAL_MAINTENANCE"
+
+
+class NeededByEnum(str, enum.Enum):
+    TODAY = "TODAY"
+    THIS_WEEK = "THIS_WEEK"
+    FLEXIBLE = "FLEXIBLE"
+
+
+class ReviewTagEnum(str, enum.Enum):
+    CLEAN = "CLEAN"
+    ON_TIME = "ON_TIME"
+    PROFESSIONAL = "PROFESSIONAL"
+    GOOD_COMMUNICATION = "GOOD_COMMUNICATION"
+    QUALITY_WORK = "QUALITY_WORK"
+    FAIR_PRICE = "FAIR_PRICE"
+    RELIABLE = "RELIABLE"
 
 
 class GradeEnum(str, enum.Enum):
@@ -34,6 +56,7 @@ class GradeEnum(str, enum.Enum):
 
 class CurrencyEnum(str, enum.Enum):
     """ADR-002: the settlement rail a job's payments run on."""
+
     USD = "USD"
     ECOCASH = "ECOCASH"
     ZWG = "ZWG"
@@ -41,6 +64,7 @@ class CurrencyEnum(str, enum.Enum):
 
 class LedgerEntryTypeEnum(str, enum.Enum):
     """Same Postgres enum type backs both jobs' and crews' ledger tables."""
+
     DEPOSIT_HELD = "DEPOSIT_HELD"
     BALANCE_COMMITTED = "BALANCE_COMMITTED"
     RELEASED = "RELEASED"

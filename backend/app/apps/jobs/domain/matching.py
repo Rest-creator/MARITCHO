@@ -1,3 +1,4 @@
+import uuid
 from decimal import Decimal
 
 from app.apps.jobs.domain.entities import Job, MatchCandidate
@@ -8,7 +9,7 @@ from app.shared_kernel.grading import GRADE_RANK
 from app.shared_kernel.ports import SuburbLookupPort, WorkerMatchingProfilePort
 from app.shared_kernel.value_objects import WorkerServiceAreaSnapshot
 
-MAX_CANDIDATES = 3
+MAX_SUGGESTIONS = 3
 
 _DEFAULT_GRADE = GradeEnum.REGISTERED
 _DEFAULT_ON_TIME_RATE = Decimal("100.00")
@@ -48,7 +49,10 @@ class JobMatchingService:
         self._worker_profiles = worker_profiles
         self._suburbs = suburbs
 
-    async def find_top_candidates(self, job: Job) -> list[MatchCandidate]:
+    async def find_top_candidates(
+        self, job: Job, *, priority_worker_ids: set[uuid.UUID] | None = None
+    ) -> list[MatchCandidate]:
+        priority_worker_ids = priority_worker_ids or set()
         worker_ids = await self._worker_profiles.get_worker_ids_with_skill(job.trade)
         if not worker_ids:
             return []
@@ -60,13 +64,14 @@ class JobMatchingService:
 
         areas_by_worker = await self._worker_profiles.get_service_areas(available_ids)
         standings_by_worker = await self._worker_profiles.get_standings(available_ids)
+        profiles_by_worker = await self._worker_profiles.get_profiles(available_ids)
 
         suburb_names = {job.suburb} | {
             area.suburb for areas in areas_by_worker.values() for area in areas
         }
         coords = await self._suburbs.get_coords(suburb_names)
 
-        ranked: list[tuple[tuple[int, Decimal], MatchCandidate]] = []
+        ranked: list[tuple[tuple[int, int, Decimal], MatchCandidate]] = []
         for worker_id in available_ids:
             areas = areas_by_worker.get(worker_id, [])
             if not areas:
@@ -82,6 +87,9 @@ class JobMatchingService:
             assert best is not None, "areas is non-empty, so best must be set"
             band_rank, km, band, area = best
             if band == DistanceBandEnum.FAR:
+                continue
+            profile = profiles_by_worker.get(worker_id)
+            if profile is not None and (not profile.is_available or km > profile.travel_km):
                 continue
 
             standing = standings_by_worker.get(worker_id)
@@ -109,9 +117,27 @@ class JobMatchingService:
                 dispute_rate=dispute_rate,
                 fill_rate=fill_rate,
                 jobs_completed=jobs_completed,
+                rating_average=standing.rating_average if standing else None,
+                rating_count=standing.rating_count if standing else 0,
                 reason=reason,
+                display_name=profile.display_name if profile else None,
             )
-            ranked.append(((band_rank, -score), candidate))
+            ranked.append(
+                (
+                    (
+                        0 if worker_id in priority_worker_ids else 1,
+                        band_rank,
+                        -score,
+                    ),
+                    candidate,
+                )
+            )
 
         ranked.sort(key=lambda pair: pair[0])
-        return [candidate for _, candidate in ranked[:MAX_CANDIDATES]]
+        offered = [
+            candidate for _, candidate in ranked if candidate.worker_id in priority_worker_ids
+        ]
+        suggestions = [
+            candidate for _, candidate in ranked if candidate.worker_id not in priority_worker_ids
+        ][:MAX_SUGGESTIONS]
+        return offered + suggestions

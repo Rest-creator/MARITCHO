@@ -11,6 +11,8 @@ class PersonRepository(ABC):
 
     @abstractmethod
     async def get_by_phone(self, phone: str) -> Person | None: ...
+    @abstractmethod
+    async def update(self, person: Person) -> None: ...
 
     @abstractmethod
     async def create(self, *, phone: str, role: RoleEnum) -> Person:

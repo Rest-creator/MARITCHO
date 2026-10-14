@@ -48,6 +48,8 @@ class StandingView:
     fill_rate: Decimal
     jobs_completed: int
     is_frozen: bool
+    rating_average: Decimal | None = None
+    rating_count: int = 0
 
 
 @dataclass

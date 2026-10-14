@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, Enum, ForeignKey, String
+from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Integer, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -26,3 +26,7 @@ class PersonModel(Base):
     created_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), default=datetime.utcnow
     )
+    display_name: Mapped[str | None] = mapped_column(String(100))
+    is_available: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    travel_km: Mapped[int] = mapped_column(Integer, nullable=False, default=50)
+    home_suburb: Mapped[str | None] = mapped_column(String(100), ForeignKey("suburbs.name"))

@@ -30,7 +30,7 @@ from app.apps.jobs.infrastructure.models import (
     LedgerEntryModel,
     RecordEntryModel,
 )
-from app.shared_kernel.enums import CurrencyEnum, LedgerEntryTypeEnum, TradeEnum
+from app.shared_kernel.enums import CurrencyEnum, LedgerEntryTypeEnum, NeededByEnum, TradeEnum
 from app.shared_kernel.ports import WorkerAvailabilityPort
 
 
@@ -53,6 +53,7 @@ def _job_to_entity(model: JobModel) -> Job:
         labor_amount=model.labor_amount,
         materials_amount=model.materials_amount,
         quote_amount=model.quote_amount,
+        needed_by=model.needed_by,
         created_at=model.created_at,
         updated_at=model.updated_at,
     )
@@ -130,6 +131,7 @@ class SqlAlchemyJobRepository(JobRepository, WorkerAvailabilityPort):
         problem_description: str | None,
         problem_photo_url: str | None,
         budget_amount: Decimal | None,
+        needed_by: NeededByEnum = NeededByEnum.FLEXIBLE,
     ) -> Job:
         model = JobModel(
             buyer_id=buyer_id,
@@ -143,6 +145,7 @@ class SqlAlchemyJobRepository(JobRepository, WorkerAvailabilityPort):
             problem_description=problem_description,
             problem_photo_url=problem_photo_url,
             budget_amount=budget_amount,
+            needed_by=needed_by,
         )
         self._db.add(model)
         await self._db.flush()
@@ -202,9 +205,7 @@ class SqlAlchemyJobRepository(JobRepository, WorkerAvailabilityPort):
         )
         return [_job_to_entity(model) for model in result.scalars().all()]
 
-    async def list_by_buyer(
-        self, buyer_id: uuid.UUID, *, limit: int, offset: int
-    ) -> Sequence[Job]:
+    async def list_by_buyer(self, buyer_id: uuid.UUID, *, limit: int, offset: int) -> Sequence[Job]:
         result = await self._db.execute(
             select(JobModel)
             .where(JobModel.buyer_id == buyer_id)
@@ -313,9 +314,7 @@ class SqlAlchemyDisputeRepository(DisputeRepository):
         model.responded_at = dispute.responded_at
         await self._db.flush()
 
-    async def list_by_job(
-        self, job_id: uuid.UUID, *, limit: int, offset: int
-    ) -> Sequence[Dispute]:
+    async def list_by_job(self, job_id: uuid.UUID, *, limit: int, offset: int) -> Sequence[Dispute]:
         result = await self._db.execute(
             select(DisputeModel)
             .where(DisputeModel.job_id == job_id)
@@ -398,9 +397,7 @@ class SqlAlchemyJobOfferRepository(JobOfferRepository):
         return _job_offer_to_entity(model) if model else None
 
     async def get_for_job(self, job_id: uuid.UUID) -> dict[uuid.UUID, JobOffer]:
-        result = await self._db.execute(
-            select(JobOfferModel).where(JobOfferModel.job_id == job_id)
-        )
+        result = await self._db.execute(select(JobOfferModel).where(JobOfferModel.job_id == job_id))
         return {model.worker_id: _job_offer_to_entity(model) for model in result.scalars().all()}
 
     async def count_for_jobs(self, job_ids: set[uuid.UUID]) -> dict[uuid.UUID, int]:

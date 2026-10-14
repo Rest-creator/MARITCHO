@@ -17,7 +17,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.apps.jobs.domain.entities import DisputeStatusEnum, JobStatusEnum
 from app.core.database import Base
-from app.shared_kernel.enums import CurrencyEnum, LedgerEntryTypeEnum, TradeEnum
+from app.shared_kernel.enums import CurrencyEnum, LedgerEntryTypeEnum, NeededByEnum, TradeEnum
 
 
 class JobModel(Base):
@@ -41,6 +41,9 @@ class JobModel(Base):
     # Buyer's optional stated budget at request time — informational only,
     # never enforced against the eventual deposit/quote amounts.
     budget_amount: Mapped[Decimal | None] = mapped_column(Numeric(10, 2))
+    needed_by: Mapped[NeededByEnum] = mapped_column(
+        Enum(NeededByEnum), nullable=False, default=NeededByEnum.FLEXIBLE
+    )
     # Set once at booking (ADR-002); nullable until then. Every ledger entry
     # written afterward (BALANCE_COMMITTED, RELEASED) reuses this value.
     currency: Mapped[CurrencyEnum | None] = mapped_column(Enum(CurrencyEnum))
@@ -56,11 +59,11 @@ class JobModel(Base):
 
     __table_args__ = (
         CheckConstraint(
-            '(quote_amount IS NULL AND labor_amount IS NULL AND materials_amount IS NULL)'
-            ' OR (quote_amount IS NOT NULL AND labor_amount IS NOT NULL'
-            ' AND materials_amount IS NOT NULL'
-            ' AND quote_amount = labor_amount + materials_amount)',
-            name='check_job_quote_equals_labor_plus_materials',
+            "(quote_amount IS NULL AND labor_amount IS NULL AND materials_amount IS NULL)"
+            " OR (quote_amount IS NOT NULL AND labor_amount IS NOT NULL"
+            " AND materials_amount IS NOT NULL"
+            " AND quote_amount = labor_amount + materials_amount)",
+            name="check_job_quote_equals_labor_plus_materials",
         ),
     )
 
@@ -83,9 +86,7 @@ class LedgerEntryModel(Base):
         DateTime(timezone=True), default=datetime.utcnow
     )
 
-    __table_args__ = (
-        CheckConstraint('amount > 0', name='check_amount_positive'),
-    )
+    __table_args__ = (CheckConstraint("amount > 0", name="check_amount_positive"),)
 
 
 class DisputeModel(Base):

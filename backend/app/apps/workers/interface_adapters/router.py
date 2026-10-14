@@ -1,9 +1,12 @@
 from collections.abc import Sequence
 
 from fastapi import APIRouter, Depends, status
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.apps.accounts.domain.entities import Person
 from app.apps.accounts.interface_adapters.dependencies import RequireRole
+from app.apps.jobs.infrastructure.review_models import ReviewModel
 from app.apps.workers.domain.entities import (
     ServiceArea,
     Skill,
@@ -49,6 +52,7 @@ from app.apps.workers.interface_adapters.schemas import (
     VouchOut,
     WorkerVettingOut,
 )
+from app.core.database import get_db_session
 from app.core.pagination import Pagination, pagination_params
 from app.shared_kernel.enums import RoleEnum
 
@@ -73,9 +77,7 @@ async def list_my_skills(
     return await use_case.execute(current_user.id, limit=pagination.limit, offset=pagination.offset)
 
 
-@router.post(
-    "/service-areas", response_model=ServiceAreaOut, status_code=status.HTTP_201_CREATED
-)
+@router.post("/service-areas", response_model=ServiceAreaOut, status_code=status.HTTP_201_CREATED)
 async def register_service_area(
     payload: ServiceAreaCreate,
     current_user: Person = Depends(RequireRole([RoleEnum.WORKER])),
@@ -97,8 +99,19 @@ async def list_my_service_areas(
 async def get_my_standing(
     current_user: Person = Depends(RequireRole([RoleEnum.WORKER])),
     use_case: GetStandingUseCase = Depends(get_standing_use_case),
+    db: AsyncSession = Depends(get_db_session),
 ) -> StandingView:
-    return await use_case.execute(current_user.id)
+    view = await use_case.execute(current_user.id)
+    average, count = (
+        await db.execute(
+            select(func.avg(ReviewModel.rating), func.count()).where(
+                ReviewModel.worker_id == current_user.id
+            )
+        )
+    ).one()
+    view.rating_average = average
+    view.rating_count = count
+    return view
 
 
 @router.get("/vetting", response_model=WorkerVettingOut)

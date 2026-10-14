@@ -34,6 +34,7 @@ from app.shared_kernel.enums import (
     CurrencyEnum,
     DistanceBandEnum,
     LedgerEntryTypeEnum,
+    NeededByEnum,
     RoleEnum,
     TradeEnum,
 )
@@ -73,6 +74,7 @@ class CreateJobRequestUseCase:
         problem_description: str,
         problem_photo_url: str | None,
         budget_amount: Decimal | None = None,
+        needed_by: NeededByEnum = NeededByEnum.FLEXIBLE,
     ) -> Job:
         if not await self._suburbs.exists(suburb):
             raise ValidationConflictError("Unknown suburb")
@@ -88,6 +90,7 @@ class CreateJobRequestUseCase:
             problem_description=problem_description,
             problem_photo_url=problem_photo_url,
             budget_amount=budget_amount,
+            needed_by=needed_by,
         )
         await self._uow.commit()
         return job
@@ -169,9 +172,10 @@ class GetJobMatchesUseCase:
         if job.status not in (JobStatusEnum.REQUESTED, JobStatusEnum.MATCHED):
             raise ConflictError("Job is no longer accepting matches")
 
-        candidates = await self._matching.find_top_candidates(job)
-
         offers_by_worker = await self._offers.get_for_job(job.id)
+        candidates = await self._matching.find_top_candidates(
+            job, priority_worker_ids=set(offers_by_worker)
+        )
         for candidate in candidates:
             offer = offers_by_worker.get(candidate.worker_id)
             if offer is not None:
@@ -248,8 +252,15 @@ class ListOpenJobsForWorkerUseCase:
                 created_at=job.created_at,
                 distance_band=band,
                 distance_km=round(km, 1),
+                needed_by=job.needed_by,
             )
-            ranked.append((band_rank, job.created_at or datetime.min, candidate))
+            needed_value = (
+                job.needed_by.value
+                if isinstance(job.needed_by, NeededByEnum)
+                else str(job.needed_by)
+            )
+            urgent_rank = {"TODAY": 0, "THIS_WEEK": 1, "FLEXIBLE": 2}.get(needed_value, 2)
+            ranked.append((urgent_rank * 10 + band_rank, job.created_at or datetime.min, candidate))
 
         ranked.sort(key=lambda entry: (entry[0], -entry[1].timestamp()))
         return [candidate for _, _, candidate in ranked[offset : offset + limit]]
