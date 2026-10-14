@@ -63,7 +63,10 @@ class CircuitBreakerInterceptor extends Interceptor {
   }
 
   @override
-  void onResponse(Response<dynamic> response, ResponseInterceptorHandler handler) {
+  void onResponse(
+    Response<dynamic> response,
+    ResponseInterceptorHandler handler,
+  ) {
     _breaker.recordSuccess();
     handler.next(response);
   }
@@ -119,10 +122,17 @@ class NetworkRetryInterceptor extends Interceptor {
   final int _baseDelayMs;
   final Random _random = Random();
 
-  NetworkRetryInterceptor(this._dio, {this._maxAttempts = 3, this._baseDelayMs = 1000});
+  NetworkRetryInterceptor(
+    this._dio, {
+    this._maxAttempts = 3,
+    this._baseDelayMs = 1000,
+  });
 
   @override
-  Future<void> onError(DioException err, ErrorInterceptorHandler handler) async {
+  Future<void> onError(
+    DioException err,
+    ErrorInterceptorHandler handler,
+  ) async {
     if (!_shouldRetry(err)) {
       return handler.next(err);
     }

@@ -35,7 +35,8 @@ class AuthRepository {
       final detail = data is Map ? data['detail'] : null;
       return Error(
         NetworkFailure(
-          message: detail?.toString() ?? e.message ?? 'Could not reach the server',
+          message:
+              detail?.toString() ?? e.message ?? 'Could not reach the server',
           exception: e,
         ),
       );

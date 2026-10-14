@@ -26,7 +26,9 @@ Route<dynamic>? onGenerateRoute(RouteSettings settings) {
       return MaterialPageRoute(builder: (_) => const EmployerHomePage());
     case '/post-job':
       final initialTrade = settings.arguments as String?;
-      return MaterialPageRoute(builder: (_) => PostJobPage(initialTrade: initialTrade));
+      return MaterialPageRoute(
+        builder: (_) => PostJobPage(initialTrade: initialTrade),
+      );
     case '/applicants':
       final jobId = settings.arguments as String;
       return MaterialPageRoute(builder: (_) => ApplicantsPage(jobId: jobId));

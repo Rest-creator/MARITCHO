@@ -30,7 +30,11 @@ class LandingPage extends StatelessWidget {
                       color: AppTheme.primaryBlueGray,
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: const Icon(Icons.handyman, color: Colors.white, size: 20),
+                    child: const Icon(
+                      Icons.handyman,
+                      color: Colors.white,
+                      size: 20,
+                    ),
                   ),
                   const SizedBox(width: 10),
                   const Text(
@@ -61,14 +65,19 @@ class LandingPage extends StatelessWidget {
                 icon: Icons.home_repair_service,
                 title: 'I need work done',
                 subtitle: 'Plumbing, repairs, gardening, a driver, house help and more',
-                onTap: () => Navigator.of(context).pushNamed('/signup', arguments: 'BUYER'),
+                onTap: () =>
+                    Navigator.of(context)
+                        .pushNamed('/signup', arguments: 'BUYER'),
               ),
               const SizedBox(height: 12),
               _RoleCard(
                 icon: Icons.construction,
                 title: "I'm looking for work",
-                subtitle: 'Get jobs for what you can do — no certificates needed',
-                onTap: () => Navigator.of(context).pushNamed('/signup', arguments: 'WORKER'),
+                subtitle:
+                    'Get jobs for what you can do — no certificates needed',
+                onTap: () =>
+                    Navigator.of(context)
+                        .pushNamed('/signup', arguments: 'WORKER'),
               ),
               const SizedBox(height: 32),
               Container(
@@ -79,7 +88,11 @@ class LandingPage extends StatelessWidget {
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.verified_user, color: AppTheme.primaryBlueGray, size: 18),
+                    const Icon(
+                      Icons.verified_user,
+                      color: AppTheme.primaryBlueGray,
+                      size: 18,
+                    ),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
@@ -93,7 +106,9 @@ class LandingPage extends StatelessWidget {
               const SizedBox(height: 16),
               Center(
                 child: TextButton(
-                  onPressed: () => Navigator.of(context).pushNamed('/signup', arguments: 'BUYER'),
+                  onPressed: () =>
+                      Navigator.of(context)
+                          .pushNamed('/signup', arguments: 'BUYER'),
                   child: const Text('Already have an account? Log in'),
                 ),
               ),
@@ -142,11 +157,18 @@ class _RoleCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(title, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                     const SizedBox(height: 4),
                     Text(
                       subtitle,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontSize: 13),
+                      style: Theme.of(context).textTheme.bodyMedium
+                          ?.copyWith(fontSize: 13),
                     ),
                   ],
                 ),

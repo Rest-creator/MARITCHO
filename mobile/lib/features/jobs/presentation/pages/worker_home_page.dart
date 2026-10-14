@@ -16,7 +16,8 @@ class WorkerHomePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (ctx) => WorkerHomeCubit(ctx.read<JobsRepository>())..loadOpenJobs(),
+      create: (ctx) =>
+          WorkerHomeCubit(ctx.read<JobsRepository>())..loadOpenJobs(),
       child: const _WorkerHomeView(),
     );
   }
@@ -46,11 +47,15 @@ class _WorkerHomeView extends StatelessWidget {
               return const Center(child: CircularProgressIndicator());
             }
             if (state is WorkerHomeFailure) {
-              return Center(child: Text('Could not load jobs: ${state.errorMessage}'));
+              return Center(
+                child: Text('Could not load jobs: ${state.errorMessage}'),
+              );
             }
             final jobs = (state as WorkerHomeLoaded).jobs;
             if (jobs.isEmpty) {
-              return const Center(child: Text('No open jobs near you right now.'));
+              return const Center(
+                child: Text('No open jobs near you right now.'),
+              );
             }
             return ListView(
               padding: const EdgeInsets.all(16),
@@ -77,8 +82,11 @@ class _OpenJobCard extends StatelessWidget {
         subtitle: Text(
           '${job.suburb} · ${job.distanceKm.toStringAsFixed(1)}km · ${job.distanceBand}',
         ),
-        trailing: job.budgetAmount != null ? Text('\$${job.budgetAmount!.toStringAsFixed(2)}') : null,
-        onTap: () => Navigator.of(context).pushNamed('/job-detail', arguments: job),
+        trailing: job.budgetAmount != null
+            ? Text('\$${job.budgetAmount!.toStringAsFixed(2)}')
+            : null,
+        onTap: () =>
+            Navigator.of(context).pushNamed('/job-detail', arguments: job),
       ),
     );
   }

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -19,6 +21,17 @@ import 'package:mobile/features/workers/presentation/cubit/my_work_state.dart';
 import 'package:mobile/features/workers/presentation/cubit/worker_skills_cubit.dart';
 import 'package:mobile/features/workers/presentation/cubit/worker_skills_state.dart';
 import 'package:mobile/core/storage/database_helper.dart';
+import 'package:mobile/core/sync/outbox_actions.dart';
+import 'package:mobile/core/sync/outbox_item.dart';
+import 'package:mobile/features/jobs/data/repositories/job_work_repository.dart';
+
+import '../../support/fake_outbox.dart';
+
+JobWorkRepository _workRepository() => JobWorkRepository(
+  FakeOutbox(),
+  onQueued: () {},
+  photoDirectory: () async => throw UnimplementedError(),
+);
 
 const _openJob = OpenJob(
   jobId: 'job-1',
@@ -32,12 +45,11 @@ const _openJob = OpenJob(
 
 class _FakeWorkersRepository extends WorkersRepository {
   final Result<void, Failure> registerSkillResult;
-  final Result<void, Failure> registerServiceAreaResult;
+  final Result<void, Failure> registerServiceAreaResult = const Ok(null);
   final Result<Standing, Failure> standingResult;
 
   _FakeWorkersRepository({
     this.registerSkillResult = const Ok(null),
-    this.registerServiceAreaResult = const Ok(null),
     this.standingResult = const Ok(
       Standing(
         grade: 'REGISTERED',
@@ -67,14 +79,12 @@ class _FakeWorkersRepository extends WorkersRepository {
 }
 
 class _FakeJobsRepository extends JobsRepository {
-  final Result<List<OpenJob>, Failure> listOpenResult;
-  final Result<void, Failure> submitOfferResult;
+  final Result<List<OpenJob>, Failure> listOpenResult = const Ok([_openJob]);
+  final Result<void, Failure> submitOfferResult = const Ok(null);
   final Result<List<Job>, Failure> listAssignedResult;
   final Result<List<MyOffer>, Failure> listMyOffersResult;
 
   _FakeJobsRepository({
-    this.listOpenResult = const Ok([_openJob]),
-    this.submitOfferResult = const Ok(null),
     this.listAssignedResult = const Ok([]),
     this.listMyOffersResult = const Ok([]),
   }) : super(Dio(), DatabaseHelper());
@@ -93,10 +103,13 @@ class _FakeJobsRepository extends JobsRepository {
   Future<Result<List<Job>, Failure>> listAssigned() async => listAssignedResult;
 
   @override
-  Future<Result<List<MyOffer>, Failure>> listMyOffers() async => listMyOffersResult;
+  Future<Result<List<MyOffer>, Failure>> listMyOffers() async =>
+      listMyOffersResult;
 
   @override
-  Future<Result<List<MatchCandidate>, Failure>> getMatches(String jobId) async => const Ok([]);
+  Future<Result<List<MatchCandidate>, Failure>> getMatches(
+    String jobId,
+  ) async => const Ok([]);
 }
 
 void main() {
@@ -110,18 +123,21 @@ void main() {
       await cubit.close();
     });
 
-    test('ends in WorkerSkillsFailure when a skill registration fails', () async {
-      final cubit = WorkerSkillsCubit(
-        _FakeWorkersRepository(
-          registerSkillResult: const Error(NetworkFailure(message: 'nope')),
-        ),
-      );
+    test(
+      'ends in WorkerSkillsFailure when a skill registration fails',
+      () async {
+        final cubit = WorkerSkillsCubit(
+          _FakeWorkersRepository(
+            registerSkillResult: const Error(NetworkFailure(message: 'nope')),
+          ),
+        );
 
-      await cubit.submit(trades: ['PLUMBING'], suburb: 'Nkulumane');
+        await cubit.submit(trades: ['PLUMBING'], suburb: 'Nkulumane');
 
-      expect(cubit.state, isA<WorkerSkillsFailure>());
-      await cubit.close();
-    });
+        expect(cubit.state, isA<WorkerSkillsFailure>());
+        await cubit.close();
+      },
+    );
   });
 
   group('WorkerHomeCubit', () {
@@ -148,16 +164,24 @@ void main() {
   });
 
   group('MyWorkCubit', () {
-    test('loads standing, offers and assigned jobs into MyWorkLoaded', () async {
-      final cubit = MyWorkCubit(_FakeWorkersRepository(), _FakeJobsRepository());
+    test(
+      'loads standing, offers and assigned jobs into MyWorkLoaded',
+      () async {
+        final cubit = MyWorkCubit(
+          _FakeWorkersRepository(),
+          _FakeJobsRepository(),
+          _workRepository(),
+          syncChanges: const Stream<void>.empty(),
+        );
 
-      await cubit.load();
+        await cubit.load();
 
-      expect(cubit.state, isA<MyWorkLoaded>());
-      final loaded = cubit.state as MyWorkLoaded;
-      expect(loaded.standing.jobsCompleted, 0);
-      await cubit.close();
-    });
+        expect(cubit.state, isA<MyWorkLoaded>());
+        final loaded = cubit.state as MyWorkLoaded;
+        expect(loaded.standing.jobsCompleted, 0);
+        await cubit.close();
+      },
+    );
 
     test('ends in MyWorkFailure when the standing fetch fails', () async {
       final cubit = MyWorkCubit(
@@ -165,6 +189,8 @@ void main() {
           standingResult: const Error(NetworkFailure(message: 'down')),
         ),
         _FakeJobsRepository(),
+        _workRepository(),
+        syncChanges: const Stream<void>.empty(),
       );
 
       await cubit.load();
@@ -172,5 +198,130 @@ void main() {
       expect(cubit.state, isA<MyWorkFailure>());
       await cubit.close();
     });
+  });
+
+  group('MyWorkCubit on site (APP-002)', () {
+    final Job bookedJob = Job(
+      id: 'job-9',
+      buyerId: 'buyer-1',
+      workerId: 'worker-1',
+      status: 'BOOKED',
+      trade: 'PLUMBING',
+      suburb: 'Hillside',
+      address: '14 Harrow Rd',
+      problemDescription: 'Leaking tap',
+      budgetAmount: 40,
+      currency: 'USD',
+      quoteAmount: null,
+      createdAt: DateTime.utc(2026, 10, 14),
+    );
+    const MyOffer offer = MyOffer(
+      id: 'offer-9',
+      jobId: 'job-9',
+      quotedAmount: 35,
+      availabilityNote: null,
+      jobTrade: 'PLUMBING',
+      jobSuburb: 'Hillside',
+      jobStatus: 'BOOKED',
+    );
+
+    MyWorkCubit cubitWith(FakeOutbox outbox, StreamController<void> sync) =>
+        MyWorkCubit(
+          _FakeWorkersRepository(),
+          _FakeJobsRepository(
+            listAssignedResult: Ok(<Job>[bookedJob]),
+            listMyOffersResult: const Ok(<MyOffer>[offer]),
+          ),
+          JobWorkRepository(
+            outbox,
+            onQueued: () {},
+            photoDirectory: () async => throw UnimplementedError(),
+          ),
+          syncChanges: sync.stream,
+        );
+
+    test(
+      'pre-fills the price from the offer and shows a queued price',
+      () async {
+        final FakeOutbox outbox = FakeOutbox();
+        final StreamController<void> sync = StreamController<void>.broadcast();
+        final MyWorkCubit cubit = cubitWith(outbox, sync);
+        await cubit.load();
+
+        final MyWorkLoaded loaded = cubit.state as MyWorkLoaded;
+        expect(loaded.activeJobs.single.id, 'job-9');
+        expect(loaded.offeredAmountFor('job-9'), 35);
+
+        final bool saved = await cubit.submitQuote(
+          jobId: 'job-9',
+          laborAmount: 35,
+          materialsAmount: 5,
+        );
+
+        expect(saved, isTrue);
+        final MyWorkLoaded after = cubit.state as MyWorkLoaded;
+        expect(
+          after.undeliveredFor('job-9').single.type,
+          OutboxActions.submitQuote,
+        );
+        expect(after.notice, contains('Price saved'));
+        await cubit.close();
+        await sync.close();
+      },
+    );
+
+    test('a refused price shows why and can be tried again', () async {
+      final FakeOutbox outbox = FakeOutbox();
+      final StreamController<void> sync = StreamController<void>.broadcast();
+      final MyWorkCubit cubit = cubitWith(outbox, sync);
+      await cubit.load();
+      await cubit.submitQuote(
+        jobId: 'job-9',
+        laborAmount: 2,
+        materialsAmount: 0,
+      );
+      final int id = outbox.items.keys.single;
+      await outbox.markFailed(id, error: 'Quote must exceed deposit');
+
+      sync.add(null); // what SyncService does after a pass
+      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(Duration.zero);
+
+      final OutboxItem refused = (cubit.state as MyWorkLoaded)
+          .undeliveredFor('job-9')
+          .single;
+      expect(refused.status, OutboxStatus.failed);
+      expect(refused.lastError, 'Quote must exceed deposit');
+
+      await cubit.retry(id);
+      expect(outbox.items[id]!.status, OutboxStatus.pending);
+      await cubit.close();
+      await sync.close();
+    });
+
+    test(
+      'a price of nothing is refused with a message, nothing queued',
+      () async {
+        final FakeOutbox outbox = FakeOutbox();
+        final StreamController<void> sync = StreamController<void>.broadcast();
+        final MyWorkCubit cubit = cubitWith(outbox, sync);
+        await cubit.load();
+
+        final bool saved = await cubit.submitQuote(
+          jobId: 'job-9',
+          laborAmount: 0,
+          materialsAmount: 0,
+        );
+
+        expect(saved, isFalse);
+        expect(
+          (cubit.state as MyWorkLoaded).notice,
+          'Enter what your work costs.',
+        );
+        expect(outbox.items, isEmpty);
+        await cubit.close();
+        await sync.close();
+      },
+    );
   });
 }

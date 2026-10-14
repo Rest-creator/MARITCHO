@@ -6,7 +6,7 @@ class AppTheme {
   static const Color primaryBlueGray = Color(0xFF607D8B);
   static const Color darkBlueGray = Color(0xFF455A64);
   static const Color lightBlueGray = Color(0xFFCFD8DC);
-  
+
   // Clean backgrounds (Ink wash inspiration)
   static const Color softIvory = Color(0xFFFAFAFA);
   static const Color coolGray = Color(0xFF9E9E9E);
@@ -21,7 +21,6 @@ class AppTheme {
         primary: primaryBlueGray,
         onPrimary: Colors.white,
         secondary: darkBlueGray,
-        background: softIvory,
         surface: Colors.white,
         onSurface: charcoalBlack,
       ),
@@ -39,10 +38,30 @@ class AppTheme {
         ),
       ),
       textTheme: const TextTheme(
-        displayLarge: TextStyle(color: charcoalBlack, fontSize: 34, fontWeight: FontWeight.bold, letterSpacing: 0.37),
-        titleLarge: TextStyle(color: charcoalBlack, fontSize: 28, fontWeight: FontWeight.bold, letterSpacing: 0.36),
-        bodyLarge: TextStyle(color: charcoalBlack, fontSize: 17, fontWeight: FontWeight.w400, letterSpacing: -0.41),
-        bodyMedium: TextStyle(color: charcoalBlack, fontSize: 15, fontWeight: FontWeight.w400, letterSpacing: -0.24),
+        displayLarge: TextStyle(
+          color: charcoalBlack,
+          fontSize: 34,
+          fontWeight: FontWeight.bold,
+          letterSpacing: 0.37,
+        ),
+        titleLarge: TextStyle(
+          color: charcoalBlack,
+          fontSize: 28,
+          fontWeight: FontWeight.bold,
+          letterSpacing: 0.36,
+        ),
+        bodyLarge: TextStyle(
+          color: charcoalBlack,
+          fontSize: 17,
+          fontWeight: FontWeight.w400,
+          letterSpacing: -0.41,
+        ),
+        bodyMedium: TextStyle(
+          color: charcoalBlack,
+          fontSize: 15,
+          fontWeight: FontWeight.w400,
+          letterSpacing: -0.24,
+        ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
@@ -50,7 +69,9 @@ class AppTheme {
           foregroundColor: Colors.white,
           elevation: 0,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12), // Apple Design smooth corners
+            borderRadius: BorderRadius.circular(
+              12,
+            ), // Apple Design smooth corners
           ),
           padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
           textStyle: const TextStyle(

@@ -42,11 +42,16 @@ class _SignUpPageState extends State<SignUpPage> {
             if (!mounted) return; // Engineering Standard: Async Gap Safety
 
             if (state is AuthSuccess) {
-              final route = state.person.role == 'BUYER' ? '/employer-home' : '/worker-skills';
+              final route = state.person.role == 'BUYER'
+                  ? '/employer-home'
+                  : '/worker-skills';
               Navigator.of(context).pushReplacementNamed(route);
             } else if (state is AuthFailure) {
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(state.errorMessage), backgroundColor: Colors.red),
+                SnackBar(
+                  content: Text(state.errorMessage),
+                  backgroundColor: Colors.red,
+                ),
               );
             }
           },
@@ -89,17 +94,27 @@ class _SignUpPageState extends State<SignUpPage> {
                             final phone = _phoneController.text.trim();
                             if (phone.isEmpty) {
                               ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Enter a phone number to continue')),
+                                const SnackBar(
+                                  content: Text(
+                                    'Enter a phone number to continue',
+                                  ),
+                                ),
                               );
                               return;
                             }
-                            context.read<AuthCubit>().login(phone: phone, role: widget.role);
+                            context.read<AuthCubit>().login(
+                              phone: phone,
+                              role: widget.role,
+                            );
                           },
                     child: isLoading
                         ? const SizedBox(
                             width: 20,
                             height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
                           )
                         : const Text('Continue'),
                   ),

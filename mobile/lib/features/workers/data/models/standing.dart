@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'package:mobile/core/json/json_number.dart';
 
 /// Mirrors the backend's StandingOut.
 class Standing extends Equatable {
@@ -21,14 +22,21 @@ class Standing extends Equatable {
   factory Standing.fromJson(Map<String, dynamic> json) {
     return Standing(
       grade: json['grade'] as String,
-      onTimeRate: (json['on_time_rate'] as num).toDouble(),
-      disputeRate: (json['dispute_rate'] as num).toDouble(),
-      fillRate: (json['fill_rate'] as num).toDouble(),
+      onTimeRate: readRequiredDecimal(json['on_time_rate']),
+      disputeRate: readRequiredDecimal(json['dispute_rate']),
+      fillRate: readRequiredDecimal(json['fill_rate']),
       jobsCompleted: json['jobs_completed'] as int,
       isFrozen: json['is_frozen'] as bool,
     );
   }
 
   @override
-  List<Object?> get props => [grade, onTimeRate, disputeRate, fillRate, jobsCompleted, isFrozen];
+  List<Object?> get props => [
+    grade,
+    onTimeRate,
+    disputeRate,
+    fillRate,
+    jobsCompleted,
+    isFrozen,
+  ];
 }

@@ -31,7 +31,7 @@ class JobsRepository {
           'suburb': suburb,
           'address': address,
           'problem_description': problemDescription,
-          if (budgetAmount != null) 'budget_amount': budgetAmount,
+          'budget_amount': ?budgetAmount,
         },
       );
       return Job.fromJson(response.data!);
@@ -39,7 +39,11 @@ class JobsRepository {
   }
 
   Future<Result<List<Job>, Failure>> listMine() {
-    return _cachedList(cacheKey: 'jobs.listMine', path: '/jobs/mine', fromJson: Job.fromJson);
+    return _cachedList(
+      cacheKey: 'jobs.listMine',
+      path: '/jobs/mine',
+      fromJson: Job.fromJson,
+    );
   }
 
   Future<Result<List<MatchCandidate>, Failure>> getMatches(String jobId) {
@@ -59,7 +63,11 @@ class JobsRepository {
     return _call(() async {
       final response = await _dio.post<Map<String, dynamic>>(
         '/jobs/$jobId/book',
-        data: {'worker_id': workerId, 'deposit_amount': depositAmount, 'currency': currency},
+        data: {
+          'worker_id': workerId,
+          'deposit_amount': depositAmount,
+          'currency': currency,
+        },
       );
       return Job.fromJson(response.data!);
     });
@@ -73,14 +81,18 @@ class JobsRepository {
     return _call(() async {
       final response = await _dio.post<Map<String, dynamic>>(
         '/jobs/$jobId/complete',
-        data: {'what_was_done': whatWasDone, if (clientWords != null) 'client_words': clientWords},
+        data: {'what_was_done': whatWasDone, 'client_words': ?clientWords},
       );
       return Job.fromJson(response.data!);
     });
   }
 
   Future<Result<List<OpenJob>, Failure>> listOpen() {
-    return _cachedList(cacheKey: 'jobs.listOpen', path: '/jobs/open', fromJson: OpenJob.fromJson);
+    return _cachedList(
+      cacheKey: 'jobs.listOpen',
+      path: '/jobs/open',
+      fromJson: OpenJob.fromJson,
+    );
   }
 
   Future<Result<void, Failure>> submitOffer({
@@ -93,7 +105,7 @@ class JobsRepository {
         '/jobs/$jobId/offers',
         data: {
           'quoted_amount': quotedAmount,
-          if (availabilityNote != null) 'availability_note': availabilityNote,
+          'availability_note': ?availabilityNote,
         },
       );
       return const Ok(null);
@@ -103,7 +115,11 @@ class JobsRepository {
   }
 
   Future<Result<List<Job>, Failure>> listAssigned() {
-    return _cachedList(cacheKey: 'jobs.listAssigned', path: '/jobs/assigned', fromJson: Job.fromJson);
+    return _cachedList(
+      cacheKey: 'jobs.listAssigned',
+      path: '/jobs/assigned',
+      fromJson: Job.fromJson,
+    );
   }
 
   Future<Result<List<MyOffer>, Failure>> listMyOffers() {
@@ -129,12 +145,16 @@ class JobsRepository {
       final response = await _dio.get<List<dynamic>>(path);
       final raw = response.data!;
       await _dbHelper.cacheResponse(cacheKey, jsonEncode(raw));
-      return Ok(raw.map((json) => fromJson(json as Map<String, dynamic>)).toList());
+      return Ok(
+        raw.map((json) => fromJson(json as Map<String, dynamic>)).toList(),
+      );
     } on DioException catch (e) {
       final cached = await _dbHelper.getCachedResponse(cacheKey);
       if (cached != null) {
         final raw = jsonDecode(cached) as List<dynamic>;
-        return Ok(raw.map((json) => fromJson(json as Map<String, dynamic>)).toList());
+        return Ok(
+          raw.map((json) => fromJson(json as Map<String, dynamic>)).toList(),
+        );
       }
       return Error(_failureFor(e));
     }

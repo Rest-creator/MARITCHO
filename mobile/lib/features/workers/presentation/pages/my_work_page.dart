@@ -1,12 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:image_picker/image_picker.dart';
 
-import '../../../jobs/data/models/job.dart';
-import '../../../jobs/data/models/my_offer.dart';
-import '../../../jobs/data/repositories/jobs_repository.dart';
-import '../../data/repositories/workers_repository.dart';
-import '../cubit/my_work_cubit.dart';
-import '../cubit/my_work_state.dart';
+import 'package:mobile/core/sync/sync_service.dart';
+import 'package:mobile/features/jobs/data/models/job.dart';
+import 'package:mobile/features/jobs/data/models/my_offer.dart';
+import 'package:mobile/features/jobs/data/repositories/job_work_repository.dart';
+import 'package:mobile/features/jobs/data/repositories/jobs_repository.dart';
+import 'package:mobile/features/workers/data/repositories/workers_repository.dart';
+import 'package:mobile/features/workers/presentation/cubit/my_work_cubit.dart';
+import 'package:mobile/features/workers/presentation/cubit/my_work_state.dart';
+import 'package:mobile/features/workers/presentation/widgets/active_job_card.dart';
+import 'package:mobile/features/workers/presentation/widgets/quote_input.dart';
+import 'package:mobile/features/workers/presentation/widgets/quote_sheet.dart';
 
 /// Ports MyWork.dc.html. The stats header shows Jobs completed and
 /// On-time rate (from GET /workers/me/standing) instead of the
@@ -18,7 +24,12 @@ class MyWorkPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (ctx) => MyWorkCubit(ctx.read<WorkersRepository>(), ctx.read<JobsRepository>())..load(),
+      create: (BuildContext ctx) => MyWorkCubit(
+        ctx.read<WorkersRepository>(),
+        ctx.read<JobsRepository>(),
+        ctx.read<JobWorkRepository>(),
+        syncChanges: ctx.read<SyncService>().changes,
+      )..load(),
       child: const _MyWorkView(),
     );
   }
@@ -35,16 +46,31 @@ class _MyWorkView extends StatelessWidget {
         appBar: AppBar(
           title: const Text('My work'),
           bottom: const TabBar(
-            tabs: [Tab(text: 'Offers'), Tab(text: 'Active'), Tab(text: 'Done')],
+            tabs: [
+              Tab(text: 'Offers'),
+              Tab(text: 'Active'),
+              Tab(text: 'Done'),
+            ],
           ),
         ),
-        body: BlocBuilder<MyWorkCubit, MyWorkState>(
-          builder: (context, state) {
+        body: BlocConsumer<MyWorkCubit, MyWorkState>(
+          listenWhen: (MyWorkState previous, MyWorkState current) =>
+              current is MyWorkLoaded && current.notice != null,
+          listener: (BuildContext context, MyWorkState state) {
+            final String? notice = (state as MyWorkLoaded).notice;
+            if (notice == null) return;
+            ScaffoldMessenger.of(context)
+                .showSnackBar(SnackBar(content: Text(notice)));
+            context.read<MyWorkCubit>().clearNotice();
+          },
+          builder: (BuildContext context, MyWorkState state) {
             if (state is MyWorkInitial || state is MyWorkLoading) {
               return const Center(child: CircularProgressIndicator());
             }
             if (state is MyWorkFailure) {
-              return Center(child: Text('Could not load your work: ${state.errorMessage}'));
+              return Center(
+                child: Text('Could not load your work: ${state.errorMessage}'),
+              );
             }
 
             final loaded = state as MyWorkLoaded;
@@ -55,8 +81,11 @@ class _MyWorkView extends StatelessWidget {
                   child: TabBarView(
                     children: [
                       _OffersTab(offers: loaded.offers),
-                      _JobsTab(jobs: loaded.activeJobs, emptyText: 'No active jobs.'),
-                      _JobsTab(jobs: loaded.doneJobs, emptyText: 'No completed jobs yet.'),
+                      _ActiveTab(loaded: loaded),
+                      _JobsTab(
+                        jobs: loaded.doneJobs,
+                        emptyText: 'No completed jobs yet.',
+                      ),
                     ],
                   ),
                 ),
@@ -81,8 +110,14 @@ class _StatsRow extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
-          _Stat(value: '${loaded.standing.jobsCompleted}', label: 'Jobs completed'),
-          _Stat(value: '${loaded.standing.onTimeRate.toStringAsFixed(0)}%', label: 'On-time rate'),
+          _Stat(
+            value: '${loaded.standing.jobsCompleted}',
+            label: 'Jobs completed',
+          ),
+          _Stat(
+            value: '${loaded.standing.onTimeRate.toStringAsFixed(0)}%',
+            label: 'On-time rate',
+          ),
           _Stat(value: loaded.standing.grade, label: 'Grade'),
         ],
       ),
@@ -100,7 +135,10 @@ class _Stat extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Text(value, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+        Text(
+          value,
+          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+        ),
         Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey)),
       ],
     );
@@ -130,6 +168,82 @@ class _OffersTab extends StatelessWidget {
             ),
           ),
       ],
+    );
+  }
+}
+
+/// Hired jobs: arrive and confirm the price, add photos — all of it
+/// saved on the phone first, so it works without signal.
+class _ActiveTab extends StatelessWidget {
+  final MyWorkLoaded loaded;
+
+  const _ActiveTab({required this.loaded});
+
+  Future<void> _arrive(BuildContext context, Job job) async {
+    final MyWorkCubit cubit = context.read<MyWorkCubit>();
+    final QuoteInput? input = await showModalBottomSheet<QuoteInput>(
+      context: context,
+      isScrollControlled: true,
+      builder: (BuildContext _) =>
+          QuoteSheet(offeredAmount: loaded.offeredAmountFor(job.id)),
+    );
+    if (input == null) return;
+    await cubit.submitQuote(
+      jobId: job.id,
+      laborAmount: input.laborAmount,
+      materialsAmount: input.materialsAmount,
+    );
+  }
+
+  Future<void> _addPhoto(BuildContext context, Job job) async {
+    final MyWorkCubit cubit = context.read<MyWorkCubit>();
+    final XFile? photo;
+    try {
+      // Shrunk by the camera plugin itself: small enough for a data bundle.
+      photo = await ImagePicker().pickImage(
+        source: ImageSource.camera,
+        maxWidth: 1280,
+        maxHeight: 1280,
+        imageQuality: 70,
+      );
+    } on Exception {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'The camera is not available. Allow it in your phone settings.',
+          ),
+        ),
+      );
+      return;
+    }
+    if (photo == null) return;
+    await cubit.addPhoto(jobId: job.id, filePath: photo.path);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final List<Job> jobs = loaded.activeJobs;
+    if (jobs.isEmpty) {
+      return const Center(
+        child: Text('No active jobs. When a client hires you, it shows here.'),
+      );
+    }
+    return RefreshIndicator(
+      onRefresh: () => context.read<MyWorkCubit>().refresh(),
+      child: ListView(
+        padding: const EdgeInsets.all(16),
+        children: <Widget>[
+          for (final Job job in jobs)
+            ActiveJobCard(
+              job: job,
+              undelivered: loaded.undeliveredFor(job.id),
+              onArrived: () => _arrive(context, job),
+              onAddPhoto: () => _addPhoto(context, job),
+              onRetry: (int id) => context.read<MyWorkCubit>().retry(id),
+            ),
+        ],
+      ),
     );
   }
 }

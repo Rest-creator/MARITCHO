@@ -57,9 +57,9 @@ behind each item below — all four are now `DONE`.
 
 | Task ID | Status | Priority | Description | Dependencies | Assignee |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **APP-001** | `TODO` | High | Scaffold Flutter app with local SQLite/SharedPreferences sync engine. | None | - |
-| **APP-002** | `TODO` | High | Build offline-capable "Check-In" and "Upload Photo" queueing mechanism. | APP-001 | - |
-| **APP-003** | `TODO` | Medium | Implement Light Mode UI components (text-first, tap-to-load images). | APP-001 | - |
+| **APP-001** | `DONE` | High | Scaffold Flutter app with local SQLite sync engine (commit `17dd4ec`), buyer and worker flows, offline-first cached reads. Mobile CI (`mobile-ci.yml`) runs format/analyze/test on Flutter 3.47.5. | None | - |
+| **APP-002** | `DONE` | High | Offline "I've arrived" price confirmation (`POST /jobs/{id}/quote`) and job photos (to `/media`, shared in the job chat), saved on the phone and sent by `SyncService` when there's signal; refusals are kept and shown with "Try again". Replaces the unreachable check-in prototype, which posted to endpoints the backend never had. Photos switch on with issue #1. | APP-001 | - |
+| **APP-003** | `TODO` | Medium | Light Mode UI (text-first, tap-to-load images). `TapToLoadImage` exists (`core/theme`) but no screen shows photos yet; use it once job/chat photos are displayed (needs issue #1). | APP-001 | - |
 | **WEB-001** | `DONE` | High | Scaffold the Next.js PWA in `frontend/`: BFF proxy (`/api/*`, JWT in an httpOnly cookie), zod response contracts, TanStack Query cache persisted on device with offline mutation replay, app-shell service worker, design tokens from `wireframes/`. | None | - |
 | **WEB-002** | `DONE` | High | Employer flow screens per the approved app UI: welcome, sign-up, home (E1), post a job + skill picker (E2/E3), applicants + hire (E4), worker profile (E5), tracking / sign-off review / dispute (E6), chat. | WEB-001 | - |
 | **WEB-003** | `DONE` | High | Worker flow screens: skills + travel radius (W1), jobs near you (W2), job detail + offer (W3), my work with on-site quote and dispute response (W4). | WEB-001 | - |

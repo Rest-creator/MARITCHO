@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'package:mobile/core/json/json_number.dart';
 
 /// Mirrors the backend's JobOut / MyJobOut (JobOut plus an optional
 /// offerCount — present only when fetched via GET /jobs/mine).
@@ -43,9 +44,9 @@ class Job extends Equatable {
       suburb: json['suburb'] as String,
       address: json['address'] as String,
       problemDescription: json['problem_description'] as String?,
-      budgetAmount: (json['budget_amount'] as num?)?.toDouble(),
+      budgetAmount: readDecimal(json['budget_amount']),
       currency: json['currency'] as String?,
-      quoteAmount: (json['quote_amount'] as num?)?.toDouble(),
+      quoteAmount: readDecimal(json['quote_amount']),
       createdAt: DateTime.parse(json['created_at'] as String),
       offerCount: json['offer_count'] as int?,
     );

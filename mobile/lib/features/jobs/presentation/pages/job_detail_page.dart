@@ -41,13 +41,15 @@ class _JobDetailPageState extends State<JobDetailPage> {
             if (!mounted) return; // Engineering Standard: Async Gap Safety
 
             if (state is JobDetailSuccess) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Offer sent.')),
-              );
+              ScaffoldMessenger.of(context)
+                  .showSnackBar(const SnackBar(content: Text('Offer sent.')));
               Navigator.of(context).pushReplacementNamed('/my-work');
             } else if (state is JobDetailFailure) {
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(state.errorMessage), backgroundColor: Colors.red),
+                SnackBar(
+                  content: Text(state.errorMessage),
+                  backgroundColor: Colors.red,
+                ),
               );
             }
           },
@@ -58,9 +60,14 @@ class _JobDetailPageState extends State<JobDetailPage> {
               padding: const EdgeInsets.all(20),
               child: ListView(
                 children: [
-                  Text('What the client needs', style: Theme.of(context).textTheme.titleLarge),
+                  Text(
+                    'What the client needs',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
                   const SizedBox(height: 8),
-                  Text(widget.job.problemDescription ?? 'No description provided.'),
+                  Text(
+                    widget.job.problemDescription ?? 'No description provided.',
+                  ),
                   const SizedBox(height: 16),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -79,19 +86,29 @@ class _JobDetailPageState extends State<JobDetailPage> {
                     ],
                   ),
                   const SizedBox(height: 24),
-                  Text('Your offer', style: Theme.of(context).textTheme.titleLarge),
+                  Text(
+                    'Your offer',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
                   const SizedBox(height: 12),
                   TextField(
                     controller: _priceController,
                     enabled: !isSubmitting,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    decoration: const InputDecoration(labelText: 'Your price', prefixText: 'US\$ '),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    decoration: const InputDecoration(
+                      labelText: 'Your price',
+                      prefixText: 'US\$ ',
+                    ),
                   ),
                   const SizedBox(height: 16),
                   TextField(
                     controller: _availabilityController,
                     enabled: !isSubmitting,
-                    decoration: const InputDecoration(labelText: 'When can you come? (optional)'),
+                    decoration: const InputDecoration(
+                      labelText: 'When can you come? (optional)',
+                    ),
                   ),
                   const SizedBox(height: 24),
                   ElevatedButton(
@@ -100,7 +117,10 @@ class _JobDetailPageState extends State<JobDetailPage> {
                         ? const SizedBox(
                             width: 20,
                             height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
                           )
                         : const Text('Send my offer'),
                   ),
@@ -124,10 +144,10 @@ class _JobDetailPageState extends State<JobDetailPage> {
 
     final availability = _availabilityController.text.trim();
     context.read<JobDetailCubit>().submitOffer(
-          jobId: widget.job.jobId,
-          quotedAmount: price,
-          availabilityNote: availability.isEmpty ? null : availability,
-        );
+      jobId: widget.job.jobId,
+      quotedAmount: price,
+      availabilityNote: availability.isEmpty ? null : availability,
+    );
   }
 }
 

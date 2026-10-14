@@ -60,24 +60,60 @@ class _FakeJobsRepository extends JobsRepository {
     this.getMatchesResult = const Ok([]),
     Result<Job, Failure>? bookJobResult,
     Result<Job, Failure>? completeJobResult,
-  }) : createJobResult = createJobResult ??
-            Ok(Job(
-              id: 'job-1', buyerId: 'b', workerId: null, status: 'REQUESTED', trade: 'PLUMBING',
-              suburb: 'Nkulumane', address: 'x', problemDescription: null, budgetAmount: null,
-              currency: null, quoteAmount: null, createdAt: _defaultCreatedAt,
-            )),
-       bookJobResult = bookJobResult ??
-            Ok(Job(
-              id: 'job-1', buyerId: 'b', workerId: 'w', status: 'BOOKED', trade: 'PLUMBING',
-              suburb: 'Nkulumane', address: 'x', problemDescription: null, budgetAmount: null,
-              currency: null, quoteAmount: null, createdAt: _defaultCreatedAt,
-            )),
-       completeJobResult = completeJobResult ??
-            Ok(Job(
-              id: 'job-1', buyerId: 'b', workerId: 'w', status: 'COMPLETED', trade: 'PLUMBING',
-              suburb: 'Nkulumane', address: 'x', problemDescription: null, budgetAmount: null,
-              currency: null, quoteAmount: null, createdAt: _defaultCreatedAt,
-            )),
+  }) : createJobResult =
+           createJobResult ??
+           Ok(
+             Job(
+               id: 'job-1',
+               buyerId: 'b',
+               workerId: null,
+               status: 'REQUESTED',
+               trade: 'PLUMBING',
+               suburb: 'Nkulumane',
+               address: 'x',
+               problemDescription: null,
+               budgetAmount: null,
+               currency: null,
+               quoteAmount: null,
+               createdAt: _defaultCreatedAt,
+             ),
+           ),
+       bookJobResult =
+           bookJobResult ??
+           Ok(
+             Job(
+               id: 'job-1',
+               buyerId: 'b',
+               workerId: 'w',
+               status: 'BOOKED',
+               trade: 'PLUMBING',
+               suburb: 'Nkulumane',
+               address: 'x',
+               problemDescription: null,
+               budgetAmount: null,
+               currency: null,
+               quoteAmount: null,
+               createdAt: _defaultCreatedAt,
+             ),
+           ),
+       completeJobResult =
+           completeJobResult ??
+           Ok(
+             Job(
+               id: 'job-1',
+               buyerId: 'b',
+               workerId: 'w',
+               status: 'COMPLETED',
+               trade: 'PLUMBING',
+               suburb: 'Nkulumane',
+               address: 'x',
+               problemDescription: null,
+               budgetAmount: null,
+               currency: null,
+               quoteAmount: null,
+               createdAt: _defaultCreatedAt,
+             ),
+           ),
        super(Dio(), DatabaseHelper());
 
   @override
@@ -93,7 +129,9 @@ class _FakeJobsRepository extends JobsRepository {
   }) async => createJobResult;
 
   @override
-  Future<Result<List<MatchCandidate>, Failure>> getMatches(String jobId) async => getMatchesResult;
+  Future<Result<List<MatchCandidate>, Failure>> getMatches(
+    String jobId,
+  ) async => getMatchesResult;
 
   @override
   Future<Result<Job, Failure>> bookJob({
@@ -127,7 +165,9 @@ void main() {
 
     test('emits EmployerHomeFailure on error', () async {
       final cubit = EmployerHomeCubit(
-        _FakeJobsRepository(listMineResult: const Error(NetworkFailure(message: 'down'))),
+        _FakeJobsRepository(
+          listMineResult: const Error(NetworkFailure(message: 'down')),
+        ),
       );
 
       await cubit.loadJobs();
@@ -162,7 +202,11 @@ void main() {
       await cubit.loadMatches('job-1');
       expect(cubit.state, isA<ApplicantsLoaded>());
 
-      await cubit.hireWorker(jobId: 'job-1', workerId: 'worker-1', depositAmount: 30);
+      await cubit.hireWorker(
+        jobId: 'job-1',
+        workerId: 'worker-1',
+        depositAmount: 30,
+      );
       expect(cubit.state, isA<ApplicantsBooked>());
       await cubit.close();
     });

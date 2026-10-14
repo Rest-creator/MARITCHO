@@ -65,7 +65,10 @@ class _WorkerSkillsPageState extends State<WorkerSkillsPage> {
               Navigator.of(context).pushReplacementNamed('/worker-home');
             } else if (state is WorkerSkillsFailure) {
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(state.errorMessage), backgroundColor: Colors.red),
+                SnackBar(
+                  content: Text(state.errorMessage),
+                  backgroundColor: Colors.red,
+                ),
               );
             }
           },
@@ -80,7 +83,11 @@ class _WorkerSkillsPageState extends State<WorkerSkillsPage> {
                 }
                 final result = snapshot.data!;
                 if (result.isError) {
-                  return Center(child: Text('Could not load suburbs: ${result.errorValue.message}'));
+                  return Center(
+                    child: Text(
+                      'Could not load suburbs: ${result.errorValue.message}',
+                    ),
+                  );
                 }
                 final suburbs = result.okValue;
 
@@ -88,7 +95,9 @@ class _WorkerSkillsPageState extends State<WorkerSkillsPage> {
                   padding: const EdgeInsets.all(20),
                   child: ListView(
                     children: [
-                      Text('Pick up to $_maxTrades. What you can do matters more than certificates.'),
+                      Text(
+                        'Pick up to $_maxTrades. What you can do matters more than certificates.',
+                      ),
                       const SizedBox(height: 16),
                       Wrap(
                         spacing: 8,
@@ -101,32 +110,42 @@ class _WorkerSkillsPageState extends State<WorkerSkillsPage> {
                               onSelected: isSubmitting
                                   ? null
                                   : (selected) => setState(() {
-                                        if (selected) {
-                                          if (_selectedTrades.length < _maxTrades) {
-                                            _selectedTrades.add(value);
-                                          }
-                                        } else {
-                                          _selectedTrades.remove(value);
+                                      if (selected) {
+                                        if (_selectedTrades.length <
+                                            _maxTrades) {
+                                          _selectedTrades.add(value);
                                         }
-                                      }),
+                                      } else {
+                                        _selectedTrades.remove(value);
+                                      }
+                                    }),
                             ),
                         ],
                       ),
                       const SizedBox(height: 24),
                       DropdownButtonFormField<String>(
                         initialValue: _suburb,
-                        decoration: const InputDecoration(labelText: 'Where do you work from?'),
+                        decoration: const InputDecoration(
+                          labelText: 'Where do you work from?',
+                        ),
                         items: [
                           for (final suburb in suburbs)
-                            DropdownMenuItem(value: suburb.name, child: Text(suburb.name)),
+                            DropdownMenuItem(
+                              value: suburb.name,
+                              child: Text(suburb.name),
+                            ),
                         ],
-                        onChanged: isSubmitting ? null : (value) => setState(() => _suburb = value),
+                        onChanged: isSubmitting
+                            ? null
+                            : (value) => setState(() => _suburb = value),
                       ),
                       const SizedBox(height: 16),
                       TextField(
                         controller: _travelMeansController,
                         enabled: !isSubmitting,
-                        decoration: const InputDecoration(labelText: 'How do you get around? (optional)'),
+                        decoration: const InputDecoration(
+                          labelText: 'How do you get around? (optional)',
+                        ),
                       ),
                       const SizedBox(height: 24),
                       ElevatedButton(
@@ -135,7 +154,10 @@ class _WorkerSkillsPageState extends State<WorkerSkillsPage> {
                             ? const SizedBox(
                                 width: 20,
                                 height: 20,
-                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
                               )
                             : const Text('Start finding work'),
                       ),
@@ -153,16 +175,18 @@ class _WorkerSkillsPageState extends State<WorkerSkillsPage> {
   void _submit(BuildContext context) {
     if (_selectedTrades.isEmpty || _suburb == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Pick at least one trade and your suburb to continue')),
+        const SnackBar(
+          content: Text('Pick at least one trade and your suburb to continue'),
+        ),
       );
       return;
     }
 
     final travelMeans = _travelMeansController.text.trim();
     context.read<WorkerSkillsCubit>().submit(
-          trades: _selectedTrades.toList(),
-          suburb: _suburb!,
-          travelMeans: travelMeans.isEmpty ? null : travelMeans,
-        );
+      trades: _selectedTrades.toList(),
+      suburb: _suburb!,
+      travelMeans: travelMeans.isEmpty ? null : travelMeans,
+    );
   }
 }

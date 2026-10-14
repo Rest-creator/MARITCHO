@@ -66,10 +66,14 @@ class _PostJobPageState extends State<PostJobPage> {
             if (!mounted) return; // Engineering Standard: Async Gap Safety
 
             if (state is PostJobSuccess) {
-              Navigator.of(context).pushReplacementNamed('/applicants', arguments: state.job.id);
+              Navigator.of(context)
+                  .pushReplacementNamed('/applicants', arguments: state.job.id);
             } else if (state is PostJobFailure) {
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(state.errorMessage), backgroundColor: Colors.red),
+                SnackBar(
+                  content: Text(state.errorMessage),
+                  backgroundColor: Colors.red,
+                ),
               );
             }
           },
@@ -83,7 +87,11 @@ class _PostJobPageState extends State<PostJobPage> {
                 }
                 final result = snapshot.data!;
                 if (result.isError) {
-                  return Center(child: Text('Could not load suburbs: ${result.errorValue.message}'));
+                  return Center(
+                    child: Text(
+                      'Could not load suburbs: ${result.errorValue.message}',
+                    ),
+                  );
                 }
                 final suburbs = result.okValue;
 
@@ -93,12 +101,16 @@ class _PostJobPageState extends State<PostJobPage> {
                     children: [
                       DropdownButtonFormField<String>(
                         initialValue: _trade,
-                        decoration: const InputDecoration(labelText: 'What needs doing?'),
+                        decoration: const InputDecoration(
+                          labelText: 'What needs doing?',
+                        ),
                         items: [
                           for (final (label, value) in _trades)
                             DropdownMenuItem(value: value, child: Text(label)),
                         ],
-                        onChanged: isSubmitting ? null : (value) => setState(() => _trade = value),
+                        onChanged: isSubmitting
+                            ? null
+                            : (value) => setState(() => _trade = value),
                       ),
                       const SizedBox(height: 16),
                       DropdownButtonFormField<String>(
@@ -106,29 +118,43 @@ class _PostJobPageState extends State<PostJobPage> {
                         decoration: const InputDecoration(labelText: 'Suburb'),
                         items: [
                           for (final suburb in suburbs)
-                            DropdownMenuItem(value: suburb.name, child: Text(suburb.name)),
+                            DropdownMenuItem(
+                              value: suburb.name,
+                              child: Text(suburb.name),
+                            ),
                         ],
-                        onChanged: isSubmitting ? null : (value) => setState(() => _suburb = value),
+                        onChanged: isSubmitting
+                            ? null
+                            : (value) => setState(() => _suburb = value),
                       ),
                       const SizedBox(height: 16),
                       TextField(
                         controller: _addressController,
                         enabled: !isSubmitting,
-                        decoration: const InputDecoration(labelText: 'Exact address'),
+                        decoration: const InputDecoration(
+                          labelText: 'Exact address',
+                        ),
                       ),
                       const SizedBox(height: 16),
                       TextField(
                         controller: _descriptionController,
                         enabled: !isSubmitting,
                         maxLines: 4,
-                        decoration: const InputDecoration(labelText: 'Describe the job'),
+                        decoration: const InputDecoration(
+                          labelText: 'Describe the job',
+                        ),
                       ),
                       const SizedBox(height: 16),
                       TextField(
                         controller: _budgetController,
                         enabled: !isSubmitting,
-                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                        decoration: const InputDecoration(labelText: 'Your budget (optional)', prefixText: 'US\$ '),
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        decoration: const InputDecoration(
+                          labelText: 'Your budget (optional)',
+                          prefixText: 'US\$ ',
+                        ),
                       ),
                       const SizedBox(height: 24),
                       ElevatedButton(
@@ -137,7 +163,10 @@ class _PostJobPageState extends State<PostJobPage> {
                             ? const SizedBox(
                                 width: 20,
                                 height: 20,
-                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
                               )
                             : const Text('Find someone for this job'),
                       ),
@@ -153,22 +182,27 @@ class _PostJobPageState extends State<PostJobPage> {
   }
 
   void _submit(BuildContext context) {
-    if (_trade == null || _suburb == null ||
+    if (_trade == null ||
+        _suburb == null ||
         _addressController.text.trim().isEmpty ||
         _descriptionController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Fill in the trade, suburb, address and description to continue')),
+        const SnackBar(
+          content: Text(
+            'Fill in the trade, suburb, address and description to continue',
+          ),
+        ),
       );
       return;
     }
 
     final budgetText = _budgetController.text.trim();
     context.read<PostJobCubit>().submit(
-          trade: _trade!,
-          suburb: _suburb!,
-          address: _addressController.text.trim(),
-          problemDescription: _descriptionController.text.trim(),
-          budgetAmount: budgetText.isEmpty ? null : double.tryParse(budgetText),
-        );
+      trade: _trade!,
+      suburb: _suburb!,
+      address: _addressController.text.trim(),
+      problemDescription: _descriptionController.text.trim(),
+      budgetAmount: budgetText.isEmpty ? null : double.tryParse(budgetText),
+    );
   }
 }

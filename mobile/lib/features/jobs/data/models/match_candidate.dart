@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'package:mobile/core/json/json_number.dart';
 
 /// Mirrors the backend's MatchCandidateOut.
 class MatchCandidate extends Equatable {
@@ -31,12 +32,12 @@ class MatchCandidate extends Equatable {
       workerId: json['worker_id'] as String,
       suburb: json['suburb'] as String,
       distanceBand: json['distance_band'] as String,
-      distanceKm: (json['distance_km'] as num).toDouble(),
+      distanceKm: readRequiredDecimal(json['distance_km']),
       grade: json['grade'] as String,
-      onTimeRate: (json['on_time_rate'] as num).toDouble(),
+      onTimeRate: readRequiredDecimal(json['on_time_rate']),
       jobsCompleted: json['jobs_completed'] as int,
       reason: json['reason'] as String,
-      quotedAmount: (json['quoted_amount'] as num?)?.toDouble(),
+      quotedAmount: readDecimal(json['quoted_amount']),
       availabilityNote: json['availability_note'] as String?,
     );
   }

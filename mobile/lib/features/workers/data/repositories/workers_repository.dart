@@ -20,7 +20,7 @@ class WorkersRepository {
     try {
       await _dio.post<Map<String, dynamic>>(
         '/workers/me/skills',
-        data: {'trade': trade, if (proofUrl != null) 'proof_url': proofUrl},
+        data: {'trade': trade, 'proof_url': ?proofUrl},
       );
       return const Ok(null);
     } on DioException catch (e) {
@@ -35,7 +35,7 @@ class WorkersRepository {
     try {
       await _dio.post<Map<String, dynamic>>(
         '/workers/me/service-areas',
-        data: {'suburb': suburb, if (travelMeans != null) 'travel_means': travelMeans},
+        data: {'suburb': suburb, 'travel_means': ?travelMeans},
       );
       return const Ok(null);
     } on DioException catch (e) {
@@ -49,14 +49,18 @@ class WorkersRepository {
   Future<Result<Standing, Failure>> getStanding() async {
     const cacheKey = 'workers.standing';
     try {
-      final response = await _dio.get<Map<String, dynamic>>('/workers/me/standing');
+      final response = await _dio.get<Map<String, dynamic>>(
+        '/workers/me/standing',
+      );
       final raw = response.data!;
       await _dbHelper.cacheResponse(cacheKey, jsonEncode(raw));
       return Ok(Standing.fromJson(raw));
     } on DioException catch (e) {
       final cached = await _dbHelper.getCachedResponse(cacheKey);
       if (cached != null) {
-        return Ok(Standing.fromJson(jsonDecode(cached) as Map<String, dynamic>));
+        return Ok(
+          Standing.fromJson(jsonDecode(cached) as Map<String, dynamic>),
+        );
       }
       return Error(_failureFor(e));
     }
