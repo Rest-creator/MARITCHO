@@ -28,6 +28,13 @@ export const BACKEND_ROUTES = {
   otpVerify: { method: "POST", path: "/otp/verify" },
   /** Multipart upload of a photo or voice note (issue #1). */
   mediaUpload: { method: "POST", path: "/media/upload" },
+
+  // Read by the screen endpoints (/api/screens/*, ADR-009 phase 2).
+  openJobs: { method: "GET", path: "/jobs/open" },
+  assignedJobs: { method: "GET", path: "/jobs/assigned" },
+  myOffers: { method: "GET", path: "/jobs/my-offers" },
+  skills: { method: "GET", path: "/workers/me/skills" },
+  standing: { method: "GET", path: "/workers/me/standing" },
 } as const satisfies Record<string, BackendRoute>;
 
 /**

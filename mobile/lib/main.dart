@@ -16,6 +16,7 @@ import 'features/accounts/data/repositories/auth_repository.dart';
 import 'features/jobs/data/repositories/job_work_repository.dart';
 import 'features/jobs/data/repositories/jobs_repository.dart';
 import 'features/suburbs/data/repositories/suburbs_repository.dart';
+import 'features/workers/data/repositories/work_screen_repository.dart';
 import 'features/workers/data/repositories/workers_repository.dart';
 
 void main() {
@@ -28,6 +29,7 @@ void main() {
   final jobsRepository = JobsRepository(dio, dbHelper);
   final suburbsRepository = SuburbsRepository(dio);
   final workersRepository = WorkersRepository(dio, dbHelper);
+  final workScreenRepository = WorkScreenRepository(dio, dbHelper);
 
   // Offline work (on-site price, photos) is saved first and sent when
   // there's signal; the scheduler decides when (APP-002).
@@ -49,6 +51,7 @@ void main() {
       jobsRepository: jobsRepository,
       suburbsRepository: suburbsRepository,
       workersRepository: workersRepository,
+      workScreenRepository: workScreenRepository,
       jobWorkRepository: jobWorkRepository,
       syncService: syncService,
     ),
@@ -60,6 +63,7 @@ class MyApp extends StatelessWidget {
   final JobsRepository jobsRepository;
   final SuburbsRepository suburbsRepository;
   final WorkersRepository workersRepository;
+  final WorkScreenRepository workScreenRepository;
   final JobWorkRepository jobWorkRepository;
   final SyncService syncService;
 
@@ -69,6 +73,7 @@ class MyApp extends StatelessWidget {
     required this.jobsRepository,
     required this.suburbsRepository,
     required this.workersRepository,
+    required this.workScreenRepository,
     required this.jobWorkRepository,
     required this.syncService,
   });
@@ -81,6 +86,9 @@ class MyApp extends StatelessWidget {
         RepositoryProvider<JobsRepository>.value(value: jobsRepository),
         RepositoryProvider<SuburbsRepository>.value(value: suburbsRepository),
         RepositoryProvider<WorkersRepository>.value(value: workersRepository),
+        RepositoryProvider<WorkScreenRepository>.value(
+          value: workScreenRepository,
+        ),
         RepositoryProvider<JobWorkRepository>.value(value: jobWorkRepository),
         RepositoryProvider<SyncService>.value(value: syncService),
       ],

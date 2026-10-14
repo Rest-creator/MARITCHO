@@ -16,6 +16,8 @@ import {
   skillSchema,
   standingSchema,
   suburbSchema,
+  workerHomeScreenSchema,
+  workerWorkScreenSchema,
   type Dispute,
   type Job,
   type JobOffer,
@@ -32,6 +34,8 @@ import {
   type Standing,
   type Suburb,
   type Trade,
+  type WorkerHomeScreen,
+  type WorkerWorkScreen,
 } from "@/core/api/schemas";
 
 /* ---------- Request payloads ---------- */
@@ -238,6 +242,16 @@ export function fetchStanding(): Promise<Standing> {
 
 export function fetchReferences(): Promise<Reference[]> {
   return apiRequest("/workers/me/references", { schema: z.array(referenceSchema) });
+}
+
+/* ---------- Screens (one request per screen, ADR-009 phase 2) ---------- */
+
+export function fetchWorkerWorkScreen(): Promise<WorkerWorkScreen> {
+  return apiRequest("/screens/worker-work", { schema: workerWorkScreenSchema });
+}
+
+export function fetchWorkerHomeScreen(): Promise<WorkerHomeScreen> {
+  return apiRequest("/screens/worker-home", { schema: workerHomeScreenSchema });
 }
 
 /* ---------- Reference data ---------- */

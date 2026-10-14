@@ -16,6 +16,10 @@ export const queryKeys = {
   references: ["workers", "references"] as const,
   suburbs: ["suburbs"] as const,
   mediaUploads: ["media", "uploads-available"] as const,
+  /** Screen bundles; under "jobs" so any job change can refresh them too. */
+  screens: ["jobs", "screen"] as const,
+  workerWorkScreen: ["jobs", "screen", "worker-work"] as const,
+  workerHomeScreen: ["jobs", "screen", "worker-home"] as const,
 };
 
 /**

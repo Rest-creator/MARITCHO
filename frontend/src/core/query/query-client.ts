@@ -101,6 +101,7 @@ export function createQueryClient(): QueryClient {
   registerReplayable<SubmitOfferInput>(client, mutationKeys.submitOffer, submitOffer, () => [
     queryKeys.myOffers,
     queryKeys.openJobs,
+    queryKeys.screens,
   ]);
   registerReplayable<BookJobInput>(client, mutationKeys.bookJob, bookJob, (v) => [
     queryKeys.myJobs,
@@ -109,6 +110,7 @@ export function createQueryClient(): QueryClient {
   registerReplayable<SubmitQuoteInput>(client, mutationKeys.submitQuote, submitQuote, (v) => [
     queryKeys.assignedJobs,
     queryKeys.job(v.jobId),
+    queryKeys.screens,
   ]);
   registerReplayable<CompleteJobInput>(client, mutationKeys.completeJob, completeJob, (v) => [
     queryKeys.myJobs,
@@ -122,7 +124,12 @@ export function createQueryClient(): QueryClient {
     client,
     mutationKeys.respondToDispute,
     respondToDispute,
-    (v) => [queryKeys.assignedJobs, queryKeys.disputes(v.jobId), queryKeys.job(v.jobId)],
+    (v) => [
+      queryKeys.assignedJobs,
+      queryKeys.disputes(v.jobId),
+      queryKeys.job(v.jobId),
+      queryKeys.screens,
+    ],
   );
   registerReplayable<SendMessageInput>(client, mutationKeys.sendMessage, sendMessage, (v) => [
     queryKeys.messages(v.jobId),
@@ -130,12 +137,13 @@ export function createQueryClient(): QueryClient {
   registerReplayable<Trade>(client, mutationKeys.registerSkill, registerSkill, () => [
     queryKeys.skills,
     queryKeys.openJobs,
+    queryKeys.screens,
   ]);
   registerReplayable<RegisterServiceAreaInput>(
     client,
     mutationKeys.registerServiceArea,
     registerServiceArea,
-    () => [queryKeys.serviceAreas, queryKeys.openJobs],
+    () => [queryKeys.serviceAreas, queryKeys.openJobs, queryKeys.screens],
   );
 
   return client;

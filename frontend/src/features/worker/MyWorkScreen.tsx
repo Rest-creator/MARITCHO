@@ -14,12 +14,11 @@ import {
   jobStatusLabel,
 } from "@/core/format/format";
 import { tradeLabel } from "@/core/format/trades";
-import { useAssignedJobs, useMyOffers } from "@/features/jobs/hooks";
 import { isOpenStatus, splitTiming } from "@/features/jobs/job-helpers";
 import { ActiveJobCard } from "@/features/worker/ActiveJobCard";
 import { monthLabel, summariseMonth } from "@/features/worker/earnings";
 import { WorkerTabBar } from "@/features/worker/WorkerTabBar";
-import { useStanding } from "@/features/workers/hooks";
+import { useWorkerWorkScreen } from "@/features/worker/screen-hooks";
 
 export type WorkTab = "offers" | "active" | "done";
 
@@ -29,21 +28,20 @@ type Props = { initialTab: WorkTab };
 
 /** Design W4 · My work, earnings & standing. */
 export function MyWorkScreen({ initialTab }: Props) {
-  const assigned = useAssignedJobs();
-  const offers = useMyOffers();
-  const standing = useStanding();
+  // One request for the whole screen (ADR-009 phase 2).
+  const screen = useWorkerWorkScreen();
+  const standing = screen.data?.standing;
   const [tab, setTab] = useState<WorkTab>(initialTab);
 
-  const jobs = assigned.data ?? [];
+  const jobs = screen.data?.assigned ?? [];
   const activeJobs = jobs.filter((job) => ACTIVE_STATUSES.has(job.status));
   const doneJobs = jobs.filter((job) => job.status === "COMPLETED");
-  const openOffers = (offers.data ?? []).filter((offer) => isOpenStatus(offer.job_status));
-  const offerByJob = new Map(
-    (offers.data ?? []).map((offer) => [offer.job_id, offer.quoted_amount]),
-  );
+  const offers = screen.data?.offers ?? [];
+  const openOffers = offers.filter((offer) => isOpenStatus(offer.job_status));
+  const offerByJob = new Map(offers.map((offer) => [offer.job_id, offer.quoted_amount]));
   const month = summariseMonth(jobs);
-  const isLoading = assigned.isPending || offers.isPending;
-  const loadError = (!assigned.data && assigned.error) || (!offers.data && offers.error) || null;
+  const isLoading = screen.isPending;
+  const loadError = (!screen.data && screen.error) || null;
 
   const tabs: { id: WorkTab; label: string }[] = [
     { id: "offers", label: `Offers (${openOffers.length})` },
@@ -68,14 +66,14 @@ export function MyWorkScreen({ initialTab }: Props) {
           </div>
           <div>
             <div className="stat__value text-amber">
-              {standing.data ? formatPercent(standing.data.on_time_rate) : "—"}
+              {standing ? formatPercent(standing.on_time_rate) : "—"}
             </div>
             <div className="stat__label">On time</div>
           </div>
         </div>
       </section>
 
-      {standing.data?.is_frozen && (
+      {standing?.is_frozen && (
         <div className="banner banner--amber">
           <Icon name="shield" size={18} />
           Your standing is paused while a concern is open. Answer it from the Active tab.
@@ -99,13 +97,7 @@ export function MyWorkScreen({ initialTab }: Props) {
 
       {isLoading && <Skeleton height={140} count={2} />}
       {loadError && (
-        <ErrorState
-          message={loadError.message}
-          onRetry={() => {
-            void assigned.refetch();
-            void offers.refetch();
-          }}
-        />
+        <ErrorState message={loadError.message} onRetry={() => void screen.refetch()} />
       )}
 
       {!isLoading && tab === "offers" && (

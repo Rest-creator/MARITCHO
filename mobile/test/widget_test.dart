@@ -8,6 +8,7 @@ import 'package:mobile/features/accounts/data/repositories/auth_repository.dart'
 import 'package:mobile/features/jobs/data/repositories/job_work_repository.dart';
 import 'package:mobile/features/jobs/data/repositories/jobs_repository.dart';
 import 'package:mobile/features/suburbs/data/repositories/suburbs_repository.dart';
+import 'package:mobile/features/workers/data/repositories/work_screen_repository.dart';
 import 'package:mobile/features/workers/data/repositories/workers_repository.dart';
 import 'package:mobile/main.dart';
 
@@ -31,6 +32,7 @@ void main() {
         jobsRepository: jobsRepository,
         suburbsRepository: suburbsRepository,
         workersRepository: workersRepository,
+        workScreenRepository: WorkScreenRepository(dio, dbHelper),
         jobWorkRepository: JobWorkRepository(
           outbox,
           onQueued: () {},

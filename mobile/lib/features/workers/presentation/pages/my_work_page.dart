@@ -6,8 +6,7 @@ import 'package:mobile/core/sync/sync_service.dart';
 import 'package:mobile/features/jobs/data/models/job.dart';
 import 'package:mobile/features/jobs/data/models/my_offer.dart';
 import 'package:mobile/features/jobs/data/repositories/job_work_repository.dart';
-import 'package:mobile/features/jobs/data/repositories/jobs_repository.dart';
-import 'package:mobile/features/workers/data/repositories/workers_repository.dart';
+import 'package:mobile/features/workers/data/repositories/work_screen_repository.dart';
 import 'package:mobile/features/workers/presentation/cubit/my_work_cubit.dart';
 import 'package:mobile/features/workers/presentation/cubit/my_work_state.dart';
 import 'package:mobile/features/workers/presentation/widgets/active_job_card.dart';
@@ -25,8 +24,7 @@ class MyWorkPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocProvider(
       create: (BuildContext ctx) => MyWorkCubit(
-        ctx.read<WorkersRepository>(),
-        ctx.read<JobsRepository>(),
+        ctx.read<WorkScreenRepository>(),
         ctx.read<JobWorkRepository>(),
         syncChanges: ctx.read<SyncService>().changes,
       )..load(),

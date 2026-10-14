@@ -210,6 +210,20 @@ export const suburbSchema = z.object({
   longitude: decimal,
 });
 
+/* Screen bundles from the BFF (`/api/screens/*`, ADR-009 phase 2). */
+
+export const workerWorkScreenSchema = z.object({
+  standing: standingSchema,
+  offers: z.array(myOfferSchema),
+  assigned: z.array(jobSchema),
+});
+
+export const workerHomeScreenSchema = z.object({
+  skills: z.array(skillSchema),
+  open_jobs: z.array(openJobSchema),
+  offers: z.array(myOfferSchema),
+});
+
 export type Role = z.infer<typeof roleSchema>;
 export type Trade = z.infer<typeof tradeSchema>;
 export type Grade = z.infer<typeof gradeSchema>;
@@ -231,3 +245,5 @@ export type ServiceArea = z.infer<typeof serviceAreaSchema>;
 export type Standing = z.infer<typeof standingSchema>;
 export type Reference = z.infer<typeof referenceSchema>;
 export type Suburb = z.infer<typeof suburbSchema>;
+export type WorkerWorkScreen = z.infer<typeof workerWorkScreenSchema>;
+export type WorkerHomeScreen = z.infer<typeof workerHomeScreenSchema>;

@@ -15,6 +15,8 @@ import 'package:mobile/features/jobs/presentation/cubit/job_detail_state.dart';
 import 'package:mobile/features/jobs/presentation/cubit/worker_home_cubit.dart';
 import 'package:mobile/features/jobs/presentation/cubit/worker_home_state.dart';
 import 'package:mobile/features/workers/data/models/standing.dart';
+import 'package:mobile/features/workers/data/models/work_screen.dart';
+import 'package:mobile/features/workers/data/repositories/work_screen_repository.dart';
 import 'package:mobile/features/workers/data/repositories/workers_repository.dart';
 import 'package:mobile/features/workers/presentation/cubit/my_work_cubit.dart';
 import 'package:mobile/features/workers/presentation/cubit/my_work_state.dart';
@@ -46,21 +48,9 @@ const _openJob = OpenJob(
 class _FakeWorkersRepository extends WorkersRepository {
   final Result<void, Failure> registerSkillResult;
   final Result<void, Failure> registerServiceAreaResult = const Ok(null);
-  final Result<Standing, Failure> standingResult;
 
-  _FakeWorkersRepository({
-    this.registerSkillResult = const Ok(null),
-    this.standingResult = const Ok(
-      Standing(
-        grade: 'REGISTERED',
-        onTimeRate: 100,
-        disputeRate: 0,
-        fillRate: 0,
-        jobsCompleted: 0,
-        isFrozen: false,
-      ),
-    ),
-  }) : super(Dio(), DatabaseHelper());
+  _FakeWorkersRepository({this.registerSkillResult = const Ok(null)})
+    : super(Dio(), DatabaseHelper());
 
   @override
   Future<Result<void, Failure>> registerSkill({
@@ -73,21 +63,13 @@ class _FakeWorkersRepository extends WorkersRepository {
     required String suburb,
     String? travelMeans,
   }) async => registerServiceAreaResult;
-
-  @override
-  Future<Result<Standing, Failure>> getStanding() async => standingResult;
 }
 
 class _FakeJobsRepository extends JobsRepository {
   final Result<List<OpenJob>, Failure> listOpenResult = const Ok([_openJob]);
   final Result<void, Failure> submitOfferResult = const Ok(null);
-  final Result<List<Job>, Failure> listAssignedResult;
-  final Result<List<MyOffer>, Failure> listMyOffersResult;
 
-  _FakeJobsRepository({
-    this.listAssignedResult = const Ok([]),
-    this.listMyOffersResult = const Ok([]),
-  }) : super(Dio(), DatabaseHelper());
+  _FakeJobsRepository() : super(Dio(), DatabaseHelper());
 
   @override
   Future<Result<List<OpenJob>, Failure>> listOpen() async => listOpenResult;
@@ -100,16 +82,32 @@ class _FakeJobsRepository extends JobsRepository {
   }) async => submitOfferResult;
 
   @override
-  Future<Result<List<Job>, Failure>> listAssigned() async => listAssignedResult;
-
-  @override
-  Future<Result<List<MyOffer>, Failure>> listMyOffers() async =>
-      listMyOffersResult;
-
-  @override
   Future<Result<List<MatchCandidate>, Failure>> getMatches(
     String jobId,
   ) async => const Ok([]);
+}
+
+const Standing _standing = Standing(
+  grade: 'REGISTERED',
+  onTimeRate: 100,
+  disputeRate: 0,
+  fillRate: 0,
+  jobsCompleted: 0,
+  isFrozen: false,
+);
+
+/// "My work" comes from one BFF request now (ADR-009 phase 2).
+class _FakeWorkScreenRepository extends WorkScreenRepository {
+  final Result<WorkScreen, Failure> result;
+
+  _FakeWorkScreenRepository({
+    this.result = const Ok(
+      WorkScreen(standing: _standing, offers: <MyOffer>[], assigned: <Job>[]),
+    ),
+  }) : super(Dio(), DatabaseHelper());
+
+  @override
+  Future<Result<WorkScreen, Failure>> load() async => result;
 }
 
 void main() {
@@ -168,8 +166,7 @@ void main() {
       'loads standing, offers and assigned jobs into MyWorkLoaded',
       () async {
         final cubit = MyWorkCubit(
-          _FakeWorkersRepository(),
-          _FakeJobsRepository(),
+          _FakeWorkScreenRepository(),
           _workRepository(),
           syncChanges: const Stream<void>.empty(),
         );
@@ -183,12 +180,11 @@ void main() {
       },
     );
 
-    test('ends in MyWorkFailure when the standing fetch fails', () async {
+    test('ends in MyWorkFailure when the screen fails to load', () async {
       final cubit = MyWorkCubit(
-        _FakeWorkersRepository(
-          standingResult: const Error(NetworkFailure(message: 'down')),
+        _FakeWorkScreenRepository(
+          result: const Error(NetworkFailure(message: 'down')),
         ),
-        _FakeJobsRepository(),
         _workRepository(),
         syncChanges: const Stream<void>.empty(),
       );
@@ -227,10 +223,14 @@ void main() {
 
     MyWorkCubit cubitWith(FakeOutbox outbox, StreamController<void> sync) =>
         MyWorkCubit(
-          _FakeWorkersRepository(),
-          _FakeJobsRepository(
-            listAssignedResult: Ok(<Job>[bookedJob]),
-            listMyOffersResult: const Ok(<MyOffer>[offer]),
+          _FakeWorkScreenRepository(
+            result: Ok(
+              WorkScreen(
+                standing: _standing,
+                offers: const <MyOffer>[offer],
+                assigned: <Job>[bookedJob],
+              ),
+            ),
           ),
           JobWorkRepository(
             outbox,

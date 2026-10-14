@@ -6,25 +6,21 @@ import 'package:mobile/core/error/failure.dart';
 import 'package:mobile/core/error/result.dart';
 import 'package:mobile/core/sync/outbox_item.dart';
 import 'package:mobile/features/jobs/data/models/job.dart';
-import 'package:mobile/features/jobs/data/models/my_offer.dart';
 import 'package:mobile/features/jobs/data/repositories/job_work_repository.dart';
-import 'package:mobile/features/jobs/data/repositories/jobs_repository.dart';
-import 'package:mobile/features/workers/data/models/standing.dart';
-import 'package:mobile/features/workers/data/repositories/workers_repository.dart';
+import 'package:mobile/features/workers/data/models/work_screen.dart';
+import 'package:mobile/features/workers/data/repositories/work_screen_repository.dart';
 import 'package:mobile/features/workers/presentation/cubit/my_work_state.dart';
 
 /// W4 · My work: offers, active jobs (arrive + price, photos) and done jobs.
 /// Work done on site is saved on the phone first and sent by the sync
 /// service; [syncChanges] tells this screen when something went out.
 class MyWorkCubit extends Cubit<MyWorkState> {
-  final WorkersRepository _workersRepository;
-  final JobsRepository _jobsRepository;
+  final WorkScreenRepository _workScreenRepository;
   final JobWorkRepository _jobWorkRepository;
   StreamSubscription<void>? _syncSubscription;
 
   MyWorkCubit(
-    this._workersRepository,
-    this._jobsRepository,
+    this._workScreenRepository,
     this._jobWorkRepository, {
     required Stream<void> syncChanges,
   }) : super(MyWorkInitial()) {
@@ -114,29 +110,16 @@ class MyWorkCubit extends Cubit<MyWorkState> {
     return true;
   }
 
+  /// One request for the whole screen (ADR-009 phase 2).
   Future<MyWorkState> _fetch() async {
-    final Result<Standing, Failure> standingResult = await _workersRepository
-        .getStanding();
-    if (standingResult.isError) {
-      return MyWorkFailure(standingResult.errorValue.message);
-    }
-
-    final Result<List<MyOffer>, Failure> offersResult = await _jobsRepository
-        .listMyOffers();
-    if (offersResult.isError) {
-      return MyWorkFailure(offersResult.errorValue.message);
-    }
-
-    final Result<List<Job>, Failure> assignedResult = await _jobsRepository
-        .listAssigned();
-    if (assignedResult.isError) {
-      return MyWorkFailure(assignedResult.errorValue.message);
-    }
-
+    final Result<WorkScreen, Failure> result = await _workScreenRepository
+        .load();
+    if (result.isError) return MyWorkFailure(result.errorValue.message);
+    final WorkScreen screen = result.okValue;
     final MyWorkLoaded loaded = MyWorkLoaded(
-      standing: standingResult.okValue,
-      offers: offersResult.okValue,
-      assignedJobs: assignedResult.okValue,
+      standing: screen.standing,
+      offers: screen.offers,
+      assignedJobs: screen.assigned,
     );
     return loaded.copyWith(
       undelivered: await _undeliveredFor(loaded.activeJobs),

@@ -10,7 +10,6 @@ import { Switch } from "@/components/ui/Switch";
 import { firstName, greeting } from "@/core/format/format";
 import { tradeWorkLabel } from "@/core/format/trades";
 import { updateProfile, useLocalProfile } from "@/core/session/profile-store";
-import { useMyOffers, useOpenJobs } from "@/features/jobs/hooks";
 import { OpenJobCard } from "@/features/worker/OpenJobCard";
 import {
   applyJobFilter,
@@ -19,25 +18,26 @@ import {
   type JobFilter,
 } from "@/features/worker/open-job-filters";
 import { WorkerTabBar } from "@/features/worker/WorkerTabBar";
-import { useSkills } from "@/features/workers/hooks";
+import { useWorkerHomeScreen } from "@/features/worker/screen-hooks";
 
 /** Design W2 · Jobs near you. */
 export function WorkerHomeScreen() {
   const profile = useLocalProfile();
-  const skills = useSkills();
-  const openJobs = useOpenJobs();
-  const offers = useMyOffers();
+  // One request for the whole screen (ADR-009 phase 2).
+  const screen = useWorkerHomeScreen();
+  const skills = screen.data?.skills;
+  const openJobs = screen.data?.open_jobs;
   const [filter, setFilter] = useState<JobFilter>({ kind: "all" });
 
-  const reachable = jobsWithinReach(openJobs.data ?? [], profile.travelKm);
+  const reachable = jobsWithinReach(openJobs ?? [], profile.travelKm);
   const visible = applyJobFilter(reachable, filter);
-  const offeredJobIds = new Set((offers.data ?? []).map((offer) => offer.job_id));
-  const hasNoSkills = skills.data !== undefined && skills.data.length === 0;
+  const offeredJobIds = new Set((screen.data?.offers ?? []).map((offer) => offer.job_id));
+  const hasNoSkills = skills !== undefined && skills.length === 0;
   const name = firstName(profile.name);
 
   const filters: { label: string; value: JobFilter }[] = [
     { label: `All (${reachable.length})`, value: { kind: "all" } },
-    ...(skills.data ?? []).map((skill) => ({
+    ...(skills ?? []).map((skill) => ({
       label: tradeWorkLabel(skill.trade),
       value: { kind: "trade", trade: skill.trade } as JobFilter,
     })),
@@ -114,11 +114,11 @@ export function WorkerHomeScreen() {
             ))}
           </div>
 
-          {openJobs.isPending && <Skeleton height={150} count={3} />}
-          {openJobs.isError && !openJobs.data && (
-            <ErrorState message={openJobs.error.message} onRetry={() => void openJobs.refetch()} />
+          {screen.isPending && <Skeleton height={150} count={3} />}
+          {screen.isError && !screen.data && (
+            <ErrorState message={screen.error.message} onRetry={() => void screen.refetch()} />
           )}
-          {openJobs.data && visible.length === 0 && (
+          {openJobs && visible.length === 0 && (
             <EmptyState title="No jobs here right now" icon="search">
               {reachable.length === 0
                 ? `Nothing within ${profile.travelKm} km yet. Travelling further shows more jobs.`

@@ -276,6 +276,13 @@ function responsesFor(who: Who): Record<string, Reply> {
     "GET workers/me/service-areas": ok(SERVICE_AREAS),
     "GET workers/me/standing": ok(STANDING),
     "GET workers/me/references": ok([]),
+    // Screen bundles (ADR-009 phase 2), built from the same world.
+    "GET screens/worker-work": ok({
+      standing: STANDING,
+      offers: MY_OFFERS,
+      assigned: [BOOKED_JOB, LIVE_JOB, DONE_JOB],
+    }),
+    "GET screens/worker-home": ok({ skills: SKILLS, open_jobs: OPEN_JOBS, offers: MY_OFFERS }),
     // The world as designed: uploads exist (POST-only route → 405 on GET)
     // and sign-up sends a 6-digit code.
     "GET media": { status: 405, json: { detail: "Method Not Allowed" } },

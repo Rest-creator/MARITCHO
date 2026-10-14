@@ -1,8 +1,10 @@
 # ADR 009: One Backend-for-Frontend for Web and Mobile
 
 ## Status
-Accepted (2026-10-14). Phase 1 (contract ownership, mobile on the BFF, drift check) in progress;
-phase 2 (screen-shaped endpoints) not started.
+Accepted and implemented (2026-10-15). Phase 1: contract ownership, mobile on the BFF, drift
+check. Phase 2: screen endpoints for the worker's "My work" (`/api/screens/worker-work`) and
+"Jobs near you" (`/api/screens/worker-home`); more screens follow the same pattern
+(`frontend/src/server/screen-bundle.ts`) when they need more than one request.
 
 ## Context
 Two clients talk to the FastAPI domain API in different ways:
