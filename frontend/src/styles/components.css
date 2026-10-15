@@ -544,6 +544,20 @@ a.card:hover {
   opacity: 0.45;
 }
 
+/* The small × on a skill chip the worker added on this screen. */
+.chip__remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  margin-right: -6px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
+  color: inherit;
+}
+
 .chip__soon {
   font-size: var(--text-2xs);
   font-weight: 700;
@@ -1740,4 +1754,14 @@ a.list-row:hover {
   object-fit: cover;
   border-radius: var(--radius-md);
   border: 1px solid var(--line);
+}
+
+/* Live camera preview inside "Take a photo" (laptops and desktops). */
+.camera-preview {
+  display: block;
+  width: 100%;
+  max-height: 60vh;
+  border-radius: var(--radius-md);
+  background: #000;
+  object-fit: cover;
 }

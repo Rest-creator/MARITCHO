@@ -11,6 +11,7 @@ import { formatLocalPhone, toInternationalPhone } from "@/core/format/format";
 import { updateProfile, useLocalProfile } from "@/core/session/profile-store";
 import { requestSignInCode } from "@/core/session/sign-in-code";
 import { homeFor, useSession, type SignInRole } from "@/core/session/SessionProvider";
+import { RoleMismatchNotice } from "@/features/accounts/RoleMismatchNotice";
 import { SignInCodeStep } from "@/features/accounts/SignInCodeStep";
 
 type Props = {
@@ -47,7 +48,7 @@ interface CodeStep {
 export function SignUpScreen({ initialRole, isLogin, isExpired }: Props) {
   const router = useRouter();
   const profile = useLocalProfile();
-  const { signIn, isSigningIn, signInError } = useSession();
+  const { signIn, signOut, isSigningIn, signInError } = useSession();
   const [role, setRole] = useState<SignInRole>(initialRole);
   const [name, setName] = useState(profile.name);
   const [phone, setPhone] = useState(profile.phone === "" ? "" : formatLocalPhone(profile.phone));
@@ -55,6 +56,8 @@ export function SignUpScreen({ initialRole, isLogin, isExpired }: Props) {
   const [requestError, setRequestError] = useState<string | null>(null);
   const [isRequestingCode, setIsRequestingCode] = useState(false);
   const [codeStep, setCodeStep] = useState<CodeStep | null>(null);
+  /** Set when the number is registered as the other role (issue #9). */
+  const [registeredAs, setRegisteredAs] = useState<SignInRole | null>(null);
 
   const isWorker = role === "WORKER";
   const error = validationError ?? requestError ?? signInError;
@@ -64,6 +67,11 @@ export function SignUpScreen({ initialRole, isLogin, isExpired }: Props) {
     try {
       const user = await signIn({ phone: international, role, ...(code ? { code } : {}) });
       updateProfile({ phone: international, ...(name.trim() === "" ? {} : { name: name.trim() }) });
+      if ((user.role === "BUYER" || user.role === "WORKER") && user.role !== role) {
+        setCodeStep(null);
+        setRegisteredAs(user.role);
+        return;
+      }
       router.replace(user.role === "WORKER" && !isLogin ? "/worker/skills" : homeFor(user.role));
     } catch {
       // signInError carries the message.
@@ -98,6 +106,23 @@ export function SignUpScreen({ initialRole, isLogin, isExpired }: Props) {
     if (codeStep === null) return 0;
     const request = await requestSignInCode(codeStep.phone);
     return request.isCodeRequired ? request.resendAfterSeconds : 0;
+  }
+
+  if (registeredAs !== null) {
+    return (
+      <Screen glow={registeredAs === "WORKER" ? "worker" : "employer"}>
+        <RoleMismatchNotice
+          chosen={role}
+          registeredAs={registeredAs}
+          onContinue={() => router.replace(homeFor(registeredAs))}
+          onUseAnotherNumber={() => {
+            setRegisteredAs(null);
+            setPhone("");
+            void signOut(`/signup?role=${role === "WORKER" ? "worker" : "buyer"}`);
+          }}
+        />
+      </Screen>
+    );
   }
 
   if (codeStep !== null) {

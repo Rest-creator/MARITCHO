@@ -40,7 +40,8 @@ function stopStack() {
   compose("down", "--volumes", "--remove-orphans");
 }
 
-const up = compose("up", "--detach", "--build", "--wait");
+// Only the backend: the suite builds and serves the web app itself, against this stack.
+const up = compose("up", "--detach", "--build", "--wait", "db", "redis", "api");
 if (up.status !== 0) {
   compose("logs", "api");
   stopStack();

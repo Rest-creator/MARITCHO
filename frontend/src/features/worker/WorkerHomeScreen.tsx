@@ -13,6 +13,7 @@ import { updateProfile, useLocalProfile } from "@/core/session/profile-store";
 import { OpenJobCard } from "@/features/worker/OpenJobCard";
 import {
   applyJobFilter,
+  rankOpenJobs,
   isSameFilter,
   jobsWithinReach,
   type JobFilter,
@@ -30,8 +31,8 @@ export function WorkerHomeScreen() {
   const [filter, setFilter] = useState<JobFilter>({ kind: "all" });
 
   const reachable = jobsWithinReach(openJobs ?? [], profile.travelKm);
-  const visible = applyJobFilter(reachable, filter);
   const offeredJobIds = new Set((screen.data?.offers ?? []).map((offer) => offer.job_id));
+  const visible = rankOpenJobs(applyJobFilter(reachable, filter), offeredJobIds);
   const hasNoSkills = skills !== undefined && skills.length === 0;
   const name = firstName(profile.name);
 
@@ -125,12 +126,17 @@ export function WorkerHomeScreen() {
                 : "Try another filter."}
             </EmptyState>
           )}
-          {visible.map((job, index) => (
+          {visible.map(({ job, reasons }, index) => (
             <OpenJobCard
               key={job.job_id}
               job={job}
               isFeatured={index === 0}
               hasOffered={offeredJobIds.has(job.job_id)}
+              matchReason={
+                index === 0 && !offeredJobIds.has(job.job_id)
+                  ? ["Best match", ...reasons.slice(0, 2)].join(" · ")
+                  : null
+              }
             />
           ))}
         </>

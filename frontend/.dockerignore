@@ -4,3 +4,8 @@ coverage
 playwright-report
 test-results
 *.log
+# Local settings and test output never belong in an image.
+.env*.local
+.env
+e2e/.results
+AGENTS.md

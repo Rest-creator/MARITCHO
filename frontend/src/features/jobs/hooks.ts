@@ -51,12 +51,16 @@ export function useJob(jobId: string): UseQueryResult<Job> {
   });
 }
 
-/** How often a buyer waiting on an open job checks for new offers. */
-const OFFER_POLL_MS = 30_000;
+/**
+ * How often a buyer waiting on an open job checks who accepted: like
+ * inDrive, answers should show up while they watch. Small payload.
+ */
+const OFFER_POLL_MS = 15_000;
 
 /**
  * Offers arrive while the buyer watches, so this list is never treated as
- * fresh: refetch on every visit and every 30 s while the job is open.
+ * fresh: refetch on every visit, on returning to the tab, and every
+ * 15 s while the job is open.
  */
 export function useMatches(
   jobId: string,
@@ -68,6 +72,7 @@ export function useMatches(
     enabled: isEnabled,
     staleTime: 0,
     refetchInterval: isEnabled ? OFFER_POLL_MS : false,
+    refetchOnWindowFocus: isEnabled,
   });
 }
 

@@ -5,7 +5,7 @@ import { Icon } from "@/components/ui/Icon";
 import type { Job, MatchCandidate } from "@/core/api/schemas";
 import { formatKm, formatMoney, formatPercent, isVerifiedGrade } from "@/core/format/format";
 import { tradeLabel } from "@/core/format/trades";
-import { candidateTitle } from "@/features/jobs/job-helpers";
+import { candidateTitle, responseLabel } from "@/features/jobs/job-helpers";
 
 type Props = {
   job: Job;
@@ -17,7 +17,8 @@ type Props = {
 /** One person who offered to help (design E4). */
 export function CandidateCard({ job, candidate, isTopPick, onHire }: Props) {
   const title = candidateTitle(candidate, job.trade);
-  const availability = candidate.availability_note ?? "Hasn't offered yet";
+  const availability = candidate.availability_note ?? "Time not given";
+  const response = responseLabel(candidate, job.budget_amount);
 
   return (
     <article
@@ -58,11 +59,14 @@ export function CandidateCard({ job, candidate, isTopPick, onHire }: Props) {
           <div style={{ fontSize: 18, fontWeight: 700 }}>
             {candidate.quoted_amount === null ? "—" : formatMoney(candidate.quoted_amount)}
           </div>
-          <div className="meta" style={{ fontSize: 11 }}>
-            {candidate.quoted_amount === null ? "no quote yet" : "quote"}
-          </div>
         </div>
       </div>
+      {response && (
+        <div className="badge badge--emerald" style={{ marginTop: 10 }}>
+          <Icon name="check" size={12} strokeWidth={2.6} />
+          {response}
+        </div>
+      )}
       <div className="btn-grid" style={{ marginTop: 14 }}>
         <Link href={`/employer/jobs/${job.id}/workers/${candidate.worker_id}`} className="btn">
           View profile
@@ -72,7 +76,7 @@ export function CandidateCard({ job, candidate, isTopPick, onHire }: Props) {
           className={isTopPick ? "btn btn--primary" : "btn btn--soft"}
           onClick={() => onHire(candidate)}
         >
-          Hire
+          Approve
         </button>
       </div>
     </article>

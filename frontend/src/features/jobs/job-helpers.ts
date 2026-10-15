@@ -1,5 +1,11 @@
 import type { Job, JobStatus, MatchCandidate, MyJob } from "@/core/api/schemas";
-import { distanceBandLabel, formatKm, formatPercent, gradeLabel } from "@/core/format/format";
+import {
+  distanceBandLabel,
+  formatKm,
+  formatMoney,
+  formatPercent,
+  gradeLabel,
+} from "@/core/format/format";
 import { tradeLabel } from "@/core/format/trades";
 
 /** Jobs still collecting offers — the buyer reviews applicants. */
@@ -45,6 +51,33 @@ export function sortCandidates(
   }
   // "best": server ranking, but people who actually offered come first.
   return copy.sort((a, b) => Number(b.quoted_amount !== null) - Number(a.quoted_amount !== null));
+}
+
+/**
+ * inDrive-style: only workers who answered can be approved. Returns them
+ * (in the chosen order) and how many more can see the job but haven't.
+ */
+export function splitResponders(
+  candidates: readonly MatchCandidate[],
+  sort: CandidateSort,
+): { responded: MatchCandidate[]; waiting: number } {
+  const responded = sortCandidates(
+    candidates.filter((candidate) => candidate.quoted_amount !== null),
+    sort,
+  );
+  return { responded, waiting: candidates.length - responded.length };
+}
+
+/** "Accepted your price" or "Offered $35" — what this worker said to the job. */
+export function responseLabel(
+  candidate: Pick<MatchCandidate, "quoted_amount">,
+  budget: number | null,
+): string | null {
+  if (candidate.quoted_amount === null) return null;
+  if (budget !== null && Math.abs(candidate.quoted_amount - budget) < 0.005) {
+    return "Accepted your price";
+  }
+  return `Offered ${formatMoney(candidate.quoted_amount)}`;
 }
 
 /** Share of the agreed price held up-front; the on-site quote must exceed it. */

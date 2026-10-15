@@ -103,7 +103,7 @@ test.describe("photos (WEB-004)", () => {
 
     const photo = await bigPhoto(page);
     await page
-      .locator('input[type="file"]')
+      .getByTestId("photo-gallery-input")
       .setInputFiles({ name: "IMG_2041.jpg", mimeType: "image/jpeg", buffer: photo });
     await expect(page.getByRole("button", { name: "Remove photo" })).toBeVisible();
 
@@ -150,7 +150,8 @@ test.describe("photos (WEB-004)", () => {
         request.url().endsWith(`/api/jobs/${LIVE_JOB_ID}/messages`) && request.method() === "POST",
     );
     await page
-      .locator('.chat__composer input[type="file"]')
+      .locator(".chat__composer")
+      .getByTestId("photo-gallery-input")
       .setInputFiles({ name: "wire.jpg", mimeType: "image/jpeg", buffer: await bigPhoto(page) });
 
     expect((await message).postDataJSON()).toEqual({

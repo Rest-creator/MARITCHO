@@ -5,6 +5,7 @@ import {
   TRADES,
   describeWithSkill,
   findSkill,
+  matchSkills,
   searchSkills,
   tradeIcon,
   tradeLabel,
@@ -56,5 +57,26 @@ describe("trade labels", () => {
       expect(tradeLabel(trade)).not.toBe("");
       expect(tradeIcon(trade)).not.toBe("");
     }
+  });
+});
+
+describe("matchSkills (free text)", () => {
+  const labels = (text: string): string[] => matchSkills(text).map((skill) => skill.label);
+
+  it("finds the skill from everyday words, in a whole sentence", () => {
+    expect(labels("I fix geysers and leaking taps")[0]).toBe("Plumber");
+    expect(labels("gate welding")[0]).toBe("Welder");
+    expect(labels("solar panels and inverters")[0]).toBe("Solar installer");
+    expect(labels("fridge repair")[0]).toBe("Appliance repair");
+  });
+
+  it("ranks the skill most words point at first", () => {
+    expect(labels("wiring sockets and lights")[0]).toBe("Electrician");
+  });
+
+  it("matches nothing for empty or unrelated text", () => {
+    expect(matchSkills("")).toEqual([]);
+    expect(matchSkills("  ")).toEqual([]);
+    expect(matchSkills("astronaut")).toEqual([]);
   });
 });

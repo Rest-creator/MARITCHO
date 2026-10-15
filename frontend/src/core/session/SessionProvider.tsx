@@ -24,7 +24,8 @@ interface SessionValue {
   signIn: (input: SignInInput) => Promise<User>;
   isSigningIn: boolean;
   signInError: string | null;
-  signOut: () => Promise<void>;
+  /** Sign out, then go to `redirectTo` (the welcome screen by default). */
+  signOut: (redirectTo?: string) => Promise<void>;
 }
 
 const SessionContext = createContext<SessionValue | null>(null);
@@ -113,13 +114,13 @@ export function SessionProvider({ children }: Props) {
       signIn: signInAsync,
       isSigningIn,
       signInError: signInFailure instanceof Error ? signInFailure.message : null,
-      signOut: async () => {
+      signOut: async (redirectTo: string = "/") => {
         await fetch("/api/session", { method: "DELETE", credentials: "same-origin" }).catch(
           () => undefined,
         );
         queryClient.clear();
         queryClient.setQueryData(queryKeys.session, null);
-        router.replace("/");
+        router.replace(redirectTo);
       },
     }),
     [

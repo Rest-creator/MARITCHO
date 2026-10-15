@@ -15,7 +15,7 @@ import { HireSheet } from "@/features/jobs/HireSheet";
 import { useJob, useMatches } from "@/features/jobs/hooks";
 import {
   isOpenStatus,
-  sortCandidates,
+  splitResponders,
   splitTiming,
   type CandidateSort,
 } from "@/features/jobs/job-helpers";
@@ -28,7 +28,11 @@ const SORTS: readonly { id: CandidateSort; label: string }[] = [
 
 type Props = { jobId: string };
 
-/** Design E4 · People who offered to help. */
+/**
+ * Design E4 · Who accepted. Like inDrive: workers accept the price (or
+ * offer another) and the employer approves one. Workers who haven't
+ * answered can't be approved, so they're only counted.
+ */
 export function ApplicantsScreen({ jobId }: Props) {
   const router = useRouter();
   const job = useJob(jobId);
@@ -43,8 +47,7 @@ export function ApplicantsScreen({ jobId }: Props) {
     }
   }, [job.data, jobId, router]);
 
-  const candidates = sortCandidates(matches.data ?? [], sort);
-  const offers = candidates.filter((candidate) => candidate.quoted_amount !== null).length;
+  const { responded, waiting } = splitResponders(matches.data ?? [], sort);
   const timing = job.data ? splitTiming(job.data.problem_description).timing : null;
   const subtitle = job.data
     ? [
@@ -78,17 +81,17 @@ export function ApplicantsScreen({ jobId }: Props) {
         <ErrorState message={matches.error.message} onRetry={() => void matches.refetch()} />
       )}
 
-      {matches.data && candidates.length > 0 && job.data && (
+      {matches.data && responded.length > 0 && job.data && (
         <>
-          <div className="banner banner--emerald">
+          <div className="banner banner--emerald" role="status">
             <span className="text-emerald" style={{ display: "flex" }}>
               <Icon name="shieldCheck" size={20} />
             </span>
             <span>
-              {offers > 0
-                ? `${offers} ${offers === 1 ? "person has" : "people have"} offered to help. `
-                : "These checked workers can do this job. "}
-              Each one&apos;s skills and track record have been checked.
+              {responded.length === 1
+                ? "1 worker answered. "
+                : `${responded.length} workers answered. `}
+              Approve the one you want. Each one&apos;s skills and track record have been checked.
             </span>
           </div>
           <div className="chip-list chip-list--scroll" role="group" aria-label="Sort offers">
@@ -104,7 +107,7 @@ export function ApplicantsScreen({ jobId }: Props) {
               </button>
             ))}
           </div>
-          {candidates.map((candidate, index) => (
+          {responded.map((candidate, index) => (
             <CandidateCard
               key={candidate.worker_id}
               job={job.data}
@@ -116,9 +119,17 @@ export function ApplicantsScreen({ jobId }: Props) {
         </>
       )}
 
-      {matches.data && candidates.length === 0 && (
+      {matches.data && responded.length > 0 && waiting > 0 && (
+        <p className="meta meta--secondary" style={{ textAlign: "center" }}>
+          {waiting === 1
+            ? "1 more worker nearby can see your job."
+            : `${waiting} more workers nearby can see your job.`}
+        </p>
+      )}
+
+      {matches.data && responded.length === 0 && (
         <EmptyState
-          title="Looking for people nearby"
+          title="Waiting for workers to accept"
           icon="clock"
           action={
             <button
@@ -131,7 +142,9 @@ export function ApplicantsScreen({ jobId }: Props) {
             </button>
           }
         >
-          No checked workers have offered yet. Workers nearby can see your job and offer to help.
+          {waiting > 0
+            ? `${waiting} checked ${waiting === 1 ? "worker" : "workers"} nearby can see your job. When someone accepts, they show up here.`
+            : "Workers nearby can see your job. When someone accepts, they show up here."}
         </EmptyState>
       )}
 

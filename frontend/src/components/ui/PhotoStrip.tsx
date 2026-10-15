@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState, type ChangeEvent } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { Icon } from "@/components/ui/Icon";
+import { PhotoPicker } from "@/components/ui/PhotoPicker";
 
 interface LocalPhoto {
   id: string;
@@ -25,7 +26,7 @@ type Props = {
  */
 export function PhotoStrip({ max = 3, addLabel = "Add photo", layout = "row", onChange }: Props) {
   const [photos, setPhotos] = useState<LocalPhoto[]>([]);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const [isPickerOpen, setIsPickerOpen] = useState(false);
   const photosRef = useRef<LocalPhoto[]>([]);
 
   useEffect(() => {
@@ -38,15 +39,14 @@ export function PhotoStrip({ max = 3, addLabel = "Add photo", layout = "row", on
 
   useEffect(() => () => photosRef.current.forEach((photo) => URL.revokeObjectURL(photo.url)), []);
 
-  function handleChange(event: ChangeEvent<HTMLInputElement>): void {
-    const files = Array.from(event.target.files ?? []).slice(0, max - photos.length);
+  function addFiles(picked: File[]): void {
+    const files = picked.slice(0, max - photos.length);
     const added = files.map((file) => ({
-      id: `${file.name}-${file.lastModified}`,
+      id: `${file.name}-${file.lastModified}-${file.size}`,
       url: URL.createObjectURL(file),
       file,
     }));
     setPhotos((current) => [...current, ...added]);
-    event.target.value = "";
   }
 
   function remove(id: string): void {
@@ -59,14 +59,11 @@ export function PhotoStrip({ max = 3, addLabel = "Add photo", layout = "row", on
 
   const canAdd = photos.length < max;
   const input = (
-    <input
-      ref={inputRef}
-      type="file"
-      accept="image/*"
-      capture="environment"
-      multiple
-      hidden
-      onChange={handleChange}
+    <PhotoPicker
+      isOpen={isPickerOpen}
+      onClose={() => setIsPickerOpen(false)}
+      onPick={addFiles}
+      multiple={max - photos.length > 1}
     />
   );
 
@@ -86,7 +83,7 @@ export function PhotoStrip({ max = 3, addLabel = "Add photo", layout = "row", on
           </button>
         ))}
         {canAdd && (
-          <button type="button" className="photo-add" onClick={() => inputRef.current?.click()}>
+          <button type="button" className="photo-add" onClick={() => setIsPickerOpen(true)}>
             <Icon name="plus" strokeWidth={1.75} />
             {addLabel}
           </button>
@@ -114,7 +111,7 @@ export function PhotoStrip({ max = 3, addLabel = "Add photo", layout = "row", on
         <button
           type="button"
           className="photo-add photo-add--row"
-          onClick={() => inputRef.current?.click()}
+          onClick={() => setIsPickerOpen(true)}
         >
           <Icon name="camera" size={18} strokeWidth={1.75} />
           {addLabel}

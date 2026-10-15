@@ -31,7 +31,7 @@ export function HireSheet({ job, candidate, onClose }: Props) {
 
   return (
     <Sheet
-      title={`Hire this ${title.toLowerCase()}?`}
+      title={`Approve this ${title.toLowerCase()}?`}
       isOpen
       onClose={onClose}
       isFitContent
@@ -42,7 +42,7 @@ export function HireSheet({ job, candidate, onClose }: Props) {
           disabled={bookJob.isPending}
           onClick={handleHire}
         >
-          {bookJob.isPending ? "Hiring…" : `Hire · hold ${formatMoney(deposit)} deposit`}
+          {bookJob.isPending ? "Approving…" : `Approve · hold ${formatMoney(deposit)} deposit`}
         </button>
       }
     >

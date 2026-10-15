@@ -164,13 +164,17 @@ export function WorkerProfileScreen({ jobId, workerId }: Props) {
         >
           Compare
         </Link>
+        {/* inDrive-style: only someone who accepted can be approved. */}
         <button
           type="button"
           className="btn btn--primary"
           style={{ height: 54, borderRadius: 16, fontSize: 16 }}
+          disabled={candidate.quoted_amount === null}
           onClick={() => setIsHiring(true)}
         >
-          Hire{price === null ? "" : ` · ${formatMoney(price)}`}
+          {candidate.quoted_amount === null
+            ? "Hasn't accepted yet"
+            : `Approve${price === null ? "" : ` · ${formatMoney(price)}`}`}
         </button>
       </div>
 

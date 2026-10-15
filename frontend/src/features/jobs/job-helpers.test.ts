@@ -12,7 +12,9 @@ import {
   finishedJobs,
   isOpenStatus,
   matchExplanation,
+  responseLabel,
   sortCandidates,
+  splitResponders,
   splitTiming,
   summariseJob,
   withTiming,
@@ -207,5 +209,43 @@ describe("matchExplanation", () => {
     );
     expect(text).toContain("Expert with 31 jobs done: 96% on time, 2% disputed.");
     expect(text).not.toMatch(/Enum|PLUMBING/);
+  });
+});
+
+describe("inDrive-style responses", () => {
+  const base = {
+    worker_id: "w",
+    suburb: "Hillside",
+    travel_means: null,
+    distance_band: "SAME_SUBURB" as const,
+    distance_km: 1,
+    grade: "EXPERT" as const,
+    on_time_rate: 95,
+    dispute_rate: 0,
+    fill_rate: 90,
+    jobs_completed: 10,
+    reason: "",
+    availability_note: null,
+    quoted_at: null,
+  };
+
+  it("only workers who answered can be approved; the rest are counted", () => {
+    const { responded, waiting } = splitResponders(
+      [
+        { ...base, worker_id: "a", quoted_amount: 40 },
+        { ...base, worker_id: "b", quoted_amount: null },
+        { ...base, worker_id: "c", quoted_amount: 35 },
+      ],
+      "price",
+    );
+    expect(responded.map((candidate) => candidate.worker_id)).toEqual(["c", "a"]);
+    expect(waiting).toBe(1);
+  });
+
+  it("says whether they accepted the price or offered another", () => {
+    expect(responseLabel({ quoted_amount: 40 }, 40)).toBe("Accepted your price");
+    expect(responseLabel({ quoted_amount: 35 }, 40)).toBe("Offered $35");
+    expect(responseLabel({ quoted_amount: 50 }, null)).toBe("Offered $50");
+    expect(responseLabel({ quoted_amount: null }, 40)).toBeNull();
   });
 });

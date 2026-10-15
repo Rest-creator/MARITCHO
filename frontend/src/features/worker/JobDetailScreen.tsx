@@ -16,7 +16,10 @@ import { parseOfferAmount } from "@/features/worker/money-input";
 
 type Props = { jobId: string };
 
-/** Design W3 · Job details & make an offer. */
+/**
+ * Design W3 · Job details. Like inDrive: accept the client's price with one
+ * tap, or offer a different one; the client then approves one worker.
+ */
 export function JobDetailScreen({ jobId }: Props) {
   const router = useRouter();
   const openJobs = useOpenJobs();
@@ -28,6 +31,8 @@ export function JobDetailScreen({ jobId }: Props) {
   const [price, setPrice] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  /** "Offer a different price" was tapped (or there's no price to accept). */
+  const [isCountering, setIsCountering] = useState(false);
 
   if (openJobs.isPending) {
     return (
@@ -57,16 +62,14 @@ export function JobDetailScreen({ jobId }: Props) {
 
   const { text, timing } = splitTiming(job.problem_description);
   const title = text.split("\n")[0] || tradeLabel(job.trade);
-  const priceValue = price ?? String(existing?.quoted_amount ?? job.budget_amount ?? "");
+  const budget = job.budget_amount;
+  const isAccepted = existing !== undefined && budget !== null && existing.quoted_amount === budget;
+  const showPriceField = isCountering || budget === null;
+  const priceValue = price ?? String(existing?.quoted_amount ?? budget ?? "");
   const noteValue = note ?? existing?.availability_note ?? "";
+  const isSending = submitOffer.isPending && !submitOffer.isPaused;
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>): void {
-    event.preventDefault();
-    const amount = parseOfferAmount(priceValue);
-    if (amount === null) {
-      setError("Enter the price you'd charge, in US dollars.");
-      return;
-    }
+  function send(amount: number): void {
     setError(null);
     const input = {
       jobId,
@@ -79,6 +82,17 @@ export function JobDetailScreen({ jobId }: Props) {
       return;
     }
     submitOffer.mutate(input, { onSuccess: () => router.push("/worker/work?tab=offers") });
+  }
+
+  /** "Send my price": the worker's own price. */
+  function handleSubmit(event: FormEvent<HTMLFormElement>): void {
+    event.preventDefault();
+    const amount = parseOfferAmount(priceValue);
+    if (amount === null) {
+      setError("Enter the price you'd charge, in US dollars.");
+      return;
+    }
+    send(amount);
   }
 
   return (
@@ -129,12 +143,32 @@ export function JobDetailScreen({ jobId }: Props) {
           The exact address is shared with you once you&apos;re hired. Payment is held by Maricho.
         </div>
 
-        <section className="card card--amber stack" style={{ padding: "14px 16px" }}>
-          <h2 style={{ fontSize: 15, fontWeight: 700 }}>
-            {existing ? "Your offer (sent)" : "Your offer"}
-          </h2>
-          <div className="row" style={{ gap: 8 }}>
-            <label className="input--affix input--money" style={{ width: 110 }}>
+        {existing && (
+          <div className="banner banner--emerald" role="status">
+            <Icon name="check" size={18} />
+            {isAccepted
+              ? `You accepted ${formatMoney(existing.quoted_amount)}. Waiting for the client to approve.`
+              : `You offered ${formatMoney(existing.quoted_amount)}. Waiting for the client to approve.`}
+          </div>
+        )}
+
+        <label className="input--affix">
+          <Icon name="clock" size={18} />
+          <input
+            aria-label="When you can come"
+            placeholder="When can you come? e.g. today at 2pm"
+            maxLength={255}
+            value={noteValue}
+            onChange={(event) => setNote(event.target.value)}
+          />
+        </label>
+
+        {showPriceField && (
+          <section className="card card--amber stack" style={{ padding: "14px 16px" }}>
+            <h2 style={{ fontSize: 15, fontWeight: 700 }}>
+              {budget === null ? "The client didn't set a price. What's yours?" : "Your price"}
+            </h2>
+            <label className="input--affix input--money" style={{ width: 140 }}>
               <span className="input__prefix">$</span>
               <input
                 inputMode="decimal"
@@ -143,19 +177,11 @@ export function JobDetailScreen({ jobId }: Props) {
                 onChange={(event) => setPrice(event.target.value.replace(/[^\d.]/g, ""))}
               />
             </label>
-            <label className="input--affix grow">
-              <Icon name="clock" size={18} />
-              <input
-                aria-label="When you can come"
-                placeholder="I can come at 2pm"
-                maxLength={255}
-                value={noteValue}
-                onChange={(event) => setNote(event.target.value)}
-              />
-            </label>
-          </div>
-          <div className="meta">The client sees your track record and how close you are.</div>
-        </section>
+            <div className="meta">
+              The client sees your price, track record and how close you are.
+            </div>
+          </section>
+        )}
 
         {(error ?? submitOffer.error?.message) && (
           <p className="field-error" role="alert">
@@ -163,18 +189,46 @@ export function JobDetailScreen({ jobId }: Props) {
           </p>
         )}
         <div className="spacer" />
-        <button
-          type="submit"
-          className="btn btn--primary btn--cta"
-          disabled={submitOffer.isPending && !submitOffer.isPaused}
-        >
-          {submitOffer.isPending && !submitOffer.isPaused
-            ? "Sending…"
-            : existing
-              ? "Update my offer"
-              : "Send my offer"}
-          <Icon name="send" size={18} strokeWidth={2.2} />
-        </button>
+
+        {budget !== null && !showPriceField ? (
+          <>
+            <button
+              type="button"
+              className="btn btn--primary btn--cta"
+              disabled={isSending || isAccepted}
+              onClick={() => send(budget)}
+            >
+              {isSending
+                ? "Sending…"
+                : isAccepted
+                  ? `Accepted · ${formatMoney(budget)}`
+                  : `Accept for ${formatMoney(budget)}`}
+              {!isSending && !isAccepted && <Icon name="check" size={18} strokeWidth={2.4} />}
+            </button>
+            <button type="button" className="btn btn--ghost" onClick={() => setIsCountering(true)}>
+              Offer a different price
+            </button>
+          </>
+        ) : (
+          <>
+            <button type="submit" className="btn btn--primary btn--cta" disabled={isSending}>
+              {isSending ? "Sending…" : existing ? "Update my price" : "Send my price"}
+              <Icon name="send" size={18} strokeWidth={2.2} />
+            </button>
+            {budget !== null && (
+              <button
+                type="button"
+                className="btn btn--ghost"
+                onClick={() => {
+                  setIsCountering(false);
+                  setPrice(null);
+                }}
+              >
+                Accept {formatMoney(budget)} instead
+              </button>
+            )}
+          </>
+        )}
       </form>
     </Screen>
   );

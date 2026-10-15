@@ -6,18 +6,25 @@ Conventions follow the ECC React / TypeScript / web rules.
 
 ## Run it
 
-```bash
-cp .env.example .env.local      # BACKEND_URL defaults to http://127.0.0.1:8000
-npm install
-npm run dev                     # http://localhost:3000
-```
-
-The backend must be running (see [`/backend`](../backend)):
+**Everything in Docker** (database, Redis, API and this web app; the `web` service builds the
+same image as production):
 
 ```bash
-cd ../backend && docker compose up -d --build     # project is named "maricho" in the file
+cd ../backend && docker compose up -d --build     # http://localhost:3000, project "maricho"
 # If 5432/6379 are taken on your machine, move the host ports (the API doesn't need them):
 MARICHO_DB_PORT=15433 MARICHO_REDIS_PORT=16380 docker compose up -d --build
+```
+
+Sign up with any phone number; the development backend's sign-in code is always `123456`.
+
+**While working on the web app**, run it with hot reload instead, against the same backend:
+
+```bash
+cd ../backend && docker compose up -d db redis api
+cd ../frontend
+cp .env.example .env.local      # BACKEND_URL defaults to http://127.0.0.1:8000
+npm install
+npm run dev                     # http://localhost:3000 (stop the `web` container first)
 ```
 
 Use `127.0.0.1`, not `localhost`, in `BACKEND_URL`: Node can resolve `localhost` to `::1`,

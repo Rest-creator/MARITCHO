@@ -51,7 +51,14 @@ test("a job goes from posted to paid", async ({ browser }) => {
   await test.step("worker signs up and picks skills", async () => {
     await signUp(worker, "worker", "Tendai Moyo", freshPhone());
     await expect(worker.getByRole("heading", { name: "What work can you do?" })).toBeVisible();
-    await worker.getByRole("button", { name: "Plumber" }).click();
+    // The skills list stays hidden until asked for; type it like a person would.
+    await worker.getByRole("button", { name: "Add a skill" }).click();
+    await worker.getByLabel("Type a skill").fill("I fix geysers and leaking taps");
+    await worker
+      .getByRole("group", { name: "Skills you can add" })
+      .getByRole("button", { name: "Plumber" })
+      .click();
+    await expect(worker.getByRole("list", { name: "Skills you do" })).toContainText("Plumber");
     await worker.getByLabel("From").selectOption(SUBURB);
     await worker.getByRole("button", { name: "Start finding work" }).click();
     await expect(worker).toHaveURL(/\/worker$/);
@@ -70,7 +77,7 @@ test("a job goes from posted to paid", async ({ browser }) => {
     await sheet.getByRole("button", { name: "Use this place" }).click();
     await buyer.getByLabel("Your budget (optional)").fill(String(PRICE));
     // A real upload: BFF /api/media -> backend /media/upload (ADR-009).
-    await buyer.locator('input[type="file"]').setInputFiles({
+    await buyer.getByTestId("photo-gallery-input").setInputFiles({
       name: "leak.jpg",
       mimeType: "image/jpeg",
       buffer: await photoOfTheLeak(buyer),
@@ -85,24 +92,25 @@ test("a job goes from posted to paid", async ({ browser }) => {
     jobUrl = buyer.url();
   });
 
-  await test.step("worker finds the job and sends an offer", async () => {
+  await test.step("worker finds the best-matching job and accepts the price", async () => {
     const card = worker.getByRole("article").filter({ hasText: jobText });
     await untilAfterReload(worker, () => expect(card).toBeVisible({ timeout: 2_000 }));
     await card.getByRole("link", { name: "I can do this" }).click();
     await expect(worker.getByRole("heading", { name: jobText })).toBeVisible();
-    await expect(worker.getByLabel("Your price in US dollars")).toHaveValue(String(PRICE));
+    // inDrive-style: accept the client's price in one tap.
     await worker.getByLabel("When you can come").fill(offerNote);
-    await worker.getByRole("button", { name: "Send my offer" }).click();
+    await worker.getByRole("button", { name: `Accept for $${PRICE}` }).click();
     await expect(worker).toHaveURL(/\/worker\/work\?tab=offers$/);
     await expect(worker.getByRole("tab", { name: "Offers (1)" })).toBeVisible();
   });
 
-  await test.step("buyer sees the offer and hires", async () => {
+  await test.step("buyer sees who accepted and approves", async () => {
     const candidate = buyer.getByRole("article").filter({ hasText: offerNote });
     await untilAfterReload(buyer, () => expect(candidate).toBeVisible({ timeout: 2_000 }));
     await expect(candidate).toContainText(`$${PRICE}`);
-    await candidate.getByRole("button", { name: "Hire" }).click();
-    await buyer.getByRole("button", { name: /^Hire · hold \$\d+ deposit$/ }).click();
+    await expect(candidate).toContainText("Accepted your price");
+    await candidate.getByRole("button", { name: "Approve" }).click();
+    await buyer.getByRole("button", { name: /^Approve · hold \$\d+ deposit$/ }).click();
     await expect(buyer).toHaveURL(`${jobUrl}/track`);
     await expect(buyer.getByText("Your worker is on the way")).toBeVisible();
   });

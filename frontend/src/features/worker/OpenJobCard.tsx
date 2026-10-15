@@ -6,10 +6,16 @@ import { formatKm, formatMoney, formatRelativeTime } from "@/core/format/format"
 import { tradeIcon, tradeLabel } from "@/core/format/trades";
 import { splitTiming } from "@/features/jobs/job-helpers";
 
-type Props = { job: OpenJob; isFeatured: boolean; hasOffered: boolean };
+type Props = {
+  job: OpenJob;
+  isFeatured: boolean;
+  hasOffered: boolean;
+  /** Why this job is at the top ("Best match for you · needed today"). */
+  matchReason?: string | null;
+};
 
 /** A job card on W2 — the first one is emphasised, as in the design. */
-export function OpenJobCard({ job, isFeatured, hasOffered }: Props) {
+export function OpenJobCard({ job, isFeatured, hasOffered, matchReason = null }: Props) {
   const { text, timing } = splitTiming(job.problem_description);
   const title = text.split("\n")[0] || tradeLabel(job.trade);
   const href = `/worker/jobs/${job.job_id}`;
@@ -19,6 +25,15 @@ export function OpenJobCard({ job, isFeatured, hasOffered }: Props) {
       className={isFeatured ? "card card--bold" : "card"}
       style={isFeatured ? undefined : { background: "var(--glass)", borderColor: "var(--line)" }}
     >
+      {matchReason && (
+        <div
+          className="badge badge--emerald"
+          style={{ marginBottom: 10, maxWidth: "100%", whiteSpace: "normal" }}
+        >
+          <Icon name="star" size={12} filled />
+          {matchReason}
+        </div>
+      )}
       <div className="row row--start">
         <div className={isFeatured ? "icon-tile icon-tile--amber" : "icon-tile icon-tile--emerald"}>
           <Icon name={tradeIcon(job.trade)} />
@@ -44,7 +59,7 @@ export function OpenJobCard({ job, isFeatured, hasOffered }: Props) {
           Details
         </Link>
         <Link href={href} className={isFeatured ? "btn btn--primary" : "btn btn--soft"}>
-          {hasOffered ? "Update offer" : "I can do this"}
+          {hasOffered ? "You answered" : "I can do this"}
         </Link>
       </div>
     </article>

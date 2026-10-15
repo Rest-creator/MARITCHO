@@ -10,8 +10,8 @@ import { PhotoStrip } from "@/components/ui/PhotoStrip";
 import { Screen } from "@/components/ui/Screen";
 import { ErrorState } from "@/components/ui/States";
 import type { Trade } from "@/core/api/schemas";
-import { ALL_SKILLS, searchSkills, tradeLabel } from "@/core/format/trades";
 import { updateProfile, useLocalProfile } from "@/core/session/profile-store";
+import { SkillPicker } from "@/features/worker/SkillPicker";
 import {
   useRegisterServiceArea,
   useRegisterSkill,
@@ -21,12 +21,6 @@ import {
 } from "@/features/workers/hooks";
 
 export const MAX_SKILLS = 5;
-
-/** One chip per backend trade, labelled the way workers describe themselves. */
-const TRADE_CHIPS = ALL_SKILLS.filter(
-  (skill) => skill.trade !== null && skill.label === tradeLabel(skill.trade),
-);
-const SOON_CHIPS = ALL_SKILLS.filter((skill) => skill.trade === null);
 
 /** Design W1 · Set up your skills. */
 export function WorkerSkillsScreen() {
@@ -40,7 +34,6 @@ export function WorkerSkillsScreen() {
 
   const registered = new Set<Trade>((skills.data ?? []).map((skill) => skill.trade));
   const [picked, setPicked] = useState<Trade[]>([]);
-  const [query, setQuery] = useState("");
   const [travelKm, setTravelKm] = useState(profile.travelKm);
   const [chosenSuburb, setSuburb] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -48,9 +41,6 @@ export function WorkerSkillsScreen() {
 
   const isFirstSetup = skills.data !== undefined && skills.data.length === 0;
   const total = registered.size + picked.length;
-  const matchingIds = new Set(
-    searchSkills(query).flatMap((group) => group.skills.map((s) => s.id)),
-  );
   const suburb = chosenSuburb || serviceAreas.data?.[0]?.suburb || profile.homeSuburb;
   const knownArea = (serviceAreas.data ?? []).some((area) => area.suburb === suburb);
 
@@ -132,45 +122,7 @@ export function WorkerSkillsScreen() {
         <ErrorState message={skills.error.message} onRetry={() => void skills.refetch()} />
       )}
 
-      <label className="search" style={{ height: 48 }}>
-        <Icon name="search" />
-        <input
-          type="search"
-          placeholder="Search skills"
-          aria-label="Search skills"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-        />
-      </label>
-
-      <div className="chip-list" role="group" aria-label="Your skills">
-        {TRADE_CHIPS.filter((skill) => matchingIds.has(skill.id)).map((skill) => {
-          const trade = skill.trade as Trade;
-          const isOn = registered.has(trade) || picked.includes(trade);
-          return (
-            <button
-              key={skill.id}
-              type="button"
-              className="chip chip--emerald"
-              aria-pressed={isOn}
-              disabled={registered.has(trade)}
-              style={registered.has(trade) ? { opacity: 1 } : undefined}
-              onClick={() => toggle(trade)}
-            >
-              {isOn && <Icon name="check" size={16} strokeWidth={2.4} />}
-              {skill.label}
-            </button>
-          );
-        })}
-        {SOON_CHIPS.filter((skill) => matchingIds.has(skill.id))
-          .slice(0, query === "" ? 4 : undefined)
-          .map((skill) => (
-            <button key={skill.id} type="button" className="chip" disabled>
-              {skill.label}
-              <span className="chip__soon">SOON</span>
-            </button>
-          ))}
-      </div>
+      <SkillPicker registered={registered} picked={picked} max={MAX_SKILLS} onToggle={toggle} />
 
       <section className="card" style={{ padding: 14 }}>
         <div style={{ fontSize: 15, fontWeight: 700 }}>Show your work</div>

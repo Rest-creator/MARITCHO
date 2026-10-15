@@ -12,6 +12,8 @@ export interface SkillOption {
   id: string;
   label: string;
   trade: Trade | null;
+  /** Everyday words people use for this work ("geyser", "gate"), for free-text search. */
+  keywords?: readonly string[];
 }
 
 export interface SkillGroup {
@@ -23,43 +25,155 @@ export const SKILL_GROUPS: readonly SkillGroup[] = [
   {
     title: "Home & building",
     skills: [
-      { id: "plumber", label: "Plumber", trade: "PLUMBING" },
-      { id: "electrician", label: "Electrician", trade: "ELECTRICAL" },
-      { id: "bricklayer", label: "Bricklayer", trade: "BUILDING" },
-      { id: "tiler", label: "Tiler", trade: "BUILDING" },
-      { id: "roof-leak", label: "Roof leak repair", trade: "BUILDING" },
-      { id: "painter", label: "Painter", trade: "BUILDING" },
-      { id: "welder", label: "Welder", trade: "WELDING" },
-      { id: "solar", label: "Solar installer", trade: "SOLAR" },
-      { id: "appliance", label: "Appliance repair", trade: "APPLIANCE_REPAIR" },
+      {
+        id: "plumber",
+        label: "Plumber",
+        trade: "PLUMBING",
+        keywords: [
+          "plumbing",
+          "pipe",
+          "tap",
+          "leak",
+          "geyser",
+          "toilet",
+          "drain",
+          "sink",
+          "borehole",
+          "tank",
+          "water",
+        ],
+      },
+      {
+        id: "electrician",
+        label: "Electrician",
+        trade: "ELECTRICAL",
+        keywords: [
+          "electrical",
+          "wiring",
+          "wire",
+          "socket",
+          "plug",
+          "light",
+          "switch",
+          "power",
+          "breaker",
+          "electric",
+        ],
+      },
+      {
+        id: "bricklayer",
+        label: "Bricklayer",
+        trade: "BUILDING",
+        keywords: ["brick", "wall", "build", "builder", "construction", "plaster", "foundation"],
+      },
+      { id: "tiler", label: "Tiler", trade: "BUILDING", keywords: ["tile", "tiling", "floor"] },
+      {
+        id: "roof-leak",
+        label: "Roof leak repair",
+        trade: "BUILDING",
+        keywords: ["roof", "roofing", "gutter", "ceiling"],
+      },
+      { id: "painter", label: "Painter", trade: "BUILDING", keywords: ["paint", "painting"] },
+      {
+        id: "welder",
+        label: "Welder",
+        trade: "WELDING",
+        keywords: ["welding", "weld", "gate", "burglar", "bars", "metal", "steel", "fabrication"],
+      },
+      {
+        id: "solar",
+        label: "Solar installer",
+        trade: "SOLAR",
+        keywords: ["solar", "panel", "inverter", "battery"],
+      },
+      {
+        id: "appliance",
+        label: "Appliance repair",
+        trade: "APPLIANCE_REPAIR",
+        keywords: [
+          "fridge",
+          "freezer",
+          "stove",
+          "washing",
+          "microwave",
+          "appliance",
+          "repair",
+          "kettle",
+        ],
+      },
     ],
   },
   {
     title: "Outdoor & farm",
     skills: [
-      { id: "gardener", label: "Gardener", trade: null },
-      { id: "grass-cutter", label: "Grass cutter", trade: null },
-      { id: "tree-cutter", label: "Tree cutter", trade: null },
-      { id: "farm-worker", label: "Farm worker", trade: null },
-      { id: "trencher", label: "Trencher", trade: null },
+      {
+        id: "gardener",
+        label: "Gardener",
+        trade: null,
+        keywords: ["garden", "gardening", "hedge", "flowers"],
+      },
+      {
+        id: "grass-cutter",
+        label: "Grass cutter",
+        trade: null,
+        keywords: ["grass", "lawn", "mowing", "slashing"],
+      },
+      {
+        id: "tree-cutter",
+        label: "Tree cutter",
+        trade: null,
+        keywords: ["tree", "trees", "branches"],
+      },
+      {
+        id: "farm-worker",
+        label: "Farm worker",
+        trade: null,
+        keywords: ["farm", "farming", "crops", "planting", "harvest"],
+      },
+      { id: "trencher", label: "Trencher", trade: null, keywords: ["trench", "digging", "dig"] },
     ],
   },
   {
     title: "Care & household",
     skills: [
-      { id: "house-help", label: "House help", trade: null },
-      { id: "baby-sitter", label: "Baby sitter", trade: null },
-      { id: "laundry", label: "Laundry", trade: null },
-      { id: "dog-walker", label: "Dog walker", trade: null },
-      { id: "school-run", label: "School run driver", trade: null },
+      {
+        id: "house-help",
+        label: "House help",
+        trade: null,
+        keywords: ["cleaning", "clean", "housework", "maid"],
+      },
+      {
+        id: "baby-sitter",
+        label: "Baby sitter",
+        trade: null,
+        keywords: ["baby", "babysitting", "child", "children", "nanny"],
+      },
+      { id: "laundry", label: "Laundry", trade: null, keywords: ["washing", "ironing", "clothes"] },
+      { id: "dog-walker", label: "Dog walker", trade: null, keywords: ["dog", "dogs", "pets"] },
+      {
+        id: "school-run",
+        label: "School run driver",
+        trade: null,
+        keywords: ["driver", "driving", "school", "transport"],
+      },
     ],
   },
   {
     title: "Vehicles",
     skills: [
-      { id: "mechanic", label: "Motor mechanic", trade: null },
-      { id: "panel-beater", label: "Panel beater", trade: null },
-      { id: "car-washer", label: "Car washer", trade: null },
+      {
+        id: "mechanic",
+        label: "Motor mechanic",
+        trade: null,
+        keywords: ["car", "engine", "vehicle", "service", "motor"],
+      },
+      {
+        id: "panel-beater",
+        label: "Panel beater",
+        trade: null,
+        keywords: ["panel", "dent", "spray", "body"],
+      },
+      { id: "car-washer", label: "Car washer", trade: null, keywords: ["car", "wash", "valet"] },
     ],
   },
 ];
@@ -70,12 +184,63 @@ export function findSkill(id: string | null | undefined): SkillOption | undefine
   return ALL_SKILLS.find((skill) => skill.id === id);
 }
 
+const STOP_WORDS = new Set([
+  "and",
+  "the",
+  "can",
+  "fix",
+  "for",
+  "with",
+  "work",
+  "jobs",
+  "job",
+  "do",
+  "i",
+]);
+
+/** The words in what someone typed that are worth matching ("I fix geysers" → ["geysers"]). */
+function searchWords(text: string): string[] {
+  return text
+    .toLowerCase()
+    .split(/[^a-z]+/)
+    .filter((word) => word.length >= 3 && !STOP_WORDS.has(word));
+}
+
+function skillTerms(skill: SkillOption): string[] {
+  return [...skill.label.toLowerCase().split(/\s+/), ...(skill.keywords ?? [])];
+}
+
+/** "welding" matches "weld", "geysers" matches "geyser": either may be the other's start. */
+function wordMatches(word: string, term: string): boolean {
+  return term.startsWith(word) || (term.length >= 4 && word.startsWith(term));
+}
+
+/** How many of the typed words point at this skill (0 = not a match). */
+function skillScore(skill: SkillOption, words: readonly string[]): number {
+  const terms = skillTerms(skill);
+  return words.filter((word) => terms.some((term) => wordMatches(word, term))).length;
+}
+
+/**
+ * Skills matching free text, best first: a single word ("weld") or a
+ * whole sentence ("I fix geysers and leaking taps"). Empty text matches
+ * nothing — the list stays hidden until someone asks for it.
+ */
+export function matchSkills(text: string): SkillOption[] {
+  const words = searchWords(text);
+  if (words.length === 0) return [];
+  return ALL_SKILLS.map((skill) => ({ skill, score: skillScore(skill, words) }))
+    .filter((entry) => entry.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .map((entry) => entry.skill);
+}
+
 export function searchSkills(query: string): SkillGroup[] {
-  const needle = query.trim().toLowerCase();
-  if (needle === "") return [...SKILL_GROUPS];
+  if (query.trim() === "") return [...SKILL_GROUPS];
+  const matches = new Set(matchSkills(query).map((skill) => skill.id));
   return SKILL_GROUPS.map((group) => ({
     ...group,
-    skills: group.skills.filter((skill) => skill.label.toLowerCase().includes(needle)),
+    skills: group.skills.filter((skill) => matches.has(skill.id)),
   })).filter((group) => group.skills.length > 0);
 }
 

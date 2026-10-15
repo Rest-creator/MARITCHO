@@ -3,7 +3,12 @@ import { describe, expect, it } from "vitest";
 import type { Job, OpenJob } from "@/core/api/schemas";
 import { monthLabel, summariseMonth } from "@/features/worker/earnings";
 import { parseOfferAmount } from "@/features/worker/money-input";
-import { applyJobFilter, isSameFilter, jobsWithinReach } from "@/features/worker/open-job-filters";
+import {
+  applyJobFilter,
+  isSameFilter,
+  jobsWithinReach,
+  rankOpenJobs,
+} from "@/features/worker/open-job-filters";
 
 function openJob(overrides: Partial<OpenJob>): OpenJob {
   return {
@@ -107,5 +112,40 @@ describe("parseOfferAmount", () => {
     ["-3", null],
   ])("%s → %s", (raw, expected) => {
     expect(parseOfferAmount(raw)).toBe(expected);
+  });
+});
+
+describe("rankOpenJobs", () => {
+  const now = new Date("2026-10-13T10:30:00Z");
+
+  it("puts close, urgent, fresh jobs first and says why", () => {
+    const ranked = rankOpenJobs(
+      [
+        openJob({
+          job_id: "far-old",
+          distance_km: 8,
+          problem_description: "Gate",
+          created_at: "2026-10-10T10:00:00Z",
+        }),
+        openJob({ job_id: "near-today-new", distance_km: 0.5, created_at: "2026-10-13T10:10:00Z" }),
+        openJob({ job_id: "mid", distance_km: 3, problem_description: "Gate\nNeeded: This week" }),
+      ],
+      new Set(),
+      now,
+    );
+    expect(ranked.map((entry) => entry.job.job_id)).toEqual(["near-today-new", "mid", "far-old"]);
+    expect(ranked[0]?.reasons).toEqual(["close by", "needed today", "just posted"]);
+  });
+
+  it("moves jobs the worker already answered to the bottom", () => {
+    const ranked = rankOpenJobs(
+      [
+        openJob({ job_id: "answered", distance_km: 0.2 }),
+        openJob({ job_id: "new", distance_km: 6 }),
+      ],
+      new Set(["answered"]),
+      now,
+    );
+    expect(ranked.map((entry) => entry.job.job_id)).toEqual(["new", "answered"]);
   });
 });

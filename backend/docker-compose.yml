@@ -58,5 +58,34 @@ services:
       retries: 5
       start_period: 10s
 
+  # The web app and its BFF (ADR-009): http://localhost:${MARICHO_WEB_PORT:-3000}.
+  # Same image as production (frontend/Dockerfile). The browser's live-chat
+  # socket goes straight to the API, so it is built with the API's host port.
+  web:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_WS_URL: ws://127.0.0.1:${MARICHO_API_PORT:-8000}
+    environment:
+      BACKEND_URL: http://api:8000
+    ports:
+      - "${MARICHO_WEB_PORT:-3000}:3000"
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://localhost:3000/').then(r => { if (!r.ok) process.exit(1) }, () => process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
 volumes:
   postgres_data:

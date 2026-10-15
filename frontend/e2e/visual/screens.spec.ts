@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { EXPERT_ID, LIVE_JOB_ID, OPEN_JOB_ID, stubWorld } from "./fixtures";
+import { EXPERT_ID, LIVE_JOB_ID, OPEN_JOB_ID, WORKER, stubWorld } from "./fixtures";
 
 /*
  * One screenshot per designed screen. `ready` is something that only
@@ -78,5 +78,20 @@ test("02b-sign-in-code", async ({ page }) => {
   await page.waitForLoadState("networkidle");
   await page.evaluate(() => document.fonts.ready);
   await expect(page).toHaveScreenshot("02b-sign-in-code.png");
+  expect(unexpected, "API calls with no fixture").toEqual([]);
+});
+
+test("02c-role-notice", async ({ page }) => {
+  // Chose "I need work done", but the number is registered as a worker (issue #9).
+  const unexpected = await stubWorld(page, null, { "POST session": { json: WORKER } });
+  await page.goto("/signup?role=buyer");
+  await page.getByLabel("Your name").fill("Rudo Ncube");
+  await page.getByLabel("Phone number").fill("77 412 3089");
+  await page.getByRole("button", { name: "Continue" }).click();
+  await page.getByLabel("6-digit code").fill("123456");
+  await expect(page.getByRole("heading", { name: /registered as a worker/ })).toBeVisible();
+  await page.waitForLoadState("networkidle");
+  await page.evaluate(() => document.fonts.ready);
+  await expect(page).toHaveScreenshot("02c-role-notice.png");
   expect(unexpected, "API calls with no fixture").toEqual([]);
 });

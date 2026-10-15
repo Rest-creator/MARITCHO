@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useRef, useState, type ChangeEvent, type FormEvent } from "react";
+import { useCallback, useState, type FormEvent } from "react";
 
 import { Icon } from "@/components/ui/Icon";
+import { PhotoPicker } from "@/components/ui/PhotoPicker";
 import type { SendMessageInput } from "@/core/api/endpoints";
 import { isUploadUnavailable } from "@/core/media/upload";
 import { useUpload } from "@/core/media/use-upload";
@@ -26,7 +27,7 @@ export function ChatComposer({ canAttach, onSend }: Props) {
   const [draft, setDraft] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [sending, setSending] = useState<"photo" | "voice note" | null>(null);
-  const fileRef = useRef<HTMLInputElement>(null);
+  const [isPickerOpen, setIsPickerOpen] = useState(false);
   const { upload } = useUpload();
 
   const sendUpload = useCallback(
@@ -70,9 +71,8 @@ export function ChatComposer({ canAttach, onSend }: Props) {
     setDraft("");
   }
 
-  function handlePhoto(event: ChangeEvent<HTMLInputElement>): void {
-    const file = event.target.files?.[0];
-    event.target.value = "";
+  function handlePhotos(files: File[]): void {
+    const [file] = files;
     if (file) void sendUpload(file, "photo", {});
   }
 
@@ -138,7 +138,7 @@ export function ChatComposer({ canAttach, onSend }: Props) {
                 className="round-btn round-btn--ghost"
                 aria-label="Send a photo"
                 disabled={sending !== null}
-                onClick={() => fileRef.current?.click()}
+                onClick={() => setIsPickerOpen(true)}
               >
                 <Icon name="camera" />
               </button>
@@ -164,13 +164,10 @@ export function ChatComposer({ canAttach, onSend }: Props) {
               <Icon name="send" />
             </button>
           )}
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/*"
-            capture="environment"
-            hidden
-            onChange={handlePhoto}
+          <PhotoPicker
+            isOpen={isPickerOpen}
+            onClose={() => setIsPickerOpen(false)}
+            onPick={handlePhotos}
           />
         </form>
       )}
