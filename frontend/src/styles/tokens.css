@@ -8,8 +8,10 @@
   /* Surfaces */
   --color-bg: #0f172a;
   --color-bg-raised: #1e293b;
-  --color-sheet: rgba(30, 41, 59, 0.82);
-  --color-scrim: rgba(2, 6, 23, 0.55);
+  /* Solid, not glass: on phones without backdrop blur a translucent sheet
+     let the page behind show through the text (unreadable skill picker). */
+  --color-sheet: #1e293b;
+  --color-scrim: rgba(2, 6, 23, 0.7);
   --color-bar: rgba(15, 23, 42, 0.75);
   --color-nav: rgba(30, 41, 59, 0.7);
 

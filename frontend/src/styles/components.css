@@ -1351,6 +1351,12 @@ a.card:hover {
   animation: sheet-in var(--duration-normal) var(--ease-out);
 }
 
+/* The sheet takes focus when it opens (so Escape and screen readers land in
+   it); the panel itself shouldn't wear a focus ring — its controls do. */
+.sheet:focus {
+  outline: none;
+}
+
 .sheet--auto {
   top: auto;
   max-height: calc(100dvh - 110px);
@@ -1371,6 +1377,11 @@ a.card:hover {
   display: flex;
   flex-direction: column;
   gap: 18px;
+}
+
+/* The body scrolls, so its children keep their size instead of squashing. */
+.sheet__body > * {
+  flex-shrink: 0;
 }
 
 @keyframes sheet-in {

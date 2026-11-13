@@ -19,6 +19,13 @@ const SCREENS: readonly Screen[] = [
   { name: "02-sign-up", path: "/signup?role=buyer", who: null, ready: "Let's get you set up" },
   { name: "03-employer-home", path: "/employer", who: "BUYER", ready: "Popular near you" },
   { name: "04-post-job", path: "/employer/post?trade=PLUMBING", who: "BUYER", ready: "Post a job" },
+  // A bottom sheet over a busy page: it must be solid enough to read.
+  {
+    name: "04b-who-do-you-need",
+    path: "/employer/post?pick=1",
+    who: "BUYER",
+    ready: "Who do you need?",
+  },
   { name: "05-my-jobs", path: "/employer/jobs", who: "BUYER", ready: "Kitchen sink is leaking" },
   {
     name: "06-applicants",
