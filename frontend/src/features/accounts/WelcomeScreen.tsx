@@ -21,7 +21,8 @@ export function WelcomeScreen() {
     <Screen bodyClassName="screen__body--welcome">
       <div className="brand">
         <div className="brand__mark">
-          <Icon name="wrench" strokeWidth={2} />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo-mark.svg" alt="" width={28} height={28} />
         </div>
         Maricho
       </div>
