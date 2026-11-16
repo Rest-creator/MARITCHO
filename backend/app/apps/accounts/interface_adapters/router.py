@@ -69,12 +69,13 @@ async def request_otp(
 ) -> dict[str, object]:
     now = datetime.now(timezone.utc)
     since = now - timedelta(minutes=10)
+    cooldown_since = now - timedelta(seconds=30)
     ip = request.client.host if request.client else "unknown"
     recent = await db.scalar(
         select(OTPRequestModel)
         .where(
             OTPRequestModel.phone == payload.phone,
-            OTPRequestModel.created_at >= since,
+            OTPRequestModel.created_at >= cooldown_since,
             OTPRequestModel.verified_at.is_(None),
         )
         .order_by(desc(OTPRequestModel.created_at))
@@ -108,7 +109,7 @@ async def request_otp(
     )
     db.add(row)
     await db.commit()
-    result: dict[str, object] = {"expires_in": 300}
+    result: dict[str, object] = {"expires_in": 300, "resend_after_seconds": 30}
     if os.getenv("APP_ENV", "development").lower() != "production":
         result["dev_code"] = code
     return result

@@ -1,4 +1,4 @@
-import type { Job, JobStatus, MatchCandidate, MyJob } from "@/core/api/schemas";
+import type { Job, JobStatus, MatchCandidate, MyJob, ReviewTag } from "@/core/api/schemas";
 import {
   distanceBandLabel,
   formatKm,
@@ -19,13 +19,16 @@ export function employerJobHref(job: Pick<Job, "id" | "status">): string {
 }
 
 /**
- * The backend does not store worker names, so a candidate is introduced
- * by what matters for the decision: their standing and trade.
+ * Introduce a candidate by their display name when set, falling back to
+ * their standing and trade when unnamed.
  */
 export function candidateTitle(
-  candidate: Pick<MatchCandidate, "grade">,
+  candidate: Pick<MatchCandidate, "grade"> & { display_name?: string | null },
   trade: Job["trade"],
 ): string {
+  if (candidate.display_name && candidate.display_name.trim() !== "") {
+    return candidate.display_name.trim();
+  }
   const role = tradeLabel(trade).toLowerCase();
   if (candidate.grade === "REGISTERED") return `New ${role}`;
   if (candidate.grade === "IDENTIFIED") return `ID-checked ${role}`;
@@ -147,6 +150,22 @@ export function composeReview(
   if (note.trim() !== "") parts.push(note.trim());
   const text = parts.join(" — ");
   return text === "" ? undefined : text.slice(0, 2000);
+}
+
+const REVIEW_TAG_MAP: Readonly<Record<string, ReviewTag>> = {
+  "On time": "ON_TIME",
+  "Quality work": "QUALITY_WORK",
+  "Cleaned up": "CLEAN",
+  "Fair price": "FAIR_PRICE",
+  Polite: "PROFESSIONAL",
+};
+
+/** Maps UI review chip labels to backend ReviewTagEnum values. */
+export function mapReviewTags(tags: readonly string[]): ReviewTag[] {
+  return tags
+    .map((tag) => REVIEW_TAG_MAP[tag])
+    .filter((tag): tag is ReviewTag => tag !== undefined)
+    .slice(0, 3);
 }
 
 const NEEDED_PREFIX = "Needed: ";

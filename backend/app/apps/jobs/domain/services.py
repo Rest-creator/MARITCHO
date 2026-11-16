@@ -9,6 +9,7 @@ from app.apps.jobs.domain.entities import (
     DisputeStatusEnum,
     Job,
     JobOffer,
+    JobSearchResult,
     JobStatusEnum,
     LedgerEntry,
     MatchCandidate,
@@ -30,6 +31,7 @@ from app.core.exceptions import (
     NotFoundError,
     ValidationConflictError,
 )
+from app.shared_kernel.embeddings import cosine_similarity, embed_text, infer_best_trade
 from app.shared_kernel.enums import (
     CurrencyEnum,
     DistanceBandEnum,
@@ -210,7 +212,12 @@ class ListOpenJobsForWorkerUseCase:
         self._suburbs = suburbs
 
     async def execute(
-        self, worker_id: uuid.UUID, *, limit: int, offset: int
+        self,
+        worker_id: uuid.UUID,
+        *,
+        limit: int,
+        offset: int,
+        query: str | None = None,
     ) -> list[OpenJobCandidate]:
         skills = await self._worker_profiles.get_skills_for_worker(worker_id)
         if not skills:
@@ -220,16 +227,29 @@ class ListOpenJobsForWorkerUseCase:
         if not areas:
             return []
 
-        candidate_jobs: list[Job] = []
-        for trade in skills:
-            candidate_jobs.extend(await self._jobs.list_open_for_trade(trade))
+        cleaned_query = (query or "").strip()
+        similarity_by_job_id: dict[uuid.UUID, float] = {}
+        if cleaned_query:
+            query_vec = embed_text(cleaned_query)
+            vector_hits = await self._jobs.search_open_by_vector(
+                query_vec, trades=list(skills), limit=100
+            )
+            candidate_jobs = []
+            for job, sim in vector_hits:
+                if sim >= 0.12 or cleaned_query.lower() in (job.problem_description or "").lower():
+                    candidate_jobs.append(job)
+                    similarity_by_job_id[job.id] = sim
+        else:
+            candidate_jobs = []
+            for trade in skills:
+                candidate_jobs.extend(await self._jobs.list_open_for_trade(trade))
         if not candidate_jobs:
             return []
 
         suburb_names = {job.suburb for job in candidate_jobs} | {area.suburb for area in areas}
         coords = await self._suburbs.get_coords(suburb_names)
 
-        ranked: list[tuple[int, datetime, OpenJobCandidate]] = []
+        ranked: list[tuple[float, datetime, OpenJobCandidate]] = []
         for job in candidate_jobs:
             best: tuple[int, float, DistanceBandEnum] | None = None
             for area in areas:
@@ -243,6 +263,7 @@ class ListOpenJobsForWorkerUseCase:
             if band == DistanceBandEnum.FAR:
                 continue
 
+            sim_score = similarity_by_job_id.get(job.id)
             candidate = OpenJobCandidate(
                 job_id=job.id,
                 trade=job.trade,
@@ -253,6 +274,7 @@ class ListOpenJobsForWorkerUseCase:
                 distance_band=band,
                 distance_km=round(km, 1),
                 needed_by=job.needed_by,
+                similarity_score=sim_score,
             )
             needed_value = (
                 job.needed_by.value
@@ -260,10 +282,82 @@ class ListOpenJobsForWorkerUseCase:
                 else str(job.needed_by)
             )
             urgent_rank = {"TODAY": 0, "THIS_WEEK": 1, "FLEXIBLE": 2}.get(needed_value, 2)
-            ranked.append((urgent_rank * 10 + band_rank, job.created_at or datetime.min, candidate))
+            base_rank = float(urgent_rank * 10 + band_rank)
+            if sim_score is not None:
+                # Boost higher vector similarity first while still respecting distance/urgency
+                sort_score = base_rank - (sim_score * 25.0)
+            else:
+                sort_score = base_rank
+            ranked.append((sort_score, job.created_at or datetime.min, candidate))
 
         ranked.sort(key=lambda entry: (entry[0], -entry[1].timestamp()))
         return [candidate for _, _, candidate in ranked[offset : offset + limit]]
+
+
+class SearchOpenJobsUseCase:
+    """pgvector-powered hybrid semantic search across open jobs."""
+
+    def __init__(self, jobs: JobRepository) -> None:
+        self._jobs = jobs
+
+    async def execute(
+        self,
+        query: str,
+        *,
+        trade: TradeEnum | None = None,
+        suburb: str | None = None,
+        limit: int = 20,
+    ) -> list[JobSearchResult]:
+        cleaned = query.strip()
+        if not cleaned:
+            return []
+        inferred_trade, _ = infer_best_trade(cleaned)
+        query_vec = embed_text(cleaned, trade=trade, suburb=suburb)
+        trades_filter = [trade] if trade is not None else None
+        rows = await self._jobs.search_open_by_vector(
+            query_vec,
+            trades=trades_filter,
+            suburb=suburb,
+            limit=limit,
+        )
+        results: list[JobSearchResult] = []
+        lower_q = cleaned.lower()
+        for job, sim in rows:
+            desc_lower = (job.problem_description or "").lower()
+            suburb_lower = job.suburb.lower()
+            trade_lower = job.trade.value.lower()
+            lexical_boost = (
+                0.15
+                if (lower_q in desc_lower or lower_q in suburb_lower or lower_q in trade_lower)
+                else 0.0
+            )
+            # Re-check direct cosine similarity as a safeguard if DB distance was 0
+            if sim == 0.0 and job.problem_description:
+                job_vec = embed_text(job.problem_description, trade=job.trade, suburb=job.suburb)
+                sim = max(0.0, cosine_similarity(query_vec, job_vec))
+            final_score = min(1.0, round(sim + lexical_boost, 4))
+            if final_score < 0.12:
+                continue
+            results.append(
+                JobSearchResult(
+                    job_id=job.id,
+                    trade=job.trade,
+                    suburb=job.suburb,
+                    budget_amount=job.budget_amount,
+                    problem_description=job.problem_description,
+                    created_at=job.created_at,
+                    needed_by=job.needed_by,
+                    similarity_score=final_score,
+                    matched_trade=inferred_trade,
+                )
+            )
+        results.sort(
+            key=lambda item: (
+                -item.similarity_score,
+                -(item.created_at.timestamp() if item.created_at else 0.0),
+            )
+        )
+        return results[:limit]
 
 
 class SubmitJobOfferUseCase:

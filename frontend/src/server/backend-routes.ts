@@ -42,10 +42,13 @@ export const BACKEND_ROUTES = {
  * web and mobile together. Listed so the drift check covers them too.
  */
 export const PROXIED_ROUTES: readonly BackendRoute[] = [
+  { method: "PATCH", path: "/users/me" },
   { method: "GET", path: "/suburbs" },
   { method: "GET", path: "/jobs/mine" },
   { method: "POST", path: "/jobs/request" },
   { method: "GET", path: "/jobs/open" },
+  { method: "GET", path: "/jobs/search" },
+  { method: "GET", path: "/jobs/search/skills" },
   { method: "GET", path: "/jobs/assigned" },
   { method: "GET", path: "/jobs/my-offers" },
   { method: "GET", path: "/jobs/{job_id}" },
@@ -54,6 +57,7 @@ export const PROXIED_ROUTES: readonly BackendRoute[] = [
   { method: "POST", path: "/jobs/{job_id}/book" },
   { method: "POST", path: "/jobs/{job_id}/quote" },
   { method: "POST", path: "/jobs/{job_id}/complete" },
+  { method: "POST", path: "/jobs/{job_id}/review" },
   { method: "POST", path: "/jobs/{job_id}/dispute" },
   { method: "POST", path: "/jobs/{job_id}/dispute/respond" },
   { method: "GET", path: "/jobs/{job_id}/disputes" },

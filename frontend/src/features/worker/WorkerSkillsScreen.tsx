@@ -10,6 +10,9 @@ import { PhotoStrip } from "@/components/ui/PhotoStrip";
 import { Screen } from "@/components/ui/Screen";
 import { ErrorState } from "@/components/ui/States";
 import type { Trade } from "@/core/api/schemas";
+import { isUploadUnavailable } from "@/core/media/upload";
+import { useMediaUploads } from "@/core/media/use-media-uploads";
+import { useUpload } from "@/core/media/use-upload";
 import { updateProfile, useLocalProfile } from "@/core/session/profile-store";
 import { SkillPicker } from "@/features/worker/SkillPicker";
 import {
@@ -18,6 +21,7 @@ import {
   useServiceAreas,
   useSkills,
   useSuburbs,
+  useUpdateUserProfile,
 } from "@/features/workers/hooks";
 
 export const MAX_SKILLS = 5;
@@ -31,9 +35,13 @@ export function WorkerSkillsScreen() {
   const suburbs = useSuburbs();
   const registerSkill = useRegisterSkill();
   const registerArea = useRegisterServiceArea();
+  const updateServerProfile = useUpdateUserProfile();
+  const canUpload = useMediaUploads();
+  const { upload } = useUpload();
 
   const registered = new Set<Trade>((skills.data ?? []).map((skill) => skill.trade));
   const [picked, setPicked] = useState<Trade[]>([]);
+  const [photos, setPhotos] = useState<File[]>([]);
   const [travelKm, setTravelKm] = useState(profile.travelKm);
   const [chosenSuburb, setSuburb] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -67,6 +75,7 @@ export function WorkerSkillsScreen() {
     setError(null);
     setIsSaving(true);
     updateProfile({ travelKm, homeSuburb: suburb });
+    updateServerProfile.mutate({ travel_km: travelKm, home_suburb: suburb });
     if (!onlineManager.isOnline()) {
       // Queue everything; it sends itself when the connection returns.
       picked.forEach((trade) => registerSkill.mutate(trade));
@@ -76,9 +85,17 @@ export function WorkerSkillsScreen() {
       return;
     }
     try {
+      let proofUrl: string | undefined;
+      if (photos[0] !== undefined && canUpload) {
+        try {
+          proofUrl = await upload(photos[0], "photo");
+        } catch (failure: unknown) {
+          if (!isUploadUnavailable(failure)) throw failure;
+        }
+      }
       // Sequential on purpose: one small request at a time on a weak connection.
       for (const trade of picked) {
-        await registerSkill.mutateAsync(trade);
+        await registerSkill.mutateAsync(proofUrl ? { trade, proof_url: proofUrl } : trade);
       }
       if (!knownArea) {
         await registerArea.mutateAsync({ suburb });
@@ -130,7 +147,7 @@ export function WorkerSkillsScreen() {
           Photos of jobs you&apos;ve done. Clients trust what they can see.
         </div>
         <div style={{ marginTop: 12 }}>
-          <PhotoStrip layout="grid" max={6} addLabel="Add" />
+          <PhotoStrip layout="grid" max={6} addLabel="Add" onChange={setPhotos} />
         </div>
       </section>
 

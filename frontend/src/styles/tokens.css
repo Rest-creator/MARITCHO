@@ -105,6 +105,9 @@
   --input-height: 54px;
   --gutter: 20px;
   --app-max-width: 480px;
+  --sidebar-width: 248px;
+  --web-max-width: 1120px;
+  --panel-max-width: 720px;
 
   --duration-fast: 150ms;
   --duration-normal: 250ms;

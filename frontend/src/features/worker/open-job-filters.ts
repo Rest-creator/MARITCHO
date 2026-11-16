@@ -26,6 +26,27 @@ export function isSameFilter(a: JobFilter, b: JobFilter): boolean {
   return a.kind !== "trade" || (b.kind === "trade" && a.trade === b.trade);
 }
 
+/**
+ * Combine pgvector backend search results (when online) with instant client-side
+ * keyword/suburb filtering so search works both online and offline.
+ */
+export function filterJobsByQuery(
+  jobs: readonly OpenJob[],
+  query: string,
+  vectorMatches?: readonly OpenJob[],
+): OpenJob[] {
+  const trimmed = query.trim().toLowerCase();
+  if (trimmed === "") return [...jobs];
+  if (vectorMatches && vectorMatches.length > 0) {
+    return [...vectorMatches];
+  }
+  const terms = trimmed.split(/\s+/).filter(Boolean);
+  return jobs.filter((job) => {
+    const haystack = `${job.problem_description ?? ""} ${job.suburb} ${job.trade}`.toLowerCase();
+    return terms.every((term) => haystack.includes(term));
+  });
+}
+
 /** A job ranked for this worker, with the plain-language reasons it ranks there. */
 export interface RankedJob {
   job: OpenJob;
@@ -71,6 +92,12 @@ export function rankOpenJobs(
       }
 
       if (job.budget_amount !== null) score += 5;
+      if (typeof job.similarity_score === "number" && job.similarity_score > 0) {
+        score += job.similarity_score * 30;
+        if (job.similarity_score >= 0.35) {
+          reasons.unshift("strong match");
+        }
+      }
       if (answeredJobIds.has(job.job_id)) score -= 100;
       return { job, score, reasons };
     })

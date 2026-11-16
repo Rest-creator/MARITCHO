@@ -42,6 +42,20 @@ describe("backend contracts", () => {
     expect(() => userSchema.parse({ id: "1", phone: "+263", role: "ADMIN" })).toThrow();
   });
 
+  it("parses extended user profile fields from GET/PATCH /users/me", () => {
+    const parsed = userSchema.parse({
+      id: "u1",
+      phone: "+263771234567",
+      role: "WORKER",
+      display_name: "Tendai Moyo",
+      is_available: true,
+      travel_km: 15,
+      home_suburb: "Hillside",
+    });
+    expect(parsed.display_name).toBe("Tendai Moyo");
+    expect(parsed.travel_km).toBe(15);
+  });
+
   it("rejects non-numeric decimals", () => {
     expect(() =>
       openJobSchema.parse({

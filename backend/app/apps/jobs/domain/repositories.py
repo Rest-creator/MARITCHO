@@ -54,6 +54,17 @@ class JobRepository(ABC):
         trade-off already accepted for the Python-side matching engine."""
 
     @abstractmethod
+    async def search_open_by_vector(
+        self,
+        query_embedding: Sequence[float],
+        *,
+        trades: Sequence[TradeEnum] | None = None,
+        suburb: str | None = None,
+        limit: int = 20,
+    ) -> Sequence[tuple[Job, float]]:
+        """Query open jobs ordered by pgvector cosine similarity (`1 - cosine_distance`)."""
+
+    @abstractmethod
     async def list_by_buyer(self, buyer_id: uuid.UUID, *, limit: int, offset: int) -> Sequence[Job]:
         """This buyer's own jobs, newest first — user-facing and
         potentially unbounded, unlike list_open_for_trade, so real

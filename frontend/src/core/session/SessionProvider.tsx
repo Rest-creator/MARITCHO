@@ -8,6 +8,7 @@ import { ApiError } from "@/core/api/http";
 import { userSchema, type User } from "@/core/api/schemas";
 import { queryKeys } from "@/core/query/keys";
 import { UNAUTHORIZED_EVENT } from "@/core/query/query-client";
+import { updateProfile, useLocalProfile } from "@/core/session/profile-store";
 
 export type SignInRole = "BUYER" | "WORKER";
 
@@ -81,12 +82,37 @@ type Props = { children: ReactNode };
 export function SessionProvider({ children }: Props) {
   const queryClient = useQueryClient();
   const router = useRouter();
+  const localProfile = useLocalProfile();
 
   const session = useQuery({
     queryKey: queryKeys.session,
     queryFn: fetchSession,
     staleTime: 5 * 60_000,
   });
+
+  useEffect(() => {
+    const user = session.data;
+    if (!user) return;
+    const patch: Parameters<typeof updateProfile>[0] = {};
+    if (localProfile.phone === "" && user.phone) patch.phone = user.phone;
+    if (localProfile.name === "" && user.display_name) patch.name = user.display_name;
+    if (typeof user.is_available === "boolean" && user.is_available !== localProfile.isAvailable) {
+      patch.isAvailable = user.is_available;
+    }
+    if (
+      typeof user.travel_km === "number" &&
+      localProfile.travelKm === 10 &&
+      user.travel_km !== 50
+    ) {
+      patch.travelKm = user.travel_km;
+    }
+    if (localProfile.homeSuburb === "" && user.home_suburb) {
+      patch.homeSuburb = user.home_suburb;
+    }
+    if (Object.keys(patch).length > 0) {
+      updateProfile(patch);
+    }
+  }, [session.data, localProfile]);
 
   const signInMutation = useMutation({
     mutationFn: postSession,

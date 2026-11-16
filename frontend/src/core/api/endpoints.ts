@@ -5,6 +5,7 @@ import {
   disputeSchema,
   jobOfferSchema,
   jobSchema,
+  jobSearchResultSchema,
   matchCandidateSchema,
   messageSchema,
   myJobSchema,
@@ -14,26 +15,33 @@ import {
   referenceSchema,
   serviceAreaSchema,
   skillSchema,
+  skillSearchResultSchema,
   standingSchema,
   suburbSchema,
+  userSchema,
   workerHomeScreenSchema,
   workerWorkScreenSchema,
   type Dispute,
   type Job,
   type JobOffer,
+  type JobSearchResult,
   type MatchCandidate,
   type Message,
   type MessageType,
   type MyJob,
   type MyOffer,
+  type NeededBy,
   type OpenJob,
   type RecordEntry,
   type Reference,
+  type ReviewTag,
   type ServiceArea,
   type Skill,
+  type SkillSearchResult,
   type Standing,
   type Suburb,
   type Trade,
+  type User,
   type WorkerHomeScreen,
   type WorkerWorkScreen,
 } from "@/core/api/schemas";
@@ -48,6 +56,7 @@ export interface CreateJobInput {
   landmark_narrative?: string;
   budget_amount?: number;
   problem_photo_url?: string;
+  needed_by?: NeededBy;
 }
 
 export interface SubmitOfferInput {
@@ -75,6 +84,13 @@ export interface CompleteJobInput {
   client_words?: string;
 }
 
+export interface SubmitReviewInput {
+  jobId: string;
+  rating: number;
+  tags: ReviewTag[];
+  comment?: string;
+}
+
 export interface RaiseDisputeInput {
   jobId: string;
   reason: string;
@@ -100,6 +116,15 @@ export interface RegisterServiceAreaInput {
   travel_means?: string;
 }
 
+export type RegisterSkillInput = Trade | { trade: Trade; proof_url?: string };
+
+export interface UpdateUserProfileInput {
+  display_name?: string;
+  is_available?: boolean;
+  travel_km?: number;
+  home_suburb?: string;
+}
+
 /* ---------- Jobs ---------- */
 
 export function fetchMyJobs(): Promise<MyJob[]> {
@@ -120,8 +145,42 @@ export function fetchRecord(jobId: string): Promise<RecordEntry> {
   return apiRequest(`/jobs/${encodeURIComponent(jobId)}/record`, { schema: recordEntrySchema });
 }
 
-export function fetchOpenJobs(): Promise<OpenJob[]> {
-  return apiRequest("/jobs/open", { schema: z.array(openJobSchema) });
+export function fetchOpenJobs(query?: string, signal?: AbortSignal): Promise<OpenJob[]> {
+  const trimmed = query?.trim() ?? "";
+  const search = trimmed === "" ? "" : `?q=${encodeURIComponent(trimmed)}`;
+  return apiRequest(`/jobs/open${search}`, { schema: z.array(openJobSchema), signal });
+}
+
+export interface SearchJobsParams {
+  q: string;
+  trade?: Trade;
+  suburb?: string;
+  limit?: number;
+}
+
+export function searchOpenJobs(
+  params: SearchJobsParams,
+  signal?: AbortSignal,
+): Promise<JobSearchResult[]> {
+  const query = new URLSearchParams({ q: params.q.trim() });
+  if (params.trade) query.set("trade", params.trade);
+  if (params.suburb) query.set("suburb", params.suburb);
+  if (params.limit !== undefined) query.set("limit", String(params.limit));
+  return apiRequest(`/jobs/search?${query.toString()}`, {
+    schema: z.array(jobSearchResultSchema),
+    signal,
+  });
+}
+
+export function searchSkillsVector(
+  query: string,
+  signal?: AbortSignal,
+): Promise<SkillSearchResult[]> {
+  const params = new URLSearchParams({ q: query.trim() });
+  return apiRequest(`/jobs/search/skills?${params.toString()}`, {
+    schema: z.array(skillSearchResultSchema),
+    signal,
+  });
 }
 
 export function fetchAssignedJobs(): Promise<Job[]> {
@@ -165,6 +224,13 @@ export function completeJob({ jobId, ...body }: CompleteJobInput): Promise<Job> 
     method: "POST",
     body,
     schema: jobSchema,
+  });
+}
+
+export function submitReview({ jobId, ...body }: SubmitReviewInput): Promise<void> {
+  return apiRequest(`/jobs/${encodeURIComponent(jobId)}/review`, {
+    method: "POST",
+    body,
   });
 }
 
@@ -216,11 +282,20 @@ export function fetchSkills(): Promise<Skill[]> {
   return apiRequest("/workers/me/skills", { schema: z.array(skillSchema) });
 }
 
-export function registerSkill(trade: Trade): Promise<Skill> {
+export function registerSkill(input: RegisterSkillInput): Promise<Skill> {
+  const body = typeof input === "string" ? { trade: input } : input;
   return apiRequest("/workers/me/skills", {
     method: "POST",
-    body: { trade },
+    body,
     schema: skillSchema,
+  });
+}
+
+export function updateUserProfile(input: UpdateUserProfileInput): Promise<User> {
+  return apiRequest("/users/me", {
+    method: "PATCH",
+    body: input,
+    schema: userSchema,
   });
 }
 

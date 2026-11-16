@@ -47,6 +47,16 @@ export const jobStatusSchema = z.enum([
   "CANCELLED",
 ]);
 export const messageTypeSchema = z.enum(["TEXT", "VOICE_NOTE", "PHOTO", "LOCATION"]);
+export const neededBySchema = z.enum(["TODAY", "THIS_WEEK", "FLEXIBLE"]);
+export const reviewTagSchema = z.enum([
+  "CLEAN",
+  "ON_TIME",
+  "PROFESSIONAL",
+  "GOOD_COMMUNICATION",
+  "QUALITY_WORK",
+  "FAIR_PRICE",
+  "RELIABLE",
+]);
 
 export const tokenSchema = z.object({
   access_token: z.string().min(1),
@@ -57,6 +67,10 @@ export const userSchema = z.object({
   id: uuid,
   phone: z.string(),
   role: roleSchema,
+  display_name: z.string().nullable().optional(),
+  is_available: z.boolean().optional(),
+  travel_km: z.number().int().optional(),
+  home_suburb: z.string().nullable().optional(),
 });
 
 export const jobSchema = z.object({
@@ -79,6 +93,8 @@ export const jobSchema = z.object({
   quote_amount: nullableDecimal,
   created_at: isoDate,
   updated_at: isoDate,
+  needed_by: neededBySchema.optional(),
+  worker_display_name: z.string().nullable().optional(),
 });
 
 export const myJobSchema = jobSchema.extend({ offer_count: z.number().int() });
@@ -92,6 +108,28 @@ export const openJobSchema = z.object({
   created_at: isoDate.nullable(),
   distance_band: distanceBandSchema,
   distance_km: z.number(),
+  needed_by: neededBySchema.optional(),
+  similarity_score: z.number().nullable().optional(),
+});
+
+export const jobSearchResultSchema = z.object({
+  job_id: uuid,
+  trade: tradeSchema,
+  suburb: z.string(),
+  budget_amount: nullableDecimal,
+  problem_description: z.string().nullable(),
+  created_at: isoDate.nullable(),
+  needed_by: neededBySchema.optional(),
+  similarity_score: z.number(),
+  matched_trade: tradeSchema.nullable().optional(),
+});
+
+export const skillSearchResultSchema = z.object({
+  id: z.string(),
+  label: z.string(),
+  trade: tradeSchema.nullable(),
+  category: z.string(),
+  similarity_score: z.number(),
 });
 
 export const myOfferSchema = z.object({
@@ -104,6 +142,7 @@ export const myOfferSchema = z.object({
   job_trade: tradeSchema,
   job_suburb: z.string(),
   job_status: jobStatusSchema,
+  needed_by: neededBySchema.optional(),
 });
 
 export const jobOfferSchema = z.object({
@@ -114,6 +153,7 @@ export const jobOfferSchema = z.object({
   availability_note: z.string().nullable(),
   created_at: isoDate,
   updated_at: isoDate,
+  worker_display_name: z.string().nullable().optional(),
 });
 
 export const matchCandidateSchema = z.object({
@@ -131,6 +171,9 @@ export const matchCandidateSchema = z.object({
   quoted_amount: nullableDecimal,
   availability_note: z.string().nullable(),
   quoted_at: isoDate.nullable(),
+  display_name: z.string().nullable().optional(),
+  rating_average: nullableDecimal.optional(),
+  rating_count: z.number().int().optional(),
 });
 
 export const disputeSchema = z.object({
@@ -194,6 +237,8 @@ export const standingSchema = z.object({
   fill_rate: decimal,
   jobs_completed: z.number().int(),
   is_frozen: z.boolean(),
+  rating_average: nullableDecimal.optional(),
+  rating_count: z.number().int().optional(),
 });
 
 export const referenceSchema = z.object({
@@ -230,10 +275,14 @@ export type Grade = z.infer<typeof gradeSchema>;
 export type DistanceBand = z.infer<typeof distanceBandSchema>;
 export type JobStatus = z.infer<typeof jobStatusSchema>;
 export type MessageType = z.infer<typeof messageTypeSchema>;
+export type NeededBy = z.infer<typeof neededBySchema>;
+export type ReviewTag = z.infer<typeof reviewTagSchema>;
 export type User = z.infer<typeof userSchema>;
 export type Job = z.infer<typeof jobSchema>;
 export type MyJob = z.infer<typeof myJobSchema>;
 export type OpenJob = z.infer<typeof openJobSchema>;
+export type JobSearchResult = z.infer<typeof jobSearchResultSchema>;
+export type SkillSearchResult = z.infer<typeof skillSearchResultSchema>;
 export type MyOffer = z.infer<typeof myOfferSchema>;
 export type JobOffer = z.infer<typeof jobOfferSchema>;
 export type MatchCandidate = z.infer<typeof matchCandidateSchema>;

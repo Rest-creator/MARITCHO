@@ -79,7 +79,7 @@ export function EmployerHomeScreen() {
           </Link>
         </div>
         <div
-          className="trade-grid"
+          className="trade-grid trade-grid--popular"
           style={{ marginTop: 12, gridTemplateColumns: "repeat(3, minmax(0, 1fr))" }}
         >
           {POPULAR.map((item) => (
@@ -99,7 +99,7 @@ export function EmployerHomeScreen() {
         <h2 id="jobs-heading" className="section-title">
           Your jobs
         </h2>
-        <div className="stack" style={{ marginTop: 12 }}>
+        <div className="stack cards-grid" style={{ marginTop: 12 }}>
           {jobs.isPending && <Skeleton height={110} count={2} />}
           {jobs.isError && !jobs.data && (
             <ErrorState message={jobs.error.message} onRetry={() => void jobs.refetch()} />

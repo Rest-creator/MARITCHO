@@ -3,7 +3,8 @@ from collections.abc import Sequence
 from dataclasses import asdict
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from opentelemetry import trace
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -12,6 +13,7 @@ from app.apps.accounts.interface_adapters.dependencies import RequireRole, get_c
 from app.apps.jobs.domain.entities import (
     Dispute,
     Job,
+    JobSearchResult,
     LedgerEntry,
     MatchCandidate,
     OpenJobCandidate,
@@ -32,6 +34,7 @@ from app.apps.jobs.domain.services import (
     ListOpenJobsForWorkerUseCase,
     RaiseDisputeUseCase,
     RespondToDisputeUseCase,
+    SearchOpenJobsUseCase,
     SubmitJobOfferUseCase,
     SubmitQuoteUseCase,
 )
@@ -52,6 +55,7 @@ from app.apps.jobs.interface_adapters.dependencies import (
     get_list_open_jobs_use_case,
     get_raise_dispute_use_case,
     get_respond_to_dispute_use_case,
+    get_search_open_jobs_use_case,
     get_submit_job_offer_use_case,
     get_submit_quote_use_case,
 )
@@ -65,6 +69,7 @@ from app.apps.jobs.interface_adapters.schemas import (
     JobOfferOut,
     JobOut,
     JobRequestCreate,
+    JobSearchResultOut,
     LedgerEntryOut,
     MatchCandidateOut,
     MyJobOut,
@@ -73,12 +78,16 @@ from app.apps.jobs.interface_adapters.schemas import (
     QuoteCreate,
     RecordEntryOut,
     ReviewCreate,
+    SkillSearchResultOut,
 )
 from app.core.database import get_db_session
 from app.core.pagination import Pagination, pagination_params
-from app.shared_kernel.enums import RoleEnum
+from app.core.telemetry import logger
+from app.shared_kernel.embeddings import SkillSemanticMatch, rank_skills_by_query
+from app.shared_kernel.enums import RoleEnum, TradeEnum
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
+tracer = trace.get_tracer(__name__)
 
 
 @router.post("/request", response_model=JobOut, status_code=status.HTTP_201_CREATED)
@@ -123,6 +132,7 @@ async def list_my_jobs(
 
 @router.get("/open", response_model=list[OpenJobOut])
 async def list_open_jobs(
+    q: str | None = Query(default=None, max_length=200),
     current_user: Person = Depends(RequireRole([RoleEnum.WORKER])),
     pagination: Pagination = Depends(pagination_params),
     use_case: ListOpenJobsForWorkerUseCase = Depends(get_list_open_jobs_use_case),
@@ -130,11 +140,53 @@ async def list_open_jobs(
     """Jobs across this worker's trades that are still open (REQUESTED or
     MATCHED) and within range of one of their declared service areas —
     the worker-facing reverse view of matching, for submitting a JobOffer.
+    Supports optional `q` semantic search powered by pgvector.
 
     Registered BEFORE `/{job_id}` below: the generic path would otherwise
     swallow this route and fail UUID parsing on "open".
     """
-    return await use_case.execute(current_user.id, limit=pagination.limit, offset=pagination.offset)
+    return await use_case.execute(
+        current_user.id,
+        limit=pagination.limit,
+        offset=pagination.offset,
+        query=q,
+    )
+
+
+@router.get("/search", response_model=list[JobSearchResultOut])
+async def search_open_jobs(
+    q: str = Query(min_length=1, max_length=200),
+    trade: TradeEnum | None = Query(default=None),
+    suburb: str | None = Query(default=None, max_length=100),
+    limit: int = Query(default=20, ge=1, le=100),
+    current_user: Person = Depends(get_current_user),
+    use_case: SearchOpenJobsUseCase = Depends(get_search_open_jobs_use_case),
+) -> list[JobSearchResult]:
+    """pgvector cosine-distance semantic search across open jobs."""
+    with tracer.start_as_current_span("jobs.vector_search") as span:
+        span.set_attribute("search.query_length", len(q.strip()))
+        if trade is not None:
+            span.set_attribute("search.trade", trade.value)
+        results = await use_case.execute(q, trade=trade, suburb=suburb, limit=limit)
+        span.set_attribute("search.result_count", len(results))
+        logger.info(
+            f"pgvector job search executed by user={current_user.id} hits={len(results)}"
+        )
+        return results
+
+
+@router.get("/search/skills", response_model=list[SkillSearchResultOut])
+async def search_skills_vector(
+    q: str = Query(min_length=1, max_length=200),
+    limit: int = Query(default=10, ge=1, le=25),
+) -> list[SkillSemanticMatch]:
+    """Semantic vector search over the Maricho skill and trade catalogue."""
+    with tracer.start_as_current_span("jobs.skill_vector_search") as span:
+        span.set_attribute("search.query_length", len(q.strip()))
+        matches = rank_skills_by_query(q, limit=limit)
+        span.set_attribute("search.result_count", len(matches))
+        logger.info(f"Semantic skill search executed hits={len(matches)}")
+        return matches
 
 
 @router.get("/assigned", response_model=list[JobOut])

@@ -142,6 +142,22 @@ class OpenJobCandidate:
     distance_band: DistanceBandEnum
     distance_km: float
     needed_by: NeededByEnum = NeededByEnum.FLEXIBLE
+    similarity_score: float | None = None
+
+
+@dataclass
+class JobSearchResult:
+    """pgvector semantic search result over open jobs."""
+
+    job_id: uuid.UUID
+    trade: TradeEnum
+    suburb: str
+    budget_amount: Decimal | None
+    problem_description: str | None
+    created_at: datetime | None
+    needed_by: NeededByEnum
+    similarity_score: float
+    matched_trade: TradeEnum | None = None
 
 
 @dataclass

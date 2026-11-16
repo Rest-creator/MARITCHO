@@ -37,7 +37,7 @@ export function WelcomeScreen() {
       <div className="label" style={{ marginTop: 44, fontSize: 13 }}>
         How will you use Maricho?
       </div>
-      <div className="stack" style={{ marginTop: 12, gap: 12 }}>
+      <div className="stack path-grid" style={{ marginTop: 12, gap: 12 }}>
         <Link href="/signup?role=buyer" className="path-card">
           <div className="icon-tile icon-tile--lg icon-tile--amber icon-tile--edged">
             <Icon name="home" size={22} strokeWidth={1.75} />

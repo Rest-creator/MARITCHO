@@ -11,6 +11,7 @@ import {
   employerJobHref,
   finishedJobs,
   isOpenStatus,
+  mapReviewTags,
   matchExplanation,
   responseLabel,
   sortCandidates,
@@ -87,7 +88,13 @@ describe("job routing", () => {
 });
 
 describe("candidates", () => {
-  it("introduces workers by standing and trade", () => {
+  it("introduces workers by display name when available, falling back to standing and trade", () => {
+    expect(candidateTitle({ grade: "EXPERT", display_name: "Tendai Moyo" }, "PLUMBING")).toBe(
+      "Tendai Moyo",
+    );
+    expect(candidateTitle({ grade: "EXPERT", display_name: "   " }, "PLUMBING")).toBe(
+      "Expert plumber",
+    );
     expect(candidateTitle({ grade: "EXPERT" }, "PLUMBING")).toBe("Expert plumber");
     expect(candidateTitle({ grade: "REGISTERED" }, "WELDING")).toBe("New welder");
     expect(candidateTitle({ grade: "IDENTIFIED" }, "SOLAR")).toBe("ID-checked solar installer");
@@ -163,6 +170,15 @@ describe("review and record text", () => {
       "★★★★☆ — On time, Polite — Great",
     );
     expect(composeReview(0, [], "  ")).toBeUndefined();
+  });
+
+  it("maps UI review tags to backend ReviewTagEnum values", () => {
+    expect(mapReviewTags(["On time", "Quality work", "Cleaned up", "Fair price"])).toEqual([
+      "ON_TIME",
+      "QUALITY_WORK",
+      "CLEAN",
+    ]);
+    expect(mapReviewTags(["Polite", "Unknown"])).toEqual(["PROFESSIONAL"]);
   });
 
   it("summarises the job from its first description line", () => {

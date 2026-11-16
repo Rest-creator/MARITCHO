@@ -19,6 +19,7 @@ from app.apps.jobs.domain.services import (
     ListOpenJobsForWorkerUseCase,
     RaiseDisputeUseCase,
     RespondToDisputeUseCase,
+    SearchOpenJobsUseCase,
     SubmitJobOfferUseCase,
     SubmitQuoteUseCase,
 )
@@ -148,6 +149,12 @@ def get_list_open_jobs_use_case(
     suburbs: SqlAlchemySuburbRepository = Depends(get_suburb_repository),
 ) -> ListOpenJobsForWorkerUseCase:
     return ListOpenJobsForWorkerUseCase(jobs, worker_profiles, suburbs)
+
+
+def get_search_open_jobs_use_case(
+    jobs: SqlAlchemyJobRepository = Depends(get_job_repository),
+) -> SearchOpenJobsUseCase:
+    return SearchOpenJobsUseCase(jobs)
 
 
 def get_submit_job_offer_use_case(

@@ -30,6 +30,7 @@ from app.apps.jobs.infrastructure.models import (
     LedgerEntryModel,
     RecordEntryModel,
 )
+from app.shared_kernel.embeddings import embed_text
 from app.shared_kernel.enums import CurrencyEnum, LedgerEntryTypeEnum, NeededByEnum, TradeEnum
 from app.shared_kernel.ports import WorkerAvailabilityPort
 
@@ -133,6 +134,7 @@ class SqlAlchemyJobRepository(JobRepository, WorkerAvailabilityPort):
         budget_amount: Decimal | None,
         needed_by: NeededByEnum = NeededByEnum.FLEXIBLE,
     ) -> Job:
+        embedding = embed_text(problem_description, trade=trade, suburb=suburb)
         model = JobModel(
             buyer_id=buyer_id,
             status=JobStatusEnum.REQUESTED,
@@ -143,6 +145,7 @@ class SqlAlchemyJobRepository(JobRepository, WorkerAvailabilityPort):
             latitude=latitude,
             longitude=longitude,
             problem_description=problem_description,
+            problem_embedding=embedding,
             problem_photo_url=problem_photo_url,
             budget_amount=budget_amount,
             needed_by=needed_by,
@@ -204,6 +207,31 @@ class SqlAlchemyJobRepository(JobRepository, WorkerAvailabilityPort):
             .order_by(JobModel.created_at.desc())
         )
         return [_job_to_entity(model) for model in result.scalars().all()]
+
+    async def search_open_by_vector(
+        self,
+        query_embedding: Sequence[float],
+        *,
+        trades: Sequence[TradeEnum] | None = None,
+        suburb: str | None = None,
+        limit: int = 20,
+    ) -> Sequence[tuple[Job, float]]:
+        distance_expr = JobModel.problem_embedding.cosine_distance(list(query_embedding))
+        stmt = select(JobModel, distance_expr.label("cosine_distance")).where(
+            JobModel.status.in_((JobStatusEnum.REQUESTED, JobStatusEnum.MATCHED)),
+            JobModel.problem_embedding.is_not(None),
+        )
+        if trades:
+            stmt = stmt.where(JobModel.trade.in_(list(trades)))
+        if suburb:
+            stmt = stmt.where(JobModel.suburb == suburb)
+        stmt = stmt.order_by(distance_expr.asc(), JobModel.created_at.desc()).limit(limit)
+        result = await self._db.execute(stmt)
+        rows: list[tuple[Job, float]] = []
+        for model, distance in result.all():
+            similarity = max(0.0, min(1.0, round(1.0 - float(distance or 0.0), 4)))
+            rows.append((_job_to_entity(model), similarity))
+        return rows
 
     async def list_by_buyer(self, buyer_id: uuid.UUID, *, limit: int, offset: int) -> Sequence[Job]:
         result = await self._db.execute(

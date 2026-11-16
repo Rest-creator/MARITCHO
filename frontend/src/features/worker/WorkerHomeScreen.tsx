@@ -4,15 +4,18 @@ import { useState } from "react";
 import Link from "next/link";
 
 import { Avatar } from "@/components/ui/Avatar";
+import { Icon } from "@/components/ui/Icon";
 import { Screen } from "@/components/ui/Screen";
 import { EmptyState, ErrorState, Skeleton } from "@/components/ui/States";
 import { Switch } from "@/components/ui/Switch";
 import { firstName, greeting } from "@/core/format/format";
 import { tradeWorkLabel } from "@/core/format/trades";
 import { updateProfile, useLocalProfile } from "@/core/session/profile-store";
+import { useOpenJobsSearch } from "@/features/jobs/hooks";
 import { OpenJobCard } from "@/features/worker/OpenJobCard";
 import {
   applyJobFilter,
+  filterJobsByQuery,
   rankOpenJobs,
   isSameFilter,
   jobsWithinReach,
@@ -20,19 +23,28 @@ import {
 } from "@/features/worker/open-job-filters";
 import { WorkerTabBar } from "@/features/worker/WorkerTabBar";
 import { useWorkerHomeScreen } from "@/features/worker/screen-hooks";
+import { useUpdateUserProfile } from "@/features/workers/hooks";
 
 /** Design W2 · Jobs near you. */
 export function WorkerHomeScreen() {
   const profile = useLocalProfile();
+  const updateServerProfile = useUpdateUserProfile();
   // One request for the whole screen (ADR-009 phase 2).
   const screen = useWorkerHomeScreen();
   const skills = screen.data?.skills;
   const openJobs = screen.data?.open_jobs;
   const [filter, setFilter] = useState<JobFilter>({ kind: "all" });
+  const [searchQuery, setSearchQuery] = useState("");
+  const vectorSearch = useOpenJobsSearch(searchQuery);
 
   const reachable = jobsWithinReach(openJobs ?? [], profile.travelKm);
+  const searched = filterJobsByQuery(
+    reachable,
+    searchQuery,
+    vectorSearch.data ? jobsWithinReach(vectorSearch.data, profile.travelKm) : undefined,
+  );
   const offeredJobIds = new Set((screen.data?.offers ?? []).map((offer) => offer.job_id));
-  const visible = rankOpenJobs(applyJobFilter(reachable, filter), offeredJobIds);
+  const visible = rankOpenJobs(applyJobFilter(searched, filter), offeredJobIds);
   const hasNoSkills = skills !== undefined && skills.length === 0;
   const name = firstName(profile.name);
 
@@ -81,7 +93,10 @@ export function WorkerHomeScreen() {
         <Switch
           isOn={profile.isAvailable}
           label="Available for work"
-          onToggle={(next) => updateProfile({ isAvailable: next })}
+          onToggle={(next) => {
+            updateProfile({ isAvailable: next });
+            updateServerProfile.mutate({ is_available: next });
+          }}
         />
       </div>
 
@@ -101,6 +116,17 @@ export function WorkerHomeScreen() {
 
       {profile.isAvailable && !hasNoSkills && (
         <>
+          <label className="search worker-search">
+            <Icon name="search" />
+            <input
+              type="search"
+              placeholder="Search jobs by problem, trade or suburb (e.g. leaking geyser, solar)…"
+              aria-label="Search open jobs"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+            />
+          </label>
+
           <div className="chip-list chip-list--scroll" role="group" aria-label="Filter jobs">
             {filters.map((option) => (
               <button
@@ -126,19 +152,21 @@ export function WorkerHomeScreen() {
                 : "Try another filter."}
             </EmptyState>
           )}
-          {visible.map(({ job, reasons }, index) => (
-            <OpenJobCard
-              key={job.job_id}
-              job={job}
-              isFeatured={index === 0}
-              hasOffered={offeredJobIds.has(job.job_id)}
-              matchReason={
-                index === 0 && !offeredJobIds.has(job.job_id)
-                  ? ["Best match", ...reasons.slice(0, 2)].join(" · ")
-                  : null
-              }
-            />
-          ))}
+          <div className="cards-grid">
+            {visible.map(({ job, reasons }, index) => (
+              <OpenJobCard
+                key={job.job_id}
+                job={job}
+                isFeatured={index === 0}
+                hasOffered={offeredJobIds.has(job.job_id)}
+                matchReason={
+                  index === 0 && !offeredJobIds.has(job.job_id)
+                    ? ["Best match", ...reasons.slice(0, 2)].join(" · ")
+                    : null
+                }
+              />
+            ))}
+          </div>
         </>
       )}
 

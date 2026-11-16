@@ -13,6 +13,7 @@ import { requestSignInCode } from "@/core/session/sign-in-code";
 import { homeFor, useSession, type SignInRole } from "@/core/session/SessionProvider";
 import { RoleMismatchNotice } from "@/features/accounts/RoleMismatchNotice";
 import { SignInCodeStep } from "@/features/accounts/SignInCodeStep";
+import { useUpdateUserProfile } from "@/features/workers/hooks";
 
 type Props = {
   initialRole: SignInRole;
@@ -49,6 +50,7 @@ export function SignUpScreen({ initialRole, isLogin, isExpired }: Props) {
   const router = useRouter();
   const profile = useLocalProfile();
   const { signIn, signOut, isSigningIn, signInError } = useSession();
+  const updateServerProfile = useUpdateUserProfile();
   const [role, setRole] = useState<SignInRole>(initialRole);
   const [name, setName] = useState(profile.name);
   const [phone, setPhone] = useState(profile.phone === "" ? "" : formatLocalPhone(profile.phone));
@@ -66,11 +68,15 @@ export function SignUpScreen({ initialRole, isLogin, isExpired }: Props) {
   async function completeSignIn(international: string, code?: string): Promise<void> {
     try {
       const user = await signIn({ phone: international, role, ...(code ? { code } : {}) });
-      updateProfile({ phone: international, ...(name.trim() === "" ? {} : { name: name.trim() }) });
+      const trimmedName = name.trim();
+      updateProfile({ phone: international, ...(trimmedName === "" ? {} : { name: trimmedName }) });
       if ((user.role === "BUYER" || user.role === "WORKER") && user.role !== role) {
         setCodeStep(null);
         setRegisteredAs(user.role);
         return;
+      }
+      if (trimmedName !== "") {
+        updateServerProfile.mutate({ display_name: trimmedName });
       }
       router.replace(user.role === "WORKER" && !isLogin ? "/worker/skills" : homeFor(user.role));
     } catch {

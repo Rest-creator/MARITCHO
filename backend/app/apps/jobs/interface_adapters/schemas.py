@@ -285,3 +285,32 @@ class OpenJobOut(BaseModel):
     distance_band: DistanceBandEnum
     distance_km: float
     needed_by: NeededByEnum = NeededByEnum.FLEXIBLE
+    similarity_score: float | None = None
+
+
+class JobSearchResultOut(BaseModel):
+    """pgvector semantic search result over open jobs."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    job_id: uuid.UUID
+    trade: TradeEnum
+    suburb: str
+    budget_amount: Decimal | None
+    problem_description: str | None
+    created_at: datetime | None
+    needed_by: NeededByEnum = NeededByEnum.FLEXIBLE
+    similarity_score: float
+    matched_trade: TradeEnum | None = None
+
+
+class SkillSearchResultOut(BaseModel):
+    """Semantic skill & trade match result."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    label: str
+    trade: TradeEnum | None
+    category: str
+    similarity_score: float

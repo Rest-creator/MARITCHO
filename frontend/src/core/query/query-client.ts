@@ -11,18 +11,22 @@ import {
   sendMessage,
   submitOffer,
   submitQuote,
+  submitReview,
+  updateUserProfile,
   type BookJobInput,
   type CompleteJobInput,
   type CreateJobInput,
   type RaiseDisputeInput,
   type RegisterServiceAreaInput,
+  type RegisterSkillInput,
   type RespondToDisputeInput,
   type SendMessageInput,
   type SubmitOfferInput,
   type SubmitQuoteInput,
+  type SubmitReviewInput,
+  type UpdateUserProfileInput,
 } from "@/core/api/endpoints";
 import { ApiError } from "@/core/api/http";
-import type { Trade } from "@/core/api/schemas";
 import { mutationKeys, queryKeys } from "@/core/query/keys";
 
 export const UNAUTHORIZED_EVENT = "maricho:unauthorized";
@@ -116,6 +120,11 @@ export function createQueryClient(): QueryClient {
     queryKeys.myJobs,
     queryKeys.job(v.jobId),
   ]);
+  registerReplayable<SubmitReviewInput>(client, mutationKeys.submitReview, submitReview, (v) => [
+    queryKeys.job(v.jobId),
+    queryKeys.standing,
+    queryKeys.screens,
+  ]);
   registerReplayable<RaiseDisputeInput>(client, mutationKeys.raiseDispute, raiseDispute, (v) => [
     queryKeys.myJobs,
     queryKeys.job(v.jobId),
@@ -134,7 +143,7 @@ export function createQueryClient(): QueryClient {
   registerReplayable<SendMessageInput>(client, mutationKeys.sendMessage, sendMessage, (v) => [
     queryKeys.messages(v.jobId),
   ]);
-  registerReplayable<Trade>(client, mutationKeys.registerSkill, registerSkill, () => [
+  registerReplayable<RegisterSkillInput>(client, mutationKeys.registerSkill, registerSkill, () => [
     queryKeys.skills,
     queryKeys.openJobs,
     queryKeys.screens,
@@ -144,6 +153,12 @@ export function createQueryClient(): QueryClient {
     mutationKeys.registerServiceArea,
     registerServiceArea,
     () => [queryKeys.serviceAreas, queryKeys.openJobs, queryKeys.screens],
+  );
+  registerReplayable<UpdateUserProfileInput>(
+    client,
+    mutationKeys.updateProfile,
+    updateUserProfile,
+    () => [queryKeys.session, queryKeys.openJobs, queryKeys.screens],
   );
 
   return client;

@@ -9,15 +9,17 @@ import { Screen } from "@/components/ui/Screen";
 import { formatLocalPhone } from "@/core/format/format";
 import { updateProfile, useLocalProfile } from "@/core/session/profile-store";
 import { useSession } from "@/core/session/SessionProvider";
+import { useUpdateUserProfile } from "@/features/workers/hooks";
 
 type Props = { tabBar: ReactNode };
 
 export function AccountScreen({ tabBar }: Props) {
   const { user, signOut } = useSession();
   const profile = useLocalProfile();
+  const updateServerProfile = useUpdateUserProfile();
   const [name, setName] = useState(profile.name);
   const isWorker = user?.role === "WORKER";
-  const displayName = profile.name || "Your account";
+  const displayName = profile.name || user?.display_name || "Your account";
 
   return (
     <Screen glow={isWorker ? "worker" : "employer"} hasTabBar>
@@ -38,7 +40,11 @@ export function AccountScreen({ tabBar }: Props) {
         className="card stack"
         onSubmit={(event) => {
           event.preventDefault();
-          updateProfile({ name: name.trim() });
+          const trimmed = name.trim();
+          updateProfile({ name: trimmed });
+          if (trimmed !== "") {
+            updateServerProfile.mutate({ display_name: trimmed });
+          }
         }}
       >
         <div className="field">

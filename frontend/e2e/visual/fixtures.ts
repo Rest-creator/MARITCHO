@@ -262,14 +262,18 @@ function responsesFor(who: Who): Record<string, Reply> {
   const user = who === "BUYER" ? BUYER : who === "WORKER" ? WORKER : null;
   return {
     "GET session": ok(user),
+    "PATCH users/me": ok(user ?? BUYER),
     "GET suburbs": ok(SUBURBS),
     "GET jobs/mine": ok([OPEN_JOB, LIVE_JOB, DONE_JOB]),
     [`GET jobs/${OPEN_JOB_ID}`]: ok(OPEN_JOB),
     [`GET jobs/${LIVE_JOB_ID}`]: ok(LIVE_JOB),
+    [`POST jobs/${LIVE_JOB_ID}/review`]: { status: 201, json: {} },
     [`GET jobs/${OPEN_JOB_ID}/matches`]: ok(MATCHES),
     [`GET jobs/${LIVE_JOB_ID}/messages`]: ok(MESSAGES),
     [`POST jobs/${LIVE_JOB_ID}/messages/read`]: { status: 204 },
     "GET jobs/open": ok(OPEN_JOBS),
+    "GET jobs/search": ok([]),
+    "GET jobs/search/skills": ok([]),
     "GET jobs/assigned": ok([BOOKED_JOB, LIVE_JOB, DONE_JOB]),
     "GET jobs/my-offers": ok(MY_OFFERS),
     "GET workers/me/skills": ok(SKILLS),
