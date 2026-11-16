@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <linearGradient id="maritchoMark" x1="10%" y1="0%" x2="90%" y2="100%">
+      <stop offset="0%" stop-color="#3FB6E8"/>
+      <stop offset="100%" stop-color="#2B3990"/>
+    </linearGradient>
+  </defs>
+  <g fill="none" stroke="url(#maritchoMark)" stroke-linecap="round">
+    <path d="M14 23 A52 52 0 0 1 82 72" stroke-width="7"/>
+    <path d="M32 36 A32 32 0 0 1 68 70" stroke-width="7"/>
+    <path d="M44 58 A14 14 0 0 1 61 70" stroke-width="7"/>
+  </g>
+  <circle cx="68" cy="23" r="7.5" fill="#3FB6E8"/>
+  <circle cx="68" cy="47" r="6" fill="#2F6FB0"/>
+  <circle cx="61" cy="70" r="5" fill="#2B3990"/>
+</svg>

@@ -1427,8 +1427,8 @@ a.card:hover {
   width: 36px;
   height: 36px;
   border-radius: var(--radius-sm);
-  background: var(--amber);
-  color: var(--amber-ink);
+  background: var(--brand-gradient);
+  color: var(--text);
   display: flex;
   align-items: center;
   justify-content: center;

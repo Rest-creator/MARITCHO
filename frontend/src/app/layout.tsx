@@ -22,13 +22,16 @@ export const metadata: Metadata = {
   applicationName: "Maricho",
   appleWebApp: { capable: true, title: "Maricho", statusBarStyle: "black-translucent" },
   icons: {
-    icon: [{ url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" }],
+    icon: [
+      { url: "/logo-mark.svg", type: "image/svg+xml" },
+      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+    ],
     apple: [{ url: "/icons/icon-192.png", sizes: "192x192" }],
   },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0F172A",
+  themeColor: "#1B1C4F",
   colorScheme: "dark",
   width: "device-width",
   initialScale: 1,
