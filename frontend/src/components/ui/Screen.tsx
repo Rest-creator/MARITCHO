@@ -29,12 +29,13 @@ export function Screen({
   hasTabBar = false,
   bodyClassName,
 }: Props) {
+  const screenClasses = ["screen", hasTabBar ? "screen--nav" : ""].filter(Boolean).join(" ");
   const bodyClasses = ["screen__body", hasTabBar ? "screen__body--nav" : "", bodyClassName ?? ""]
     .filter(Boolean)
     .join(" ");
 
   return (
-    <div className="screen">
+    <div className={screenClasses}>
       <div className="screen__glows" aria-hidden="true">
         {GLOWS[glow].map((classes) => (
           <div key={classes} className={`glow ${classes}`} />

@@ -636,3 +636,10 @@ nullable). `POST /jobs/{id}/messages`, `GET /jobs/{id}/messages`,
 `POST /jobs/{id}/messages/read`, and `WS /jobs/{id}/ws` for real-time
 delivery via Redis pub/sub — see ADR-008 for why WebSockets (not REST
 polling) and the full design.
+
+
+## 16. Semantic Vector Search (`pgvector`)
+
+Migration `d8f3a1c2e5b7_add_pgvector_search.py` enables the PostgreSQL `vector` extension (`CREATE EXTENSION IF NOT EXISTS vector`), adds `problem_embedding vector(64)` (nullable) to `JOBS`, backfills existing rows, and creates an HNSW cosine-distance index (`ix_jobs_problem_embedding_hnsw` using `vector_cosine_ops`).
+
+`app/shared_kernel/embeddings.py` generates deterministic, L2-normalized 64-dimensional embeddings combining 16 multi-lingual (English / Shona / Ndebele) trade & domain concept clusters with 48 dimensions of signed feature hashing over word stems, bigrams, and character trigrams. New endpoints `GET /jobs/search`, `GET /jobs/search/skills`, and the `q` parameter on `GET /jobs/open` rank open jobs and skills by `pgvector` cosine distance (`<=>`) combined with distance band and urgency.

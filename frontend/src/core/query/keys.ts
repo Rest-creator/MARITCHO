@@ -7,6 +7,10 @@ export const queryKeys = {
   record: (jobId: string) => ["jobs", "record", jobId] as const,
   disputes: (jobId: string) => ["jobs", "disputes", jobId] as const,
   openJobs: ["jobs", "open"] as const,
+  openJobsSearch: (query: string) => ["jobs", "open", "search", query] as const,
+  jobSearch: (query: string, trade: string = "", suburb: string = "") =>
+    ["jobs", "search", query, trade, suburb] as const,
+  skillSearch: (query: string) => ["jobs", "search-skills", query] as const,
   assignedJobs: ["jobs", "assigned"] as const,
   myOffers: ["jobs", "my-offers"] as const,
   messages: (jobId: string) => ["messages", jobId] as const,
@@ -33,9 +37,11 @@ export const mutationKeys = {
   bookJob: ["bookJob"] as const,
   submitQuote: ["submitQuote"] as const,
   completeJob: ["completeJob"] as const,
+  submitReview: ["submitReview"] as const,
   raiseDispute: ["raiseDispute"] as const,
   respondToDispute: ["respondToDispute"] as const,
   sendMessage: ["sendMessage"] as const,
   registerSkill: ["registerSkill"] as const,
   registerServiceArea: ["registerServiceArea"] as const,
+  updateProfile: ["updateProfile"] as const,
 };

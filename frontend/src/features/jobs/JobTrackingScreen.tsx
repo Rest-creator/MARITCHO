@@ -13,11 +13,12 @@ import type { Job } from "@/core/api/schemas";
 import { formatMoney, formatRelativeTime, formatShortDate } from "@/core/format/format";
 import { tradeLabel } from "@/core/format/trades";
 import { DisputeSheet } from "@/features/jobs/DisputeSheet";
-import { useCompleteJob, useJob, useRecord } from "@/features/jobs/hooks";
+import { useCompleteJob, useJob, useRecord, useSubmitReview } from "@/features/jobs/hooks";
 import {
   TRACKING_STEPS,
   completedSteps,
   composeReview,
+  mapReviewTags,
   splitTiming,
   summariseJob,
 } from "@/features/jobs/job-helpers";
@@ -77,6 +78,7 @@ function statusCopy(job: Job): { title: string; detail: string } {
 export function JobTrackingScreen({ jobId }: Props) {
   const job = useJob(jobId);
   const completeJob = useCompleteJob();
+  const submitReview = useSubmitReview();
   const record = useRecord(jobId, job.data?.status === "COMPLETED");
   const [review, setReview] = useState<ReviewDraft>({ stars: 5, tags: [], note: "" });
   const [isDisputeOpen, setIsDisputeOpen] = useState(false);
@@ -109,14 +111,28 @@ export function JobTrackingScreen({ jobId }: Props) {
   const copy = statusCopy(data);
   const canSignOff = data.status === "IN_PROGRESS";
   const price = data.quote_amount;
-  const workerName = `${tradeLabel(data.trade)}`;
+  const workerName = data.worker_display_name || `${tradeLabel(data.trade)}`;
 
   function handleConfirm(): void {
-    completeJob.mutate({
-      jobId,
-      what_was_done: summariseJob(data),
-      client_words: composeReview(review.stars, review.tags, review.note),
-    });
+    completeJob.mutate(
+      {
+        jobId,
+        what_was_done: summariseJob(data),
+        client_words: composeReview(review.stars, review.tags, review.note),
+      },
+      {
+        onSuccess: () => {
+          if (review.stars >= 1) {
+            submitReview.mutate({
+              jobId,
+              rating: review.stars,
+              tags: mapReviewTags(review.tags),
+              ...(review.note.trim() === "" ? {} : { comment: review.note.trim().slice(0, 1000) }),
+            });
+          }
+        },
+      },
+    );
   }
 
   return (
@@ -126,7 +142,7 @@ export function JobTrackingScreen({ jobId }: Props) {
         <div className="topbar__text">
           <h1 className="title truncate">{heading}</h1>
           <div className="meta">
-            Hired {workerName.toLowerCase()}
+            Hired {data.worker_display_name ? data.worker_display_name : workerName.toLowerCase()}
             {price === null ? "" : ` · ${formatMoney(price)}`}
           </div>
         </div>

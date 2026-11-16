@@ -128,6 +128,12 @@ export function PostJobScreen({ initialTrade, initialSkillId, shouldOpenPicker }
     setHasPhotoFailed(false);
 
     const budgetAmount = Number(budget);
+    const neededBy =
+      timing === "Today"
+        ? ("TODAY" as const)
+        : timing === "This week"
+          ? ("THIS_WEEK" as const)
+          : ("FLEXIBLE" as const);
     updateProfile({ lastSuburb: location.suburb, lastAddress: location.address });
     const input = {
       trade: skill.trade,
@@ -135,6 +141,7 @@ export function PostJobScreen({ initialTrade, initialSkillId, shouldOpenPicker }
       address: location.address,
       ...(location.landmark === "" ? {} : { landmark_narrative: location.landmark }),
       problem_description: withTiming(describeWithSkill(skill, description), timingLabel()),
+      needed_by: neededBy,
       ...(budget !== "" && budgetAmount > 0 ? { budget_amount: budgetAmount } : {}),
       ...(photoUrl === undefined ? {} : { problem_photo_url: photoUrl }),
     };

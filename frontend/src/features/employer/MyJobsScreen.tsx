@@ -66,7 +66,7 @@ export function MyJobsScreen() {
           }
         />
       )}
-      <div className="stack">
+      <div className="stack cards-grid">
         {visible.map((job) => (
           <EmployerJobCard key={job.id} job={job} />
         ))}

@@ -1,5 +1,6 @@
 import { useMutation, useQuery, type UseQueryResult } from "@tanstack/react-query";
 
+import { useDebouncedValue } from "@/core/hooks/useDebouncedValue";
 import {
   fetchAssignedJobs,
   fetchDisputes,
@@ -9,6 +10,8 @@ import {
   fetchMyOffers,
   fetchOpenJobs,
   fetchRecord,
+  searchOpenJobs,
+  searchSkillsVector,
   type BookJobInput,
   type CompleteJobInput,
   type CreateJobInput,
@@ -16,16 +19,20 @@ import {
   type RespondToDisputeInput,
   type SubmitOfferInput,
   type SubmitQuoteInput,
+  type SubmitReviewInput,
 } from "@/core/api/endpoints";
 import type {
   Dispute,
   Job,
   JobOffer,
+  JobSearchResult,
   MatchCandidate,
   MyJob,
   MyOffer,
   OpenJob,
   RecordEntry,
+  SkillSearchResult,
+  Trade,
 } from "@/core/api/schemas";
 import { mutationKeys, queryKeys } from "@/core/query/keys";
 
@@ -93,7 +100,47 @@ export function useDisputes(jobId: string, isEnabled: boolean): UseQueryResult<D
 }
 
 export function useOpenJobs(): UseQueryResult<OpenJob[]> {
-  return useQuery({ queryKey: queryKeys.openJobs, queryFn: fetchOpenJobs, ...CHANGED_BY_OTHERS });
+  return useQuery({
+    queryKey: queryKeys.openJobs,
+    queryFn: ({ signal }) => fetchOpenJobs(undefined, signal),
+    ...CHANGED_BY_OTHERS,
+  });
+}
+
+export function useOpenJobsSearch(query: string): UseQueryResult<OpenJob[]> {
+  const trimmed = query.trim();
+  const debounced = useDebouncedValue(trimmed, 350);
+  return useQuery({
+    queryKey: queryKeys.openJobsSearch(debounced),
+    queryFn: ({ signal }) => fetchOpenJobs(debounced, signal),
+    enabled: debounced.length >= 2,
+    staleTime: 10_000,
+  });
+}
+
+export function useSearchOpenJobs(
+  query: string,
+  options: { trade?: Trade; suburb?: string } = {},
+): UseQueryResult<JobSearchResult[]> {
+  const trimmed = query.trim();
+  const debounced = useDebouncedValue(trimmed, 350);
+  return useQuery({
+    queryKey: queryKeys.jobSearch(debounced, options.trade ?? "", options.suburb ?? ""),
+    queryFn: ({ signal }) =>
+      searchOpenJobs({ q: debounced, trade: options.trade, suburb: options.suburb }, signal),
+    enabled: debounced.length >= 2,
+    staleTime: 10_000,
+  });
+}
+
+export function useSearchSkills(query: string): UseQueryResult<SkillSearchResult[]> {
+  const trimmed = query.trim();
+  return useQuery({
+    queryKey: queryKeys.skillSearch(trimmed),
+    queryFn: ({ signal }) => searchSkillsVector(trimmed, signal),
+    enabled: trimmed.length >= 2,
+    staleTime: 60_000,
+  });
 }
 
 export function useAssignedJobs(): UseQueryResult<Job[]> {
@@ -132,6 +179,10 @@ export function useSubmitQuote() {
 
 export function useCompleteJob() {
   return useMutation<Job, Error, CompleteJobInput>({ mutationKey: mutationKeys.completeJob });
+}
+
+export function useSubmitReview() {
+  return useMutation<void, Error, SubmitReviewInput>({ mutationKey: mutationKeys.submitReview });
 }
 
 export function useRaiseDispute() {

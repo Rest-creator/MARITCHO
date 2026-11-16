@@ -2,22 +2,28 @@ import uuid
 from datetime import datetime
 from decimal import Decimal
 
+from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
     CheckConstraint,
     DateTime,
     Enum,
     ForeignKey,
+    Index,
     Numeric,
     String,
     Text,
     UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql.base import ischema_names
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.apps.jobs.domain.entities import DisputeStatusEnum, JobStatusEnum
 from app.core.database import Base
+from app.shared_kernel.embeddings import EMBEDDING_DIM
 from app.shared_kernel.enums import CurrencyEnum, LedgerEntryTypeEnum, NeededByEnum, TradeEnum
+
+ischema_names["vector"] = Vector
 
 
 class JobModel(Base):
@@ -37,6 +43,9 @@ class JobModel(Base):
     latitude: Mapped[Decimal | None] = mapped_column(Numeric(9, 6))
     longitude: Mapped[Decimal | None] = mapped_column(Numeric(9, 6))
     problem_description: Mapped[str | None] = mapped_column(Text)
+    problem_embedding: Mapped[list[float] | None] = mapped_column(
+        Vector(EMBEDDING_DIM), nullable=True
+    )
     problem_photo_url: Mapped[str | None] = mapped_column(String(255))
     # Buyer's optional stated budget at request time — informational only,
     # never enforced against the eventual deposit/quote amounts.
@@ -64,6 +73,12 @@ class JobModel(Base):
             " AND materials_amount IS NOT NULL"
             " AND quote_amount = labor_amount + materials_amount)",
             name="check_job_quote_equals_labor_plus_materials",
+        ),
+        Index(
+            "ix_jobs_problem_embedding_hnsw",
+            "problem_embedding",
+            postgresql_using="hnsw",
+            postgresql_ops={"problem_embedding": "vector_cosine_ops"},
         ),
     )
 

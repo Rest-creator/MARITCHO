@@ -146,9 +146,15 @@ export function MyWorkScreen({ initialTab }: Props) {
               When a client hires you, the job and its address appear here.
             </EmptyState>
           )}
-          {activeJobs.map((job) => (
-            <ActiveJobCard key={job.id} job={job} offeredAmount={offerByJob.get(job.id) ?? null} />
-          ))}
+          <div className="cards-grid">
+            {activeJobs.map((job) => (
+              <ActiveJobCard
+                key={job.id}
+                job={job}
+                offeredAmount={offerByJob.get(job.id) ?? null}
+              />
+            ))}
+          </div>
         </>
       )}
 

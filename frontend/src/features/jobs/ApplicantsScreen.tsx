@@ -107,15 +107,17 @@ export function ApplicantsScreen({ jobId }: Props) {
               </button>
             ))}
           </div>
-          {responded.map((candidate, index) => (
-            <CandidateCard
-              key={candidate.worker_id}
-              job={job.data}
-              candidate={candidate}
-              isTopPick={index === 0}
-              onHire={setHiring}
-            />
-          ))}
+          <div className="cards-grid">
+            {responded.map((candidate, index) => (
+              <CandidateCard
+                key={candidate.worker_id}
+                job={job.data}
+                candidate={candidate}
+                isTopPick={index === 0}
+                onHire={setHiring}
+              />
+            ))}
+          </div>
         </>
       )}
 

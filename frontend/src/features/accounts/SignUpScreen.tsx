@@ -11,6 +11,7 @@ import { formatLocalPhone, toInternationalPhone } from "@/core/format/format";
 import { updateProfile, useLocalProfile } from "@/core/session/profile-store";
 import { homeFor, useSession, type SignInRole } from "@/core/session/SessionProvider";
 import { RoleMismatchNotice } from "@/features/accounts/RoleMismatchNotice";
+import { useUpdateUserProfile } from "@/features/workers/hooks";
 
 type Props = {
   initialRole: SignInRole;
@@ -42,6 +43,7 @@ export function SignUpScreen({ initialRole, isLogin, isExpired }: Props) {
   const router = useRouter();
   const profile = useLocalProfile();
   const { signUp, signIn, signOut, isSigningIn, signInError } = useSession();
+  const updateServerProfile = useUpdateUserProfile();
   const [role, setRole] = useState<SignInRole>(initialRole);
   const [name, setName] = useState(profile.name);
   const [phone, setPhone] = useState(profile.phone === "" ? "" : formatLocalPhone(profile.phone));
@@ -60,14 +62,18 @@ export function SignUpScreen({ initialRole, isLogin, isExpired }: Props) {
     if (problem !== null) return;
 
     const international = toInternationalPhone(phone);
+    const trimmedName = name.trim();
     try {
       const user = isLogin
         ? await signIn({ phone: international, password })
-        : await signUp({ phone: international, password, name: name.trim(), role });
-      updateProfile({ phone: international, ...(name.trim() === "" ? {} : { name: name.trim() }) });
+        : await signUp({ phone: international, password, name: trimmedName, role });
+      updateProfile({ phone: international, ...(trimmedName === "" ? {} : { name: trimmedName }) });
       if ((user.role === "BUYER" || user.role === "WORKER") && user.role !== role) {
         setRegisteredAs(user.role);
         return;
+      }
+      if (trimmedName !== "") {
+        updateServerProfile.mutate({ display_name: trimmedName });
       }
       router.replace(user.role === "WORKER" && !isLogin ? "/worker/skills" : homeFor(user.role));
     } catch {

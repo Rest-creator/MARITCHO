@@ -24,6 +24,12 @@ export function TabBar({ items, ariaLabel }: Props) {
   const pathname = usePathname();
   return (
     <nav className="tabbar" aria-label={ariaLabel}>
+      <div className="tabbar__brand" aria-hidden="true">
+        <span className="brand__mark">
+          <Icon name="wrench" strokeWidth={2} />
+        </span>
+        <span>Maricho</span>
+      </div>
       {items.map((item) => (
         <Link
           key={item.href}

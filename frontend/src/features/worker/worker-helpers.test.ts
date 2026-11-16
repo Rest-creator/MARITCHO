@@ -5,6 +5,7 @@ import { monthLabel, summariseMonth } from "@/features/worker/earnings";
 import { parseOfferAmount } from "@/features/worker/money-input";
 import {
   applyJobFilter,
+  filterJobsByQuery,
   isSameFilter,
   jobsWithinReach,
   rankOpenJobs,
@@ -147,5 +148,29 @@ describe("rankOpenJobs", () => {
       now,
     );
     expect(ranked.map((entry) => entry.job.job_id)).toEqual(["new", "answered"]);
+  });
+
+  it("boosts pgvector semantic similarity matches and filters by query", () => {
+    const jobs = [
+      openJob({
+        job_id: "plumbing-1",
+        trade: "PLUMBING",
+        suburb: "Hillside",
+        problem_description: "Geyser leaking water",
+        distance_km: 4,
+      }),
+      openJob({
+        job_id: "solar-1",
+        trade: "SOLAR",
+        suburb: "Kumalo",
+        problem_description: "Solar inverter beeping",
+        distance_km: 1,
+        similarity_score: 0.85,
+      }),
+    ];
+    expect(filterJobsByQuery(jobs, "geyser").map((j) => j.job_id)).toEqual(["plumbing-1"]);
+    const ranked = rankOpenJobs(jobs, new Set(), now);
+    expect(ranked[0]?.job.job_id).toBe("solar-1");
+    expect(ranked[0]?.reasons).toContain("strong match");
   });
 });

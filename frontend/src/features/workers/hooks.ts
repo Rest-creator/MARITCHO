@@ -7,8 +7,10 @@ import {
   fetchStanding,
   fetchSuburbs,
   type RegisterServiceAreaInput,
+  type RegisterSkillInput,
+  type UpdateUserProfileInput,
 } from "@/core/api/endpoints";
-import type { Reference, ServiceArea, Skill, Standing, Suburb, Trade } from "@/core/api/schemas";
+import type { Reference, ServiceArea, Skill, Standing, Suburb, User } from "@/core/api/schemas";
 import { mutationKeys, queryKeys } from "@/core/query/keys";
 
 export function useSkills(): UseQueryResult<Skill[]> {
@@ -37,11 +39,17 @@ export function useSuburbs(): UseQueryResult<Suburb[]> {
 }
 
 export function useRegisterSkill() {
-  return useMutation<Skill, Error, Trade>({ mutationKey: mutationKeys.registerSkill });
+  return useMutation<Skill, Error, RegisterSkillInput>({ mutationKey: mutationKeys.registerSkill });
 }
 
 export function useRegisterServiceArea() {
   return useMutation<ServiceArea, Error, RegisterServiceAreaInput>({
     mutationKey: mutationKeys.registerServiceArea,
+  });
+}
+
+export function useUpdateUserProfile() {
+  return useMutation<User, Error, UpdateUserProfileInput>({
+    mutationKey: mutationKeys.updateProfile,
   });
 }

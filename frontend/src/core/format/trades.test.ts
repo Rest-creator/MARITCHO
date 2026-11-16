@@ -79,4 +79,10 @@ describe("matchSkills (free text)", () => {
     expect(matchSkills("  ")).toEqual([]);
     expect(matchSkills("astronaut")).toEqual([]);
   });
+
+  it("matches local Zimbabwean and Shona everyday terms", () => {
+    expect(labels("pombi yemvura muchimbuzi")[0]).toBe("Plumber");
+    expect(labels("magetsi and zesa tripping")[0]).toBe("Electrician");
+    expect(labels("durawall and dhaka")[0]).toBe("Bricklayer");
+  });
 });
