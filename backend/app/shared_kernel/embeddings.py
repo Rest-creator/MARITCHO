@@ -105,8 +105,12 @@ _CONCEPT_CLUSTERS: tuple[tuple[str, ...], ...] = (
         "dripping",
         "burst",
         "mvura",
+        "yemvura",
         "pombi",
         "chimbuzi",
+        "muchimbuzi",
+        "donha",
+        "kudonha",
         "amanzi",
     ),
     # 1: ELECTRICAL & power systems

@@ -74,7 +74,7 @@ async def test_pgvector_job_search_ranks_semantically_matching_jobs_first(
         headers=auth_headers(buyer),
         json={
             "trade": "WELDING",
-            "suburb": "Suburbs",
+            "suburb": "Luveve",
             "address": "3 Main St",
             "problem_description": "Fabricate and weld steel burglar bars and sliding gate",
             "budget_amount": "120.00",
@@ -173,7 +173,7 @@ async def test_signup_then_patch_profile_fields(client):
     assert user_data["home_suburb"] == "Hillside"
 
 
-async def test_media_upload_webm_voice_and_counterparty_download(client, buyer, worker):
+async def test_media_upload_webm_voice_then_owner_can_download(client, buyer):
     # Upload audio/webm;codecs=opus as buyer
     upload_res = await client.post(
         "/media/upload",
@@ -185,8 +185,36 @@ async def test_media_upload_webm_voice_and_counterparty_download(client, buyer, 
     assert media_url.startswith("/media/")
     assert upload_res.json()["content_type"] == "audio/webm"
 
-    # Worker (counterparty) can download the media file
+    # The owner can download their own media
+    download_res = await client.get(media_url, headers=auth_headers(buyer))
+    assert download_res.status_code == 200
+    assert download_res.content == b"WEBM_OPUS_BYTES"
+
+
+async def test_media_download_rejects_unrelated_user(client, buyer, worker):
+    upload_res = await client.post(
+        "/media/upload",
+        headers={**auth_headers(buyer), "Idempotency-Key": "voice-note-67890"},
+        files={"file": ("voice-note.webm", b"WEBM_OPUS_BYTES", "audio/webm;codecs=opus")},
+    )
+    assert upload_res.status_code == 201
+    media_url = upload_res.json()["url"]
+
+    # A worker with no relationship to this media must not be able to fetch it
     download_res = await client.get(media_url, headers=auth_headers(worker))
+    assert download_res.status_code == 404
+
+
+async def test_media_download_allows_ops_role(client, buyer, ops_user):
+    upload_res = await client.post(
+        "/media/upload",
+        headers={**auth_headers(buyer), "Idempotency-Key": "voice-note-ops"},
+        files={"file": ("voice-note.webm", b"WEBM_OPUS_BYTES", "audio/webm;codecs=opus")},
+    )
+    assert upload_res.status_code == 201
+    media_url = upload_res.json()["url"]
+
+    download_res = await client.get(media_url, headers=auth_headers(ops_user))
     assert download_res.status_code == 200
     assert download_res.content == b"WEBM_OPUS_BYTES"
 
