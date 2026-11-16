@@ -117,3 +117,20 @@
   --duration-normal: 250ms;
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
 }
+
+/* Responsive widening — every screen is built on --app-max-width and
+   --gutter, so growing those two tokens at wider viewports scales the
+   whole app to tablet/desktop without a second layout system. */
+@media (min-width: 640px) {
+  :root {
+    --app-max-width: 640px;
+    --gutter: 28px;
+  }
+}
+
+@media (min-width: 1024px) {
+  :root {
+    --app-max-width: 880px;
+    --gutter: 40px;
+  }
+}
