@@ -19,13 +19,11 @@ export interface BackendRoute {
 
 /** Routes the BFF calls itself, translating between the apps and FastAPI. */
 export const BACKEND_ROUTES = {
-  /** Development-only sign-in without a code; 404 when APP_ENV=production. */
-  devToken: { method: "POST", path: "/token" },
   me: { method: "GET", path: "/users/me" },
-  /** Send a 6-digit sign-in code (issue #5). */
-  otpRequest: { method: "POST", path: "/otp/request" },
-  /** Exchange the code (plus role, for new accounts) for a token. */
-  otpVerify: { method: "POST", path: "/otp/verify" },
+  /** Create a new account with phone + password (+ name, + role). */
+  authSignUp: { method: "POST", path: "/auth/signup" },
+  /** Sign in with phone + password. */
+  authSignIn: { method: "POST", path: "/auth/signin" },
   /** Multipart upload of a photo or voice note (issue #1). */
   mediaUpload: { method: "POST", path: "/media/upload" },
 

@@ -31,38 +31,39 @@ paths:
           description: System is ready to accept traffic
         '503':
           description: Dependencies are unreachable
-  /token:
+  /auth/signup:
     post:
-      summary: Log in (mock — phone number only, no real verification yet)
+      summary: Create a new account (phone number + password + name)
       description: >
-        Finds a Person by phone, or creates one. `role` only takes effect
-        when this phone number doesn't have an account yet — an existing
-        account's role never changes via a later login. In production this
-        would be replaced by WhatsApp OTP verification (ADR-006, backlog
-        BACK-009) — this is an explicitly documented dev-only stand-in.
-        Request body is form-urlencoded (OAuth2 password-flow field
-        naming): `username` is the phone number, `password` is unused.
+        Rejects a phone number that already has an account (409). `role`
+        is set once, at signup, and never changes on later sign-ins.
+        Traditional phone + password auth (backlog BACK-009 superseded
+        the earlier WhatsApp-OTP plan — OTP codes were never actually
+        delivered to users, only echoed back in the API response).
       requestBody:
         required: true
         content:
-          application/x-www-form-urlencoded:
+          application/json:
             schema:
               type: object
-              required: [username]
+              required: [phone, password, name]
               properties:
-                username:
+                phone:
                   type: string
-                  description: Phone number.
                 password:
                   type: string
-                  description: Unused — accepted for OAuth2 password-flow shape only.
+                  minLength: 8
+                  maxLength: 72
+                name:
+                  type: string
+                  minLength: 2
                 role:
                   type: string
                   enum: [BUYER, WORKER, AGGREGATOR, OPS]
                   default: BUYER
       responses:
         '200':
-          description: Logged in
+          description: Account created, signed in
           content:
             application/json:
               schema:
@@ -73,8 +74,44 @@ paths:
                   token_type:
                     type: string
                     example: bearer
+        '409':
+          description: An account with this phone number already exists
         '422':
-          description: Missing username, or role is not a recognized value
+          description: Invalid phone/password/name, or role is not a recognized value
+  /auth/signin:
+    post:
+      summary: Sign in with an existing account's phone number and password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phone, password]
+              properties:
+                phone:
+                  type: string
+                password:
+                  type: string
+                  minLength: 8
+                  maxLength: 72
+      responses:
+        '200':
+          description: Signed in
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token:
+                    type: string
+                  token_type:
+                    type: string
+                    example: bearer
+        '401':
+          description: Incorrect phone number or password
+        '422':
+          description: Invalid phone or password
   /users/me:
     get:
       summary: Fetch the authenticated user's own account

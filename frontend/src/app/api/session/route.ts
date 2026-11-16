@@ -10,17 +10,25 @@ import {
   sessionCookieOptions,
 } from "@/server/backend";
 import { BACKEND_ROUTES } from "@/server/backend-routes";
-import { codeRejectedMessage } from "@/server/sign-in-code";
 
-const loginSchema = z.object({
-  phone: z.string().regex(/^\+?\d{9,15}$/, "Enter a valid phone number"),
+const phoneSchema = z.string().regex(/^\+?\d{9,15}$/, "Enter a valid phone number");
+const passwordSchema = z.string().min(8, "Use at least 8 characters").max(72);
+
+const signUpSchema = z.object({
+  mode: z.literal("signup"),
+  phone: phoneSchema,
+  password: passwordSchema,
+  name: z.string().min(2, "Tell us your name").max(100),
   role: z.enum(["BUYER", "WORKER"]),
-  /** The 6-digit code, once the backend sends one (WEB-005). */
-  code: z
-    .string()
-    .regex(/^\d{6}$/, "The code is 6 digits")
-    .optional(),
 });
+
+const signInSchema = z.object({
+  mode: z.literal("signin"),
+  phone: phoneSchema,
+  password: passwordSchema,
+});
+
+const loginSchema = z.discriminatedUnion("mode", [signUpSchema, signInSchema]);
 
 function unreachable(): NextResponse {
   return NextResponse.json(
@@ -57,28 +65,39 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   }
 }
 
-/** Exchange a 6-digit code for a token (issue #5); `role` applies to new accounts only. */
-function verifyCode(phone: string, code: string, role: string): Promise<Response> {
-  return backendFetch(BACKEND_ROUTES.otpVerify.path, {
-    method: BACKEND_ROUTES.otpVerify.method,
+function detailOf(payload: unknown, fallback: string): string {
+  if (typeof payload === "object" && payload !== null && "detail" in payload) {
+    const detail = (payload as { detail: unknown }).detail;
+    if (typeof detail === "string") return detail;
+  }
+  return fallback;
+}
+
+/** Create a new account with a phone number, password and name. */
+function signUp(data: z.infer<typeof signUpSchema>): Promise<Response> {
+  return backendFetch(BACKEND_ROUTES.authSignUp.path, {
+    method: BACKEND_ROUTES.authSignUp.method,
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ phone, code, role }),
+    body: JSON.stringify({
+      phone: data.phone,
+      password: data.password,
+      name: data.name,
+      role: data.role,
+    }),
   });
 }
 
-/** The backend's development-only sign-in (ADR-006): trusts the phone number. */
-function mockToken(phone: string, role: string): Promise<Response> {
-  return backendFetch(BACKEND_ROUTES.devToken.path, {
-    method: BACKEND_ROUTES.devToken.method,
-    headers: { "content-type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({ username: phone, password: "", role }),
+/** Sign in with an existing account's phone number and password. */
+function signIn(data: z.infer<typeof signInSchema>): Promise<Response> {
+  return backendFetch(BACKEND_ROUTES.authSignIn.path, {
+    method: BACKEND_ROUTES.authSignIn.method,
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ phone: data.phone, password: data.password }),
   });
 }
 
 /**
- * Sign in — with the 6-digit code when the backend sent one, otherwise
- * through the development-only `/token` (BACK-009). `role` only applies on
- * first sign-in.
+ * Sign up or sign in with a phone number and password.
  *
  * The web app gets an httpOnly cookie and the user. The mobile app
  * (`X-Maricho-Client: mobile`, ADR-009) gets `{ user, access_token }` to
@@ -92,20 +111,20 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       { status: 422 },
     );
   }
-  const { phone, role, code } = parsed.data;
+  const data = parsed.data;
 
   try {
-    const tokenResponse =
-      code === undefined ? await mockToken(phone, role) : await verifyCode(phone, code, role);
+    const tokenResponse = data.mode === "signup" ? await signUp(data) : await signIn(data);
     if (!tokenResponse.ok) {
       const payload: unknown = await tokenResponse.json().catch(() => null);
-      return code === undefined
-        ? NextResponse.json({ detail: "Sign-in failed" }, { status: tokenResponse.status })
-        : NextResponse.json(
-            { detail: codeRejectedMessage(tokenResponse.status, payload) },
-            // Never 401: that would read as "your session expired" to the app.
-            { status: tokenResponse.status === 429 ? 429 : 400 },
-          );
+      const fallback =
+        data.mode === "signup"
+          ? "Could not create your account."
+          : "Incorrect phone number or password.";
+      return NextResponse.json(
+        { detail: detailOf(payload, fallback) },
+        { status: tokenResponse.status },
+      );
     }
     const { access_token: token } = tokenSchema.parse(await tokenResponse.json());
 

@@ -11,7 +11,7 @@ from fastapi import Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.apps.accounts.domain.entities import Person
-from app.apps.accounts.domain.services import GetOrCreatePersonByPhoneUseCase
+from app.apps.accounts.domain.services import SignInUseCase, SignUpUseCase
 from app.apps.accounts.infrastructure.repositories import SqlAlchemyPersonRepository
 from app.core.database import get_db_session
 from app.core.security import decode_access_token, oauth2_scheme
@@ -25,11 +25,17 @@ def get_person_repository(
     return SqlAlchemyPersonRepository(db)
 
 
-def get_login_use_case(
+def get_sign_up_use_case(
     persons: SqlAlchemyPersonRepository = Depends(get_person_repository),
     uow: SqlAlchemyUnitOfWork = Depends(get_unit_of_work),
-) -> GetOrCreatePersonByPhoneUseCase:
-    return GetOrCreatePersonByPhoneUseCase(persons, uow)
+) -> SignUpUseCase:
+    return SignUpUseCase(persons, uow)
+
+
+def get_sign_in_use_case(
+    persons: SqlAlchemyPersonRepository = Depends(get_person_repository),
+) -> SignInUseCase:
+    return SignInUseCase(persons)
 
 
 async def get_current_user(

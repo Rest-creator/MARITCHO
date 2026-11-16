@@ -57,6 +57,7 @@ export const userSchema = z.object({
   id: uuid,
   phone: z.string(),
   role: roleSchema,
+  display_name: z.string().nullable().optional(),
 });
 
 export const jobSchema = z.object({

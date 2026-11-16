@@ -135,3 +135,9 @@ export function formatLocalPhone(international: string, countryCode: string = "2
   const digits = international.replace(/\D/g, "").replace(new RegExp(`^${countryCode}`), "");
   return digits.replace(/^(\d{2})(\d{3})(\d+)$/, "$1 $2 $3");
 }
+
+/** "95" -> "1:35". Used for recording/countdown timers. */
+export function formatCountdown(seconds: number): string {
+  const safe = Math.max(0, Math.ceil(seconds));
+  return `${Math.floor(safe / 60)}:${String(safe % 60).padStart(2, "0")}`;
+}

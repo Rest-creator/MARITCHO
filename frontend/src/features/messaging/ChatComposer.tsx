@@ -5,10 +5,10 @@ import { useCallback, useState, type FormEvent } from "react";
 import { Icon } from "@/components/ui/Icon";
 import { PhotoPicker } from "@/components/ui/PhotoPicker";
 import type { SendMessageInput } from "@/core/api/endpoints";
+import { formatCountdown } from "@/core/format/format";
 import { isUploadUnavailable } from "@/core/media/upload";
 import { useUpload } from "@/core/media/use-upload";
 import { useVoiceRecorder, type VoiceRecording } from "@/core/media/use-voice-recorder";
-import { formatCountdown } from "@/core/session/sign-in-code";
 
 type Outgoing = Omit<SendMessageInput, "jobId">;
 
