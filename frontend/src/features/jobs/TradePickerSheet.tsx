@@ -41,7 +41,7 @@ export function TradePickerSheet({ isOpen, selectedId, onClose, onSelect }: Prop
         </button>
       }
     >
-      <label className="search" style={{ marginTop: -4 }}>
+      <label className="search">
         <Icon name="search" />
         <input
           type="search"
