@@ -4,6 +4,7 @@ from dataclasses import asdict
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi.concurrency import run_in_threadpool
 from opentelemetry import trace
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -183,7 +184,7 @@ async def search_skills_vector(
     """Semantic vector search over the Maricho skill and trade catalogue."""
     with tracer.start_as_current_span("jobs.skill_vector_search") as span:
         span.set_attribute("search.query_length", len(q.strip()))
-        matches = rank_skills_by_query(q, limit=limit)
+        matches = await run_in_threadpool(rank_skills_by_query, q, limit=limit)
         span.set_attribute("search.result_count", len(matches))
         logger.info(f"Semantic skill search executed hits={len(matches)}")
         return matches

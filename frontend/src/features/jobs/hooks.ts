@@ -1,5 +1,6 @@
 import { useMutation, useQuery, type UseQueryResult } from "@tanstack/react-query";
 
+import { useDebouncedValue } from "@/core/hooks/useDebouncedValue";
 import {
   fetchAssignedJobs,
   fetchDisputes,
@@ -108,10 +109,11 @@ export function useOpenJobs(): UseQueryResult<OpenJob[]> {
 
 export function useOpenJobsSearch(query: string): UseQueryResult<OpenJob[]> {
   const trimmed = query.trim();
+  const debounced = useDebouncedValue(trimmed, 350);
   return useQuery({
-    queryKey: queryKeys.openJobsSearch(trimmed),
-    queryFn: ({ signal }) => fetchOpenJobs(trimmed, signal),
-    enabled: trimmed.length >= 2,
+    queryKey: queryKeys.openJobsSearch(debounced),
+    queryFn: ({ signal }) => fetchOpenJobs(debounced, signal),
+    enabled: debounced.length >= 2,
     staleTime: 10_000,
   });
 }
@@ -121,11 +123,12 @@ export function useSearchOpenJobs(
   options: { trade?: Trade; suburb?: string } = {},
 ): UseQueryResult<JobSearchResult[]> {
   const trimmed = query.trim();
+  const debounced = useDebouncedValue(trimmed, 350);
   return useQuery({
-    queryKey: queryKeys.jobSearch(trimmed, options.trade ?? "", options.suburb ?? ""),
+    queryKey: queryKeys.jobSearch(debounced, options.trade ?? "", options.suburb ?? ""),
     queryFn: ({ signal }) =>
-      searchOpenJobs({ q: trimmed, trade: options.trade, suburb: options.suburb }, signal),
-    enabled: trimmed.length >= 2,
+      searchOpenJobs({ q: debounced, trade: options.trade, suburb: options.suburb }, signal),
+    enabled: debounced.length >= 2,
     staleTime: 10_000,
   });
 }

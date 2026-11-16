@@ -187,6 +187,7 @@ _CONCEPT_CLUSTERS: tuple[tuple[str, ...], ...] = (
         "build",
         "builder",
         "building",
+        "construction",
         "brick",
         "bricks",
         "bricklayer",
@@ -281,6 +282,7 @@ _CONCEPT_CLUSTERS: tuple[tuple[str, ...], ...] = (
     (
         "appliance",
         "appliances",
+        "repair",
         "fridge",
         "freezer",
         "refrigerator",
@@ -532,6 +534,29 @@ def cosine_similarity(vec_a: Sequence[float], vec_b: Sequence[float]) -> float:
         return 0.0
     dot = sum(a * b for a, b in zip(vec_a, vec_b, strict=False))
     return max(-1.0, min(1.0, float(dot)))
+
+
+RELEVANCE_THRESHOLD = 0.12
+LEXICAL_BOOST = 0.15
+
+
+def relevance_score(
+    query: str,
+    similarity: float,
+    *,
+    description: str | None = None,
+    suburb: str | None = None,
+    trade: str | None = None,
+) -> float:
+    """Single, shared query-match score: vector similarity plus a lexical
+    substring boost, capped at 1.0. Used by every job-matching code path
+    (open-job listing, hybrid search) so results are ranked/filtered
+    consistently no matter which endpoint computed them.
+    """
+    lower_q = query.strip().lower()
+    haystacks = (description or "", suburb or "", trade or "")
+    lexical_boost = LEXICAL_BOOST if any(lower_q in h.lower() for h in haystacks if h) else 0.0
+    return min(1.0, round(similarity + lexical_boost, 4))
 
 
 @dataclass(frozen=True)

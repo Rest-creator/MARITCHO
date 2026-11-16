@@ -93,7 +93,10 @@ export function rankOpenJobs(
 
       if (job.budget_amount !== null) score += 5;
       if (typeof job.similarity_score === "number" && job.similarity_score > 0) {
-        score += job.similarity_score * 30;
+        // Same weight the backend gives similarity in its own sort_score, so this
+        // client-side re-rank (which adds exact distance/freshness) doesn't disagree
+        // with the backend's notion of "best match" for a given query.
+        score += job.similarity_score * 25;
         if (job.similarity_score >= 0.35) {
           reasons.unshift("strong match");
         }

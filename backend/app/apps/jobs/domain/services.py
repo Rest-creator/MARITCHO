@@ -31,7 +31,13 @@ from app.core.exceptions import (
     NotFoundError,
     ValidationConflictError,
 )
-from app.shared_kernel.embeddings import cosine_similarity, embed_text, infer_best_trade
+from app.shared_kernel.embeddings import (
+    RELEVANCE_THRESHOLD,
+    cosine_similarity,
+    embed_text,
+    infer_best_trade,
+    relevance_score,
+)
 from app.shared_kernel.enums import (
     CurrencyEnum,
     DistanceBandEnum,
@@ -236,9 +242,16 @@ class ListOpenJobsForWorkerUseCase:
             )
             candidate_jobs = []
             for job, sim in vector_hits:
-                if sim >= 0.12 or cleaned_query.lower() in (job.problem_description or "").lower():
+                score = relevance_score(
+                    cleaned_query,
+                    sim,
+                    description=job.problem_description,
+                    suburb=job.suburb,
+                    trade=job.trade.value,
+                )
+                if score >= RELEVANCE_THRESHOLD:
                     candidate_jobs.append(job)
-                    similarity_by_job_id[job.id] = sim
+                    similarity_by_job_id[job.id] = score
         else:
             candidate_jobs = []
             for trade in skills:
@@ -321,22 +334,19 @@ class SearchOpenJobsUseCase:
             limit=limit,
         )
         results: list[JobSearchResult] = []
-        lower_q = cleaned.lower()
         for job, sim in rows:
-            desc_lower = (job.problem_description or "").lower()
-            suburb_lower = job.suburb.lower()
-            trade_lower = job.trade.value.lower()
-            lexical_boost = (
-                0.15
-                if (lower_q in desc_lower or lower_q in suburb_lower or lower_q in trade_lower)
-                else 0.0
-            )
             # Re-check direct cosine similarity as a safeguard if DB distance was 0
             if sim == 0.0 and job.problem_description:
                 job_vec = embed_text(job.problem_description, trade=job.trade, suburb=job.suburb)
                 sim = max(0.0, cosine_similarity(query_vec, job_vec))
-            final_score = min(1.0, round(sim + lexical_boost, 4))
-            if final_score < 0.12:
+            final_score = relevance_score(
+                cleaned,
+                sim,
+                description=job.problem_description,
+                suburb=job.suburb,
+                trade=job.trade.value,
+            )
+            if final_score < RELEVANCE_THRESHOLD:
                 continue
             results.append(
                 JobSearchResult(

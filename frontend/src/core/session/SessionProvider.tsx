@@ -99,11 +99,7 @@ export function SessionProvider({ children }: Props) {
     if (typeof user.is_available === "boolean" && user.is_available !== localProfile.isAvailable) {
       patch.isAvailable = user.is_available;
     }
-    if (
-      typeof user.travel_km === "number" &&
-      localProfile.travelKm === 10 &&
-      user.travel_km !== 50
-    ) {
+    if (typeof user.travel_km === "number" && localProfile.travelKm === 10) {
       patch.travelKm = user.travel_km;
     }
     if (localProfile.homeSuburb === "" && user.home_suburb) {

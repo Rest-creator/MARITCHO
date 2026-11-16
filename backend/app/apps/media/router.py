@@ -16,23 +16,14 @@ from app.core.database import get_db_session
 router = APIRouter(prefix="/media", tags=["media"])
 MAX_PHOTO_BYTES = 2 * 1024 * 1024
 MAX_AUDIO_BYTES = 1 * 1024 * 1024
-ALLOWED = {
-    "image/jpeg": MAX_PHOTO_BYTES,
-    "image/webp": MAX_PHOTO_BYTES,
-    "audio/webm": MAX_AUDIO_BYTES,
-    "audio/ogg": MAX_AUDIO_BYTES,
-    "audio/aac": MAX_AUDIO_BYTES,
-    "audio/mp4": MAX_AUDIO_BYTES,
-    "audio/x-m4a": MAX_AUDIO_BYTES,
-}
-SUFFIXES = {
-    "image/jpeg": ".jpg",
-    "image/webp": ".webp",
-    "audio/webm": ".webm",
-    "audio/ogg": ".ogg",
-    "audio/aac": ".aac",
-    "audio/mp4": ".m4a",
-    "audio/x-m4a": ".m4a",
+MEDIA_TYPES = {
+    "image/jpeg": (MAX_PHOTO_BYTES, ".jpg"),
+    "image/webp": (MAX_PHOTO_BYTES, ".webp"),
+    "audio/webm": (MAX_AUDIO_BYTES, ".webm"),
+    "audio/ogg": (MAX_AUDIO_BYTES, ".ogg"),
+    "audio/aac": (MAX_AUDIO_BYTES, ".aac"),
+    "audio/mp4": (MAX_AUDIO_BYTES, ".m4a"),
+    "audio/x-m4a": (MAX_AUDIO_BYTES, ".m4a"),
 }
 MEDIA_ROOT = Path(os.getenv("MEDIA_STORAGE_PATH", "storage/media")).resolve()
 
@@ -45,8 +36,9 @@ async def upload_media(
     db: AsyncSession = Depends(get_db_session),
 ) -> dict[str, object]:
     content_type = (file.content_type or "").split(";")[0].strip().lower()
-    if content_type not in ALLOWED:
+    if content_type not in MEDIA_TYPES:
         raise HTTPException(status_code=415, detail="Unsupported media type")
+    max_bytes, suffix = MEDIA_TYPES[content_type]
     existing = await db.scalar(
         select(MediaFileModel).where(
             MediaFileModel.owner_id == current_user.id,
@@ -55,11 +47,10 @@ async def upload_media(
     )
     if existing:
         return _response(existing)
-    content = await file.read(ALLOWED[content_type] + 1)
-    if len(content) > ALLOWED[content_type]:
+    content = await file.read(max_bytes + 1)
+    if len(content) > max_bytes:
         raise HTTPException(status_code=413, detail="Media file is too large")
     media_id = uuid.uuid4()
-    suffix = SUFFIXES[content_type]
     MEDIA_ROOT.mkdir(parents=True, exist_ok=True)
     name = f"{media_id}{suffix}"
     (MEDIA_ROOT / name).write_bytes(content)
@@ -92,9 +83,10 @@ async def download_media(
     current_user: Person = Depends(get_current_user),
     db: AsyncSession = Depends(get_db_session),
 ) -> FileResponse:
-    _ = current_user
     model = await db.get(MediaFileModel, media_id)
-    if model is None:
+    if model is None or (
+        model.owner_id != current_user.id and current_user.role.value != "OPS"
+    ):
         raise HTTPException(status_code=404, detail="Media not found")
     path = (MEDIA_ROOT / model.storage_name).resolve()
     if MEDIA_ROOT not in path.parents or not path.is_file():
