@@ -24,9 +24,7 @@ export interface SignUpInput {
   role: SignInRole;
 }
 
-type SessionRequest =
-  | ({ mode: "signup" } & SignUpInput)
-  | ({ mode: "signin" } & SignInInput);
+type SessionRequest = ({ mode: "signup" } & SignUpInput) | ({ mode: "signin" } & SignInInput);
 
 interface SessionValue {
   user: User | null;
@@ -136,7 +134,11 @@ export function SessionProvider({ children }: Props) {
     return () => window.removeEventListener(UNAUTHORIZED_EVENT, handleUnauthorized);
   }, [queryClient, router]);
 
-  const { mutateAsync: authenticate, isPending: isSigningIn, error: signInFailure } = signInMutation;
+  const {
+    mutateAsync: authenticate,
+    isPending: isSigningIn,
+    error: signInFailure,
+  } = signInMutation;
 
   const value = useMemo<SessionValue>(
     () => ({

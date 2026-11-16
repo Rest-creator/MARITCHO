@@ -1,9 +1,7 @@
-from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 
 from sqlalchemy import select
 
-from app.apps.accounts.infrastructure.otp_models import OTPRequestModel
 from app.apps.jobs.infrastructure.models import JobModel
 from app.shared_kernel.embeddings import (
     EMBEDDING_DIM,
@@ -148,34 +146,14 @@ async def test_semantic_skill_search_endpoint(client):
     assert skills[0]["similarity_score"] > 0.3
 
 
-async def test_otp_request_verify_and_resend_cooldown(client, db_session):
+async def test_signup_then_patch_profile_fields(client):
     phone = "+263779888777"
-    req1 = await client.post("/otp/request", json={"phone": phone})
-    assert req1.status_code == 200
-    data1 = req1.json()
-    assert data1["resend_after_seconds"] == 30
-    code = data1["dev_code"]
-
-    # Immediate re-request within 30s is rate-limited
-    req2 = await client.post("/otp/request", json={"phone": phone})
-    assert req2.status_code == 429
-
-    # Backdate created_at by 31 seconds to simulate waiting out the 30s countdown
-    row = await db_session.scalar(select(OTPRequestModel).where(OTPRequestModel.phone == phone))
-    assert row is not None
-    row.created_at = datetime.now(timezone.utc) - timedelta(seconds=31)
-    await db_session.commit()
-
-    req3 = await client.post("/otp/request", json={"phone": phone})
-    assert req3.status_code == 200
-
-    # Verify OTP
-    verify_res = await client.post(
-        "/otp/verify",
-        json={"phone": phone, "code": code, "role": "WORKER"},
+    signup_res = await client.post(
+        "/auth/signup",
+        json={"phone": phone, "password": "correct-horse", "name": "Tendai Moyo", "role": "WORKER"},
     )
-    assert verify_res.status_code == 200
-    token = verify_res.json()["access_token"]
+    assert signup_res.status_code == 200
+    token = signup_res.json()["access_token"]
 
     # Update profile via PATCH /users/me
     patch_res = await client.patch(
