@@ -6,14 +6,19 @@ import { findSkill } from "@/core/format/trades";
 
 describe("validateSignUp", () => {
   it("requires a name for new accounts but not for log in", () => {
-    expect(validateSignUp("", "77 412 3089", false)).toMatch(/name/);
-    expect(validateSignUp("", "77 412 3089", true)).toBeNull();
+    expect(validateSignUp("", "77 412 3089", "correct-horse", false)).toMatch(/name/);
+    expect(validateSignUp("", "77 412 3089", "correct-horse", true)).toBeNull();
   });
 
   it("accepts 9-digit local numbers with or without a leading 0", () => {
-    expect(validateSignUp("Rudo", "77 412 3089", false)).toBeNull();
-    expect(validateSignUp("Rudo", "0774123089", false)).toBeNull();
-    expect(validateSignUp("Rudo", "7741", false)).toMatch(/mobile number/);
+    expect(validateSignUp("Rudo", "77 412 3089", "correct-horse", false)).toBeNull();
+    expect(validateSignUp("Rudo", "0774123089", "correct-horse", false)).toBeNull();
+    expect(validateSignUp("Rudo", "7741", "correct-horse", false)).toMatch(/mobile number/);
+  });
+
+  it("requires a password of at least 8 characters", () => {
+    expect(validateSignUp("Rudo", "77 412 3089", "short", false)).toMatch(/password/);
+    expect(validateSignUp("Rudo", "77 412 3089", "longenough", false)).toBeNull();
   });
 });
 

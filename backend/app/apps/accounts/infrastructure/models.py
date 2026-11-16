@@ -30,3 +30,4 @@ class PersonModel(Base):
     is_available: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     travel_km: Mapped[int] = mapped_column(Integer, nullable=False, default=50)
     home_suburb: Mapped[str | None] = mapped_column(String(100), ForeignKey("suburbs.name"))
+    password_hash: Mapped[str | None] = mapped_column(String(255))

@@ -33,11 +33,19 @@ class UserProfilePatch(BaseModel):
         return strip_tags(value) if value is not None else value
 
 
-class OTPRequestIn(BaseModel):
+class SignUpIn(BaseModel):
     phone: str = Field(min_length=7, max_length=20)
-
-
-class OTPVerifyIn(BaseModel):
-    phone: str = Field(min_length=7, max_length=20)
-    code: str = Field(min_length=4, max_length=8)
+    # 72 bytes is bcrypt's own hard limit.
+    password: str = Field(min_length=8, max_length=72)
+    name: str = Field(min_length=2, max_length=100)
     role: RoleEnum = RoleEnum.BUYER
+
+    @field_validator("name")
+    @classmethod
+    def sanitize_name(cls, value: str) -> str:
+        return strip_tags(value)
+
+
+class SignInIn(BaseModel):
+    phone: str = Field(min_length=7, max_length=20)
+    password: str = Field(min_length=8, max_length=72)

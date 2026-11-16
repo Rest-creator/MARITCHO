@@ -14,7 +14,6 @@ sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 # imported so its SQLAlchemy model classes register their tables on
 # Base.metadata before autogenerate/upgrade runs.
 import app.apps.accounts.infrastructure.models  # noqa: F401
-import app.apps.accounts.infrastructure.otp_models  # noqa: F401
 import app.apps.crews.infrastructure.models  # noqa: F401
 import app.apps.jobs.infrastructure.models  # noqa: F401
 import app.apps.jobs.infrastructure.review_models  # noqa: F401

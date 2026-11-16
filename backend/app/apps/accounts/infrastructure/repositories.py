@@ -21,6 +21,7 @@ def _to_entity(model: PersonModel) -> Person:
         is_available=model.is_available,
         travel_km=model.travel_km,
         home_suburb=model.home_suburb,
+        password_hash=model.password_hash,
     )
 
 
@@ -47,8 +48,17 @@ class SqlAlchemyPersonRepository(PersonRepository):
         model.home_suburb = person.home_suburb
         await self._db.commit()
 
-    async def create(self, *, phone: str, role: RoleEnum) -> Person:
-        model = PersonModel(phone=phone, role=role)
+    async def create(
+        self,
+        *,
+        phone: str,
+        role: RoleEnum,
+        password_hash: str | None = None,
+        display_name: str | None = None,
+    ) -> Person:
+        model = PersonModel(
+            phone=phone, role=role, password_hash=password_hash, display_name=display_name
+        )
         self._db.add(model)
         await self._db.flush()
         return _to_entity(model)

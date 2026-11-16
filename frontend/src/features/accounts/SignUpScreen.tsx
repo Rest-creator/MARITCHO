@@ -9,10 +9,8 @@ import { Icon } from "@/components/ui/Icon";
 import { Screen } from "@/components/ui/Screen";
 import { formatLocalPhone, toInternationalPhone } from "@/core/format/format";
 import { updateProfile, useLocalProfile } from "@/core/session/profile-store";
-import { requestSignInCode } from "@/core/session/sign-in-code";
 import { homeFor, useSession, type SignInRole } from "@/core/session/SessionProvider";
 import { RoleMismatchNotice } from "@/features/accounts/RoleMismatchNotice";
-import { SignInCodeStep } from "@/features/accounts/SignInCodeStep";
 import { useUpdateUserProfile } from "@/features/workers/hooks";
 
 type Props = {
@@ -23,55 +21,54 @@ type Props = {
 
 const LOCAL_PHONE_PATTERN = /^0?\d{9}$/;
 
-export function validateSignUp(name: string, localPhone: string, isLogin: boolean): string | null {
+export function validateSignUp(
+  name: string,
+  localPhone: string,
+  password: string,
+  isLogin: boolean,
+): string | null {
   if (!isLogin && name.trim().length < 2)
     return "Tell us your name so people know who they're dealing with.";
   if (!LOCAL_PHONE_PATTERN.test(localPhone.replace(/\s/g, ""))) {
     return "Enter your mobile number, e.g. 77 412 3089.";
   }
+  if (password.length < 8) {
+    return "Use a password with at least 8 characters.";
+  }
   return null;
 }
 
-/** A code was sent; waiting for the person to type it in. */
-interface CodeStep {
-  phone: string;
-  resendAfterSeconds: number;
-}
-
-/**
- * Design 2 · Sign up with phone number, then the 6-digit code (2b).
- *
- * The code step only appears when the backend actually sent a code
- * (BACK-009, issue #5). Until it can, sign-in goes straight through the
- * `/token` development mock: showing "code sent" when nothing was sent
- * would mislead.
- */
+/** Design 2 · Sign up or sign in with phone number and password. */
 export function SignUpScreen({ initialRole, isLogin, isExpired }: Props) {
   const router = useRouter();
   const profile = useLocalProfile();
-  const { signIn, signOut, isSigningIn, signInError } = useSession();
+  const { signUp, signIn, signOut, isSigningIn, signInError } = useSession();
   const updateServerProfile = useUpdateUserProfile();
   const [role, setRole] = useState<SignInRole>(initialRole);
   const [name, setName] = useState(profile.name);
   const [phone, setPhone] = useState(profile.phone === "" ? "" : formatLocalPhone(profile.phone));
+  const [password, setPassword] = useState("");
   const [validationError, setValidationError] = useState<string | null>(null);
-  const [requestError, setRequestError] = useState<string | null>(null);
-  const [isRequestingCode, setIsRequestingCode] = useState(false);
-  const [codeStep, setCodeStep] = useState<CodeStep | null>(null);
   /** Set when the number is registered as the other role (issue #9). */
   const [registeredAs, setRegisteredAs] = useState<SignInRole | null>(null);
 
   const isWorker = role === "WORKER";
-  const error = validationError ?? requestError ?? signInError;
-  const isBusy = isSigningIn || isRequestingCode;
+  const error = validationError ?? signInError;
 
-  async function completeSignIn(international: string, code?: string): Promise<void> {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    const problem = validateSignUp(name, phone, password, isLogin);
+    setValidationError(problem);
+    if (problem !== null) return;
+
+    const international = toInternationalPhone(phone);
+    const trimmedName = name.trim();
     try {
-      const user = await signIn({ phone: international, role, ...(code ? { code } : {}) });
-      const trimmedName = name.trim();
+      const user = isLogin
+        ? await signIn({ phone: international, password })
+        : await signUp({ phone: international, password, name: trimmedName, role });
       updateProfile({ phone: international, ...(trimmedName === "" ? {} : { name: trimmedName }) });
       if ((user.role === "BUYER" || user.role === "WORKER") && user.role !== role) {
-        setCodeStep(null);
         setRegisteredAs(user.role);
         return;
       }
@@ -82,36 +79,6 @@ export function SignUpScreen({ initialRole, isLogin, isExpired }: Props) {
     } catch {
       // signInError carries the message.
     }
-  }
-
-  async function handleSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
-    event.preventDefault();
-    const problem = validateSignUp(name, phone, isLogin);
-    setValidationError(problem);
-    setRequestError(null);
-    if (problem !== null) return;
-
-    const international = toInternationalPhone(phone);
-    setIsRequestingCode(true);
-    try {
-      const request = await requestSignInCode(international);
-      if (request.isCodeRequired) {
-        setCodeStep({ phone: international, resendAfterSeconds: request.resendAfterSeconds });
-        return;
-      }
-    } catch (failure: unknown) {
-      setRequestError(failure instanceof Error ? failure.message : "Could not send a code.");
-      return;
-    } finally {
-      setIsRequestingCode(false);
-    }
-    await completeSignIn(international);
-  }
-
-  async function handleResend(): Promise<number> {
-    if (codeStep === null) return 0;
-    const request = await requestSignInCode(codeStep.phone);
-    return request.isCodeRequired ? request.resendAfterSeconds : 0;
   }
 
   if (registeredAs !== null) {
@@ -126,22 +93,6 @@ export function SignUpScreen({ initialRole, isLogin, isExpired }: Props) {
             setPhone("");
             void signOut(`/signup?role=${role === "WORKER" ? "worker" : "buyer"}`);
           }}
-        />
-      </Screen>
-    );
-  }
-
-  if (codeStep !== null) {
-    return (
-      <Screen glow={isWorker ? "worker" : "employer"}>
-        <SignInCodeStep
-          phone={codeStep.phone}
-          resendAfterSeconds={codeStep.resendAfterSeconds}
-          isVerifying={isSigningIn}
-          error={signInError}
-          onVerify={(code) => void completeSignIn(codeStep.phone, code)}
-          onResend={handleResend}
-          onChangeNumber={() => setCodeStep(null)}
         />
       </Screen>
     );
@@ -175,8 +126,8 @@ export function SignUpScreen({ initialRole, isLogin, isExpired }: Props) {
         </h1>
         <p className="lead" style={{ marginTop: 10 }}>
           {isLogin
-            ? "Sign in with the phone number you used before."
-            : "Just your name and phone number — no email needed."}
+            ? "Sign in with your phone number and password."
+            : "Your name, phone number and a password — no email needed."}
         </p>
 
         {isLogin && (
@@ -258,6 +209,23 @@ export function SignUpScreen({ initialRole, isLogin, isExpired }: Props) {
           </div>
         </div>
 
+        <div className="field" style={{ marginTop: 18 }}>
+          <label htmlFor="su-password" className="field__label">
+            Password
+          </label>
+          <input
+            id="su-password"
+            className="input"
+            type="password"
+            autoComplete={isLogin ? "current-password" : "new-password"}
+            placeholder="At least 8 characters"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            aria-invalid={validationError !== null}
+            aria-describedby={error ? "su-error" : undefined}
+          />
+        </div>
+
         {error && (
           <p id="su-error" className="field-error" role="alert" style={{ marginTop: 12 }}>
             {error}
@@ -266,9 +234,9 @@ export function SignUpScreen({ initialRole, isLogin, isExpired }: Props) {
 
         <div className="spacer" style={{ minHeight: 32 }} />
 
-        <button type="submit" className="btn btn--primary btn--cta" disabled={isBusy}>
-          {isRequestingCode ? "Sending your code…" : isSigningIn ? "Signing you in…" : "Continue"}
-          {!isBusy && <Icon name="arrowRight" size={18} strokeWidth={2.2} />}
+        <button type="submit" className="btn btn--primary btn--cta" disabled={isSigningIn}>
+          {isSigningIn ? (isLogin ? "Signing you in…" : "Creating your account…") : "Continue"}
+          {!isSigningIn && <Icon name="arrowRight" size={18} strokeWidth={2.2} />}
         </button>
         <p className="meta" style={{ marginTop: 14, textAlign: "center", lineHeight: 1.5 }}>
           By continuing you agree to our{" "}

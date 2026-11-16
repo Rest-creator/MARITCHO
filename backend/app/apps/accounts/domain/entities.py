@@ -17,3 +17,4 @@ class Person:
     is_available: bool = True
     travel_km: int = 50
     home_suburb: str | None = None
+    password_hash: str | None = None

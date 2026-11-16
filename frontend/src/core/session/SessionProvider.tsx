@@ -14,14 +14,24 @@ export type SignInRole = "BUYER" | "WORKER";
 
 export interface SignInInput {
   phone: string;
-  role: SignInRole;
-  /** The 6-digit code, when one was sent (see requestSignInCode). */
-  code?: string;
+  password: string;
 }
+
+export interface SignUpInput {
+  phone: string;
+  password: string;
+  name: string;
+  role: SignInRole;
+}
+
+type SessionRequest =
+  | ({ mode: "signup" } & SignUpInput)
+  | ({ mode: "signin" } & SignInInput);
 
 interface SessionValue {
   user: User | null;
   isLoading: boolean;
+  signUp: (input: SignUpInput) => Promise<User>;
   signIn: (input: SignInInput) => Promise<User>;
   isSigningIn: boolean;
   signInError: string | null;
@@ -56,7 +66,7 @@ async function fetchSession(): Promise<User | null> {
   return userSchema.nullable().parse(await readJson(response));
 }
 
-async function postSession(input: SignInInput): Promise<User> {
+async function postSession(input: SessionRequest): Promise<User> {
   const response = await fetch("/api/session", {
     method: "POST",
     credentials: "same-origin",
@@ -126,14 +136,15 @@ export function SessionProvider({ children }: Props) {
     return () => window.removeEventListener(UNAUTHORIZED_EVENT, handleUnauthorized);
   }, [queryClient, router]);
 
-  const { mutateAsync: signInAsync, isPending: isSigningIn, error: signInFailure } = signInMutation;
+  const { mutateAsync: authenticate, isPending: isSigningIn, error: signInFailure } = signInMutation;
 
   const value = useMemo<SessionValue>(
     () => ({
       user: session.data ?? null,
       // A `null` still being re-checked is not yet a reason to send anyone to sign-up.
       isLoading: session.isPending || (session.data === null && session.isFetching),
-      signIn: signInAsync,
+      signUp: (input: SignUpInput) => authenticate({ mode: "signup", ...input }),
+      signIn: (input: SignInInput) => authenticate({ mode: "signin", ...input }),
       isSigningIn,
       signInError: signInFailure instanceof Error ? signInFailure.message : null,
       signOut: async (redirectTo: string = "/") => {
@@ -149,7 +160,7 @@ export function SessionProvider({ children }: Props) {
       session.data,
       session.isPending,
       session.isFetching,
-      signInAsync,
+      authenticate,
       isSigningIn,
       signInFailure,
       queryClient,

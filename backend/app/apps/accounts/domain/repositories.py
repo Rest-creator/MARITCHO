@@ -15,6 +15,13 @@ class PersonRepository(ABC):
     async def update(self, person: Person) -> None: ...
 
     @abstractmethod
-    async def create(self, *, phone: str, role: RoleEnum) -> Person:
+    async def create(
+        self,
+        *,
+        phone: str,
+        role: RoleEnum,
+        password_hash: str | None = None,
+        display_name: str | None = None,
+    ) -> Person:
         """Stages the new row (add + flush) but does not commit — the
         calling use case commits once via UnitOfWork."""

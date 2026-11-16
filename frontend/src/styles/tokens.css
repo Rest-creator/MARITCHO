@@ -5,15 +5,22 @@
 :root {
   color-scheme: dark;
 
-  /* Surfaces */
-  --color-bg: #0f172a;
-  --color-bg-raised: #1e293b;
+  /* Brand — sampled from the approved logo gradient (Logs/Maritcho Logo
+     Presentation.pdf, page 1): navy at the dark end, blue at the light end. */
+  --brand-navy: #2d2e83;
+  --brand-blue: #3892cf;
+  --brand-gradient: linear-gradient(135deg, var(--brand-navy), var(--brand-blue));
+
+  /* Surfaces — derived from --brand-navy so the app's dark theme matches
+     the brand instead of a generic slate. */
+  --color-bg: #1b1c4f;
+  --color-bg-raised: var(--brand-navy);
   /* Solid, not glass: on phones without backdrop blur a translucent sheet
      let the page behind show through the text (unreadable skill picker). */
-  --color-sheet: #1e293b;
-  --color-scrim: rgba(2, 6, 23, 0.7);
-  --color-bar: rgba(15, 23, 42, 0.75);
-  --color-nav: rgba(30, 41, 59, 0.7);
+  --color-sheet: var(--brand-navy);
+  --color-scrim: rgba(15, 16, 45, 0.7);
+  --color-bar: rgba(27, 28, 79, 0.75);
+  --color-nav: rgba(45, 46, 131, 0.7);
 
   /* Glass */
   --glass-faint: rgba(255, 255, 255, 0.04);
@@ -112,4 +119,21 @@
   --duration-fast: 150ms;
   --duration-normal: 250ms;
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Responsive widening — every screen is built on --app-max-width and
+   --gutter, so growing those two tokens at wider viewports scales the
+   whole app to tablet/desktop without a second layout system. */
+@media (min-width: 640px) {
+  :root {
+    --app-max-width: 640px;
+    --gutter: 28px;
+  }
+}
+
+@media (min-width: 1024px) {
+  :root {
+    --app-max-width: 880px;
+    --gutter: 40px;
+  }
 }
