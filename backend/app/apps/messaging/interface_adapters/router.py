@@ -12,8 +12,14 @@ from app.apps.accounts.interface_adapters.dependencies import (
     get_current_user,
     get_person_repository,
 )
-from app.apps.jobs.infrastructure.repositories import SqlAlchemyJobRepository
-from app.apps.jobs.interface_adapters.dependencies import get_job_repository
+from app.apps.jobs.infrastructure.repositories import (
+    SqlAlchemyJobOfferRepository,
+    SqlAlchemyJobRepository,
+)
+from app.apps.jobs.interface_adapters.dependencies import (
+    get_job_offer_repository,
+    get_job_repository,
+)
 from app.apps.messaging.domain.entities import Message
 from app.apps.messaging.domain.services import (
     ListMessagesUseCase,
@@ -96,6 +102,7 @@ async def chat_socket(
     token: str,
     persons: SqlAlchemyPersonRepository = Depends(get_person_repository),
     jobs: SqlAlchemyJobRepository = Depends(get_job_repository),
+    offers: SqlAlchemyJobOfferRepository = Depends(get_job_offer_repository),
     redis_client: aioredis.Redis = Depends(get_redis_client),
 ) -> None:
     """Receive-only from the client's perspective: sending a message
@@ -125,6 +132,9 @@ async def chat_socket(
         return
 
     is_party = user.id in (job.buyer_id, job.worker_id)
+    if not is_party and user.role == RoleEnum.WORKER:
+        job_offers = await offers.get_for_job(job_id)
+        is_party = user.id in job_offers
     if not is_party and user.role != RoleEnum.OPS:
         await websocket.close(code=_WS_FORBIDDEN)
         return

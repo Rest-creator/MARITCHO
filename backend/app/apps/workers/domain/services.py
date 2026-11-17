@@ -8,6 +8,8 @@ from app.apps.workers.domain.entities import (
     ServiceArea,
     Skill,
     StandingView,
+    WorkerDirectoryItem,
+    WorkerPublicProfile,
     WorkerReference,
     WorkerVettingView,
     WorkerVouch,
@@ -16,6 +18,7 @@ from app.apps.workers.domain.repositories import (
     ServiceAreaRepository,
     SkillRepository,
     StandingRepository,
+    WorkerDirectoryRepository,
     WorkerReferenceRepository,
     WorkerVettingRepository,
     WorkerVouchRepository,
@@ -24,9 +27,19 @@ from app.core.exceptions import (
     ConflictError,
     ForbiddenError,
     IntegrityConflictError,
+    NotFoundError,
     ValidationConflictError,
 )
-from app.shared_kernel.enums import GradeEnum, RoleEnum, TradeEnum
+from app.shared_kernel.embeddings import (
+    RELEVANCE_THRESHOLD,
+    cosine_similarity,
+    embed_text,
+    infer_best_trade,
+    rank_skills_by_query,
+    relevance_score,
+)
+from app.shared_kernel.enums import DistanceBandEnum, GradeEnum, RoleEnum, TradeEnum
+from app.shared_kernel.geo import BAND_RANK, classify_distance
 from app.shared_kernel.grading import GRADE_RANK, meets_minimum_grade
 from app.shared_kernel.ports import SuburbLookupPort, WorkerAvailabilityPort, WorkerJobStatsPort
 from app.shared_kernel.unit_of_work import UnitOfWork
@@ -412,3 +425,172 @@ class VouchForWorkerUseCase:
         await self._recompute_grade.execute(target_worker_id)
         await self._uow.commit()
         return vouch
+
+
+class ListNearbyWorkersUseCase:
+    """List workers for the employer directory, ranked by closeness to the
+    origin suburb, availability, standing grade, and completed jobs."""
+
+    def __init__(
+        self, directory: WorkerDirectoryRepository, suburbs: SuburbLookupPort
+    ) -> None:
+        self._directory = directory
+        self._suburbs = suburbs
+
+    async def execute(
+        self,
+        *,
+        suburb: str | None = None,
+        trade: TradeEnum | None = None,
+        query: str | None = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> list[WorkerDirectoryItem]:
+        cleaned_query = (query or "").strip()
+        query_vec = embed_text(cleaned_query, trade=trade, suburb=suburb) if cleaned_query else None
+        rows = await self._directory.list_workers(trade=trade, query_embedding=query_vec)
+        if not rows:
+            return []
+
+        lowered_query = cleaned_query.lower()
+        inferred_trade = infer_best_trade(cleaned_query)[0] if cleaned_query else None
+        semantic_trades = (
+            {m.trade for m in rank_skills_by_query(cleaned_query, limit=3) if m.trade is not None}
+            if cleaned_query
+            else set()
+        )
+
+        origin = (suburb or "").strip() or None
+        suburb_names: set[str] = set()
+        if origin is not None:
+            suburb_names.add(origin)
+            for _, areas in rows:
+                for area_suburb, _ in areas:
+                    suburb_names.add(area_suburb)
+        coords = await self._suburbs.get_coords(suburb_names) if suburb_names else {}
+
+        ranked: list[tuple[float, float, int, int, int, Decimal, WorkerDirectoryItem]] = []
+        for item, areas in rows:
+            best_band: DistanceBandEnum | None = None
+            best_km: float | None = None
+            best_suburb = item.suburb
+            best_means = item.travel_means
+            band_rank = 99
+
+            if origin is not None and areas and origin in coords:
+                best_tuple: tuple[int, float, DistanceBandEnum, str, str | None] | None = None
+                for area_suburb, area_means in areas:
+                    band, km = classify_distance(origin, area_suburb, coords)
+                    r = BAND_RANK[band]
+                    if best_tuple is None or (r, km) < (best_tuple[0], best_tuple[1]):
+                        best_tuple = (r, km, band, area_suburb, area_means)
+                if best_tuple is not None:
+                    band_rank, raw_km, best_band, best_suburb, best_means = best_tuple
+                    best_km = round(raw_km, 1)
+
+            item.suburb = best_suburb
+            item.travel_means = best_means
+            item.distance_band = best_band
+            item.distance_km = best_km
+
+            sort_band = float(band_rank)
+            if cleaned_query and query_vec is not None:
+                profile_desc = " ".join(
+                    filter(
+                        None,
+                        [
+                            item.display_name,
+                            *(t.value for t in item.trades),
+                            *(area_suburb for area_suburb, _ in areas),
+                        ],
+                    )
+                )
+                profile_vec = embed_text(
+                    profile_desc,
+                    trade=item.trades[0] if item.trades else None,
+                    suburb=item.suburb,
+                )
+                profile_sim = max(0.0, cosine_similarity(query_vec, profile_vec))
+                db_sim = item.similarity_score or 0.0
+                combined_sim = max(db_sim, profile_sim)
+                final_score = relevance_score(
+                    cleaned_query,
+                    combined_sim,
+                    description=profile_desc,
+                    suburb=item.suburb,
+                    trade=item.trades[0].value if item.trades else None,
+                )
+                name_match = lowered_query in (item.display_name or "").lower()
+                suburb_match = (
+                    any(lowered_query in area_suburb.lower() for area_suburb, _ in areas)
+                    or lowered_query in (item.suburb or "").lower()
+                )
+                trade_match = (
+                    any(lowered_query in t.value.lower() for t in item.trades)
+                    or (inferred_trade is not None and inferred_trade in item.trades)
+                    or bool(semantic_trades.intersection(item.trades))
+                )
+                if trade_match and final_score < 0.45:
+                    final_score = 0.45
+                if (name_match or suburb_match) and final_score < 0.55:
+                    final_score = 0.55
+                if final_score < RELEVANCE_THRESHOLD and not (
+                    name_match or suburb_match or trade_match
+                ):
+                    continue
+                item.similarity_score = round(final_score, 4)
+                sort_band -= final_score * 25.0
+
+            avail_rank = 0 if item.is_available else 1
+            grade_rank = -GRADE_RANK.get(item.grade, 0)
+            jobs_rank = -(item.jobs_completed or 0)
+            ontime_rank = -(item.on_time_rate or _DEFAULT_ON_TIME_RATE)
+            ranked.append(
+                (
+                    sort_band,
+                    best_km if best_km is not None else 9999.0,
+                    avail_rank,
+                    grade_rank,
+                    jobs_rank,
+                    ontime_rank,
+                    item,
+                )
+            )
+
+        ranked.sort(key=lambda entry: entry[:6])
+        return [entry[6] for entry in ranked[offset : offset + limit]]
+
+
+class GetWorkerPublicProfileUseCase:
+    def __init__(
+        self, directory: WorkerDirectoryRepository, suburbs: SuburbLookupPort
+    ) -> None:
+        self._directory = directory
+        self._suburbs = suburbs
+
+    async def execute(
+        self, worker_id: uuid.UUID, *, suburb: str | None = None
+    ) -> WorkerPublicProfile:
+        found = await self._directory.get_public_profile(worker_id)
+        if found is None:
+            raise NotFoundError("Worker not found")
+        profile, areas = found
+        origin = (suburb or "").strip() or None
+        if origin is not None and areas:
+            suburb_names = {origin} | {area_suburb for area_suburb, _ in areas}
+            coords = await self._suburbs.get_coords(suburb_names)
+            if origin in coords:
+                best_tuple: tuple[int, float, DistanceBandEnum, str, str | None] | None = None
+                for area_suburb, area_means in areas:
+                    band, km = classify_distance(origin, area_suburb, coords)
+                    r = BAND_RANK[band]
+                    if best_tuple is None or (r, km) < (best_tuple[0], best_tuple[1]):
+                        best_tuple = (r, km, band, area_suburb, area_means)
+                if best_tuple is not None:
+                    _, raw_km, best_band, best_suburb, best_means = best_tuple
+                    profile.suburb = best_suburb
+                    profile.travel_means = best_means
+                    profile.distance_band = best_band
+                    profile.distance_km = round(raw_km, 1)
+        return profile
+

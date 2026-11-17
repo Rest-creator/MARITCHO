@@ -4,7 +4,7 @@ from decimal import Decimal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from app.shared_kernel.enums import GradeEnum, TradeEnum
+from app.shared_kernel.enums import DistanceBandEnum, GradeEnum, TradeEnum
 from app.shared_kernel.text import strip_tags
 
 
@@ -96,3 +96,44 @@ class WorkerVettingOut(BaseModel):
     reference_count: int
     vouch_count: int
     grade: GradeEnum
+
+
+class WorkerWorkRecordOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    job_id: uuid.UUID
+    what_was_done: str
+    client_words: str | None = None
+    before_photo_url: str | None = None
+    after_photo_url: str | None = None
+    signed_off_at: datetime | None = None
+
+
+class WorkerSummaryOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    worker_id: uuid.UUID
+    display_name: str | None = None
+    suburb: str | None = None
+    trades: list[TradeEnum]
+    proof_urls: list[str] = Field(default_factory=list)
+    grade: GradeEnum
+    on_time_rate: Decimal
+    dispute_rate: Decimal
+    fill_rate: Decimal
+    jobs_completed: int
+    rating_average: Decimal | None = None
+    rating_count: int = 0
+    is_available: bool = True
+    travel_km: int = 50
+    travel_means: str | None = None
+    distance_band: DistanceBandEnum | None = None
+    distance_km: float | None = None
+    similarity_score: float | None = None
+
+
+class WorkerProfileOut(WorkerSummaryOut):
+    service_areas: list[str] = Field(default_factory=list)
+    reference_count: int = 0
+    recent_work: list[WorkerWorkRecordOut] = Field(default_factory=list)
+

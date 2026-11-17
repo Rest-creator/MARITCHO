@@ -1,9 +1,19 @@
 name: maricho-production
 
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
 services:
   db:
-    image: postgres:15
+    image: pgvector/pgvector:0.7.4-pg16
     restart: unless-stopped
+    stop_grace_period: 30s
+    logging: *default-logging
+    security_opt:
+      - no-new-privileges:true
     environment:
       POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB is required}
       POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
@@ -21,7 +31,11 @@ services:
   redis:
     image: redis:7-alpine
     restart: unless-stopped
-    command: ["redis-server", "--appendonly", "yes"]
+    stop_grace_period: 15s
+    logging: *default-logging
+    security_opt:
+      - no-new-privileges:true
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru"]
     volumes:
       - maricho_redis_data:/data
     networks:
@@ -36,6 +50,11 @@ services:
     container_name: maricho-api
     image: maricho-backend:${APP_VERSION:?APP_VERSION is required}
     restart: unless-stopped
+    init: true
+    stop_grace_period: 30s
+    logging: *default-logging
+    security_opt:
+      - no-new-privileges:true
     environment:
       APP_ENV: production
       APP_VERSION: ${APP_VERSION:-unknown}
@@ -71,6 +90,11 @@ services:
     container_name: maricho-frontend
     image: maricho-frontend:${APP_VERSION:?APP_VERSION is required}
     restart: unless-stopped
+    init: true
+    stop_grace_period: 20s
+    logging: *default-logging
+    security_opt:
+      - no-new-privileges:true
     environment:
       NODE_ENV: production
       BACKEND_URL: http://api:8000

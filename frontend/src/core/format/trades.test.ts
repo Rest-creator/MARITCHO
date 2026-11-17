@@ -3,9 +3,11 @@ import { describe, expect, it } from "vitest";
 import {
   ALL_SKILLS,
   TRADES,
+  composeSkillWithWriteIn,
   describeWithSkill,
   findSkill,
   matchSkills,
+  predictSkills,
   searchSkills,
   tradeIcon,
   tradeLabel,
@@ -84,5 +86,28 @@ describe("matchSkills (free text)", () => {
     expect(labels("pombi yemvura muchimbuzi")[0]).toBe("Plumber");
     expect(labels("magetsi and zesa tripping")[0]).toBe("Electrician");
     expect(labels("durawall and dhaka")[0]).toBe("Bricklayer");
+  });
+
+  it("predicts skills from short prefixes and composes write-ins on top of an existing pick", () => {
+    expect(predictSkills("pl")[0]?.label).toBe("Plumber");
+    expect(predictSkills("gey")[0]?.label).toBe("Plumber");
+
+    const plumber = findSkill("plumber")!;
+    const combined = composeSkillWithWriteIn(plumber, "Geyser & borehole");
+    expect(combined).toEqual({
+      id: "plumber",
+      label: "Plumber — Geyser & borehole",
+      trade: "PLUMBING",
+    });
+    expect(describeWithSkill(combined!, "Pipe burst")).toBe(
+      "Plumber — Geyser & borehole: Pipe burst",
+    );
+
+    const writeInOnly = composeSkillWithWriteIn(null, "Geyser technician");
+    expect(writeInOnly).toEqual({
+      id: "plumber",
+      label: "Geyser technician",
+      trade: "PLUMBING",
+    });
   });
 });

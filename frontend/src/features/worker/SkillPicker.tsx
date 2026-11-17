@@ -4,7 +4,8 @@ import { useState, type FormEvent } from "react";
 
 import { Icon } from "@/components/ui/Icon";
 import type { Trade } from "@/core/api/schemas";
-import { matchSkills, tradeLabel, TRADES, type SkillOption } from "@/core/format/trades";
+import { findSkill, matchSkills, tradeLabel, TRADES, type SkillOption } from "@/core/format/trades";
+import { useSearchSkills } from "@/features/jobs/hooks";
 
 type Props = {
   /** Skills already saved on the worker's account (can't be removed here). */
@@ -26,7 +27,17 @@ export function SkillPicker({ registered, picked, max, onToggle }: Props) {
 
   const mine: Trade[] = [...registered, ...picked.filter((trade) => !registered.has(trade))];
   const isFull = mine.length >= max;
-  const matches = matchSkills(query);
+  const localMatches = matchSkills(query);
+  const vectorMatches = useSearchSkills(query);
+  const matches: SkillOption[] = [
+    ...localMatches,
+    ...(vectorMatches.data ?? [])
+      .map((hit) => findSkill(hit.id))
+      .filter(
+        (item): item is SkillOption =>
+          item !== undefined && !localMatches.some((local) => local.id === item.id),
+      ),
+  ];
   const suggestions: SkillOption[] =
     query.trim() === ""
       ? TRADES.map((trade) => ({ id: trade, label: tradeLabel(trade), trade }))

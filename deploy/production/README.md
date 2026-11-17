@@ -1,8 +1,27 @@
-# VPS deployment
+# Production VPS Deployment
 
-This deployment follows the ProjectFlow pattern: build tagged images locally,
-upload them to the VPS in resumable compressed chunks, then start the remote
-production Compose stack from those exact images.
+This deployment builds version-tagged Docker images locally, uploads them to the
+VPS in resumable compressed chunks (`deploy_upload.sh`), takes an automated
+pre-migration PostgreSQL backup, and rolls out the production Compose stack with
+health, Alembic head, and `pgvector` verification.
+
+## Architecture & Security
+
+- **PostgreSQL 16 + `pgvector` (`pgvector/pgvector:0.7.4-pg16`):** Powers
+  transactional storage and HNSW cosine semantic search (`jobs.problem_embedding`).
+- **Redis 7 (`redis:7-alpine`):** Bounded LRU cache + append-only persistence
+  for live WebSocket pub/sub and rate limiting.
+- **FastAPI Backend (`maricho-api`):** Runs as non-root `app` (`uid 1000`),
+  executes `alembic upgrade head` on startup, and serves REST + `/jobs/*/ws`
+  WebSockets with `--proxy-headers`.
+- **Next.js 16 BFF & PWA (`maricho-frontend`):** Standalone Node 22 server
+  running as non-root `nextjs` (`uid 1001`), owning the unified client contract
+  for web and mobile (`ADR-009`).
+- **Central Caddy Reverse Proxy (`Caddyfile.maricho`):** Terminates TLS 1.2/1.3
+  using **ECC (`key_type p256` / ECDSA P-256)** certificates for faster handshakes
+  on low-end Android phones, proxies `/jobs/*/ws` + `/health/*` to
+  `maricho-api:8000`, and routes all web + `/api/*` BFF requests to
+  `maricho-frontend:3000` over the `proxy-tier` network.
 
 ## One-time VPS setup
 
@@ -10,14 +29,12 @@ Create the deployment directory and the external proxy network as the SSH
 deployment user:
 
 ```bash
-mkdir -p ~/apps/maricho
+mkdir -p ~/apps/maricho ~/apps/maricho/backups
 docker network inspect proxy-tier >/dev/null 2>&1 || docker network create proxy-tier
 ```
 
 Copy `.env.example` to `~/apps/maricho/.env`, replace every placeholder, and
 set the production domain/websocket values. Do not commit the real `.env`.
-The VPS must have Docker Engine, Docker Compose v2, `curl`, `ssh`, and `scp`.
-The SSH user must be allowed to run Docker.
 
 ## Deploy
 
@@ -38,32 +55,20 @@ export MARICHO_IMAGE_TAG="$(git rev-parse --short=12 HEAD)"
 export MARICHO_PUBLIC_URL=https://maricho.restk.tech
 ```
 
-### Central Caddy
+### Central Caddy (`Caddyfile.maricho`)
 
-The VPS terminates TLS and routes `maricho.restk.tech` through the shared
-reverse proxy (`caddy-proxy`, config at `/home/winstontino/core/Caddyfile` on
-the VPS, source of truth in
-`TESE-MARKET---BFF-ARCHITECTURE/infrastructure/caddy/Caddyfile`), not a
-per-project Caddy instance. It proxies straight to `maricho-frontend:3000` on
-the shared `proxy-tier` network — the Next.js BFF serves the web app, the
-mobile API, and the websocket upgrade from that single origin, so no
-per-service subdomain is needed. After editing that Caddyfile, upload it and
-restart the shared proxy container (a `reload` is not enough across a
-bind-mount):
+Include or merge `deploy/production/Caddyfile.maricho` into the VPS central
+Caddyfile (`/home/winstontino/core/Caddyfile`) and restart `caddy-proxy`:
 
 ```bash
-scp TESE-MARKET---BFF-ARCHITECTURE/infrastructure/caddy/Caddyfile \
-    deployer@vps:/home/winstontino/core/Caddyfile
+scp deploy/production/Caddyfile.maricho deployer@vps:/home/winstontino/core/Caddyfile.maricho
 ssh deployer@vps docker restart caddy-proxy
 ```
 
-The script fails before traffic if the remote `.env` is missing or contains
-known placeholders. It verifies Compose configuration, database readiness,
-API dependency readiness, Alembic's current revision, frontend rendering,
-exact running image tags, and the public frontend URL.
+## Pre-deploy Backups & Rollback
 
-## Rollback
-
-Keep the previous image tag and set `MARICHO_IMAGE_TAG` to it before rerunning
-the deployment. The VPS retains the uploaded Docker image unless it has been
-explicitly pruned.
+- Before every deployment, `deploy.sh` writes a compressed snapshot to
+  `~/apps/maricho/backups/pre-deploy-<tag>-<timestamp>.sql.gz` (retaining the 5
+  most recent backups).
+- To roll back the application containers, set `MARICHO_IMAGE_TAG` to the
+  previous commit tag and re-run `deploy/production/deploy.sh`.

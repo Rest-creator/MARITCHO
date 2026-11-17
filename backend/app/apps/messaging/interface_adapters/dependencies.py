@@ -2,8 +2,14 @@ import redis.asyncio as aioredis
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.apps.jobs.infrastructure.repositories import SqlAlchemyJobRepository
-from app.apps.jobs.interface_adapters.dependencies import get_job_repository
+from app.apps.jobs.infrastructure.repositories import (
+    SqlAlchemyJobOfferRepository,
+    SqlAlchemyJobRepository,
+)
+from app.apps.jobs.interface_adapters.dependencies import (
+    get_job_offer_repository,
+    get_job_repository,
+)
 from app.apps.messaging.domain.services import (
     ListMessagesUseCase,
     MarkMessagesReadUseCase,
@@ -31,22 +37,25 @@ def get_chat_broadcaster(
 def get_send_message_use_case(
     messages: SqlAlchemyMessageRepository = Depends(get_message_repository),
     jobs: SqlAlchemyJobRepository = Depends(get_job_repository),
+    offers: SqlAlchemyJobOfferRepository = Depends(get_job_offer_repository),
     broadcaster: RedisChatBroadcaster = Depends(get_chat_broadcaster),
     uow: SqlAlchemyUnitOfWork = Depends(get_unit_of_work),
 ) -> SendMessageUseCase:
-    return SendMessageUseCase(messages, jobs, broadcaster, uow)
+    return SendMessageUseCase(messages, jobs, broadcaster, uow, offers)
 
 
 def get_list_messages_use_case(
     messages: SqlAlchemyMessageRepository = Depends(get_message_repository),
     jobs: SqlAlchemyJobRepository = Depends(get_job_repository),
+    offers: SqlAlchemyJobOfferRepository = Depends(get_job_offer_repository),
 ) -> ListMessagesUseCase:
-    return ListMessagesUseCase(messages, jobs)
+    return ListMessagesUseCase(messages, jobs, offers)
 
 
 def get_mark_messages_read_use_case(
     messages: SqlAlchemyMessageRepository = Depends(get_message_repository),
     jobs: SqlAlchemyJobRepository = Depends(get_job_repository),
+    offers: SqlAlchemyJobOfferRepository = Depends(get_job_offer_repository),
     uow: SqlAlchemyUnitOfWork = Depends(get_unit_of_work),
 ) -> MarkMessagesReadUseCase:
-    return MarkMessagesReadUseCase(messages, jobs, uow)
+    return MarkMessagesReadUseCase(messages, jobs, uow, offers)

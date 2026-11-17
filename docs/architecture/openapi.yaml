@@ -897,6 +897,65 @@ paths:
       time, via Redis pub/sub (so it works regardless of which backend
       process holds the connection) — sending a message always goes
       through that REST endpoint, never through the socket itself.
+  /workers:
+    get:
+      summary: List workers ranked by proximity to a suburb
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: suburb
+          in: query
+          schema:
+            type: string
+            nullable: true
+        - name: trade
+          in: query
+          schema:
+            type: string
+            enum: [PLUMBING, ELECTRICAL, SOLAR, WELDING, BUILDING, APPLIANCE_REPAIR]
+            nullable: true
+        - name: q
+          in: query
+          schema:
+            type: string
+            nullable: true
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/offset'
+      responses:
+        '200':
+          description: Ranked workers near the requested suburb
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+  /workers/{worker_id}:
+    get:
+      summary: Fetch a worker's public profile, skills, standing, and past job records
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: worker_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: suburb
+          in: query
+          schema:
+            type: string
+            nullable: true
+      responses:
+        '200':
+          description: Public worker profile
+          content:
+            application/json:
+              schema:
+                type: object
+        '404':
+          description: Worker not found
   /workers/me/skills:
     post:
       summary: Register a skill (trade) for the current worker

@@ -120,6 +120,124 @@ async def test_mark_messages_read_marks_the_other_partys_messages(
     assert list_response.json()[0]["read_at"] is not None
 
 
+async def test_offering_worker_can_message_buyer_before_booking(
+    client, buyer, worker_factory
+):
+    worker = await worker_factory(TradeEnum.PLUMBING, "Nkulumane")
+    create_response = await client.post(
+        "/jobs/request", json=JOB_PAYLOAD, headers=auth_headers(buyer)
+    )
+    job = create_response.json()
+
+    # Worker submits an offer before booking
+    offer_response = await client.post(
+        f"/jobs/{job['id']}/offers",
+        json={"quoted_amount": "35.00", "availability_note": "Can come at 2pm"},
+        headers=auth_headers(worker),
+    )
+    assert offer_response.status_code == 201
+
+    # Offering worker can view job summary for chat header, with street address masked
+    job_view = await client.get(f"/jobs/{job['id']}", headers=auth_headers(worker))
+    assert job_view.status_code == 200
+    assert job_view.json()["address"] == ""
+
+    # Offering worker and buyer can exchange messages before booking
+    msg_response = await client.post(
+        f"/jobs/{job['id']}/messages",
+        json={"message_type": "TEXT", "body": "Do you have the replacement valve?"},
+        headers=auth_headers(worker),
+    )
+    assert msg_response.status_code == 201
+
+    buyer_msgs = await client.get(
+        f"/jobs/{job['id']}/messages", headers=auth_headers(buyer)
+    )
+    assert buyer_msgs.status_code == 200
+    assert len(buyer_msgs.json()) == 1
+
+
+async def test_losing_bidder_loses_job_and_chat_access_once_booked(
+    client, buyer, worker_factory
+):
+    """A worker whose offer wasn't accepted must not keep indefinite
+    job-read/chat access via their stale offer row once another worker
+    is booked (regression: offers.get_for_job has no status column, so
+    access must instead be scoped to the job's REQUESTED/MATCHED window)."""
+    losing_worker = await worker_factory(TradeEnum.PLUMBING, "Nkulumane")
+    winning_worker = await worker_factory(TradeEnum.PLUMBING, "Nkulumane")
+
+    create_response = await client.post(
+        "/jobs/request", json=JOB_PAYLOAD, headers=auth_headers(buyer)
+    )
+    job = create_response.json()
+
+    offer_response = await client.post(
+        f"/jobs/{job['id']}/offers",
+        json={"quoted_amount": "35.00", "availability_note": "Can come at 2pm"},
+        headers=auth_headers(losing_worker),
+    )
+    assert offer_response.status_code == 201
+
+    # While still open, the offering worker is a legitimate job party.
+    job_view = await client.get(f"/jobs/{job['id']}", headers=auth_headers(losing_worker))
+    assert job_view.status_code == 200
+
+    await client.get(f"/jobs/{job['id']}/matches", headers=auth_headers(buyer))
+    book_response = await client.post(
+        f"/jobs/{job['id']}/book",
+        json={"worker_id": str(winning_worker.id), "deposit_amount": "50.00"},
+        headers=auth_headers(buyer),
+    )
+    assert book_response.status_code == 200
+
+    # Once booked to someone else, the losing bidder's stale offer must no
+    # longer grant job-read or chat access.
+    job_view_after_booking = await client.get(
+        f"/jobs/{job['id']}", headers=auth_headers(losing_worker)
+    )
+    assert job_view_after_booking.status_code == 403
+
+    message_response = await client.post(
+        f"/jobs/{job['id']}/messages",
+        json={"message_type": "TEXT", "body": "snooping"},
+        headers=auth_headers(losing_worker),
+    )
+    assert message_response.status_code == 403
+
+    list_response = await client.get(
+        f"/jobs/{job['id']}/messages", headers=auth_headers(losing_worker)
+    )
+    assert list_response.status_code == 403
+
+
+async def test_offering_worker_does_not_see_gps_coordinates_before_booking(
+    client, buyer, worker_factory
+):
+    """ADR-004 hides street address from a non-booked offering worker —
+    exact GPS coordinates must be hidden the same way (regression: only
+    address/landmark_narrative were redacted, latitude/longitude leaked)."""
+    worker = await worker_factory(TradeEnum.PLUMBING, "Nkulumane")
+    payload = {**JOB_PAYLOAD, "latitude": "-20.1500", "longitude": "28.5833"}
+    create_response = await client.post(
+        "/jobs/request", json=payload, headers=auth_headers(buyer)
+    )
+    job = create_response.json()
+
+    await client.post(
+        f"/jobs/{job['id']}/offers",
+        json={"quoted_amount": "35.00", "availability_note": None},
+        headers=auth_headers(worker),
+    )
+
+    job_view = await client.get(f"/jobs/{job['id']}", headers=auth_headers(worker))
+    assert job_view.status_code == 200
+    body = job_view.json()
+    assert body["address"] == ""
+    assert body["latitude"] is None
+    assert body["longitude"] is None
+
+
 # No automated test for the WebSocket route itself: httpx (this test
 # module's client) has no WebSocket support at all, and the obvious
 # alternative — Starlette's sync TestClient, which drives the ASGI app

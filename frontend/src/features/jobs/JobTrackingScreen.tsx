@@ -177,7 +177,7 @@ export function JobTrackingScreen({ jobId }: Props) {
         <section className="card card--emerald">
           <div className="row row--tight text-emerald" style={{ fontSize: 12, fontWeight: 700 }}>
             <Icon name="shieldCheck" size={16} />
-            Confirmed through Maricho
+            Confirmed through Maritcho
           </div>
           <p style={{ marginTop: 8, fontSize: 14, lineHeight: 1.5 }}>
             {record.data?.what_was_done ?? summariseJob(data)}

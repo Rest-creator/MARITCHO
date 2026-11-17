@@ -2,16 +2,16 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Maricho",
-    short_name: "Maricho",
+    name: "Maritcho",
+    short_name: "Maritcho",
     description:
       "Your skills are your CV. Find trusted hands nearby, or get hired for what you can do.",
     start_url: "/",
     scope: "/",
     display: "standalone",
     orientation: "portrait",
-    background_color: "#1B1C4F",
-    theme_color: "#1B1C4F",
+    background_color: "#2d2e83",
+    theme_color: "#2d2e83",
     categories: ["business", "productivity"],
     icons: [
       { src: "/icons/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },

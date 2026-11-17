@@ -1,84 +1,91 @@
 /*
- * Maricho design tokens — lifted from the approved app UI (wireframes/README.md).
- * Every colour, radius and size used by components must come from here.
+ * Maritcho design tokens — sampled directly from the official Maritcho
+ * teardrop banners & 2026 Logo Presentation:
+ * - Teardrop 1: Crisp White (#ffffff)
+ * - Teardrop 2: Royal Indigo Blue (#222576 -> #2d2e83 -> #34519f)
+ * - Teardrop 3: Vibrant Sky Cyan (#00abe3 -> #00ace8)
  */
 :root {
   color-scheme: dark;
 
-  /* Brand — sampled from the approved logo gradient (Logs/Maritcho Logo
-     Presentation.pdf, page 1): navy at the dark end, blue at the light end. */
+  /* Brand — sampled from the three Maritcho teardrops. */
+  --brand-indigo-deep: #222576;
   --brand-navy: #2d2e83;
-  --brand-blue: #3892cf;
-  --brand-gradient: linear-gradient(135deg, var(--brand-navy), var(--brand-blue));
+  --brand-royal: #34519f;
+  --brand-blue: #00abe3;
+  --brand-cyan: #00abe3;
+  --brand-gradient: linear-gradient(
+    135deg,
+    var(--brand-indigo-deep) 0%,
+    var(--brand-navy) 48%,
+    var(--brand-blue) 100%
+  );
 
-  /* Surfaces — derived from --brand-navy so the app's dark theme matches
-     the brand instead of a generic slate. */
-  --color-bg: #1b1c4f;
+  /* Surfaces — Royal Indigo Blue from the center teardrop & presentation slides. */
+  --color-bg: #26287d;
   --color-bg-raised: var(--brand-navy);
-  /* Solid, not glass: on phones without backdrop blur a translucent sheet
-     let the page behind show through the text (unreadable skill picker). */
-  --color-sheet: var(--brand-navy);
-  --color-scrim: rgba(15, 16, 45, 0.7);
-  --color-bar: rgba(27, 28, 79, 0.75);
-  --color-nav: rgba(45, 46, 131, 0.7);
+  --color-sheet: #242678;
+  --color-scrim: rgba(18, 20, 68, 0.76);
+  --color-bar: rgba(34, 37, 118, 0.88);
+  --color-nav: rgba(34, 37, 118, 0.88);
 
   /* Glass */
-  --glass-faint: rgba(255, 255, 255, 0.04);
-  --glass-subtle: rgba(255, 255, 255, 0.05);
-  --glass: rgba(255, 255, 255, 0.06);
-  --glass-strong: rgba(255, 255, 255, 0.07);
-  --glass-bold: rgba(255, 255, 255, 0.08);
-  --glass-selected: rgba(255, 255, 255, 0.14);
-  --line-faint: rgba(255, 255, 255, 0.08);
-  --line-subtle: rgba(255, 255, 255, 0.1);
-  --line: rgba(255, 255, 255, 0.12);
-  --line-strong: rgba(255, 255, 255, 0.14);
-  --line-bold: rgba(255, 255, 255, 0.18);
-  --line-dashed: rgba(255, 255, 255, 0.25);
+  --glass-faint: rgba(255, 255, 255, 0.05);
+  --glass-subtle: rgba(255, 255, 255, 0.07);
+  --glass: rgba(255, 255, 255, 0.09);
+  --glass-strong: rgba(255, 255, 255, 0.11);
+  --glass-bold: rgba(255, 255, 255, 0.14);
+  --glass-selected: rgba(0, 171, 227, 0.24);
+  --line-faint: rgba(255, 255, 255, 0.1);
+  --line-subtle: rgba(255, 255, 255, 0.14);
+  --line: rgba(255, 255, 255, 0.18);
+  --line-strong: rgba(255, 255, 255, 0.22);
+  --line-bold: rgba(255, 255, 255, 0.28);
+  --line-dashed: rgba(255, 255, 255, 0.32);
   --blur-card: blur(20px);
   --blur-bar: blur(24px);
   --blur-sheet: blur(28px);
 
-  /* Text */
-  --text: #f1f5f9;
-  --text-soft: #e2e8f0;
-  --text-secondary: #cbd5e1;
-  --text-muted: #94a3b8;
-  --text-dim: #64748b;
+  /* Text — Teardrop 1 Crisp White & ice-blue hierarchy */
+  --text: #ffffff;
+  --text-soft: #f0f9ff;
+  --text-secondary: #dbeafe;
+  --text-muted: #93c5fd;
+  --text-dim: #60a5fa;
 
-  /* Employer / primary accent — amber */
-  --amber: #f59e0b;
-  --amber-light: #fbbf24;
-  --amber-lighter: #fcd34d;
-  --amber-pale: #fde68a;
-  --amber-ink: #1c1917;
-  --amber-tint: rgba(245, 158, 11, 0.16);
-  --amber-tint-soft: rgba(245, 158, 11, 0.12);
-  --amber-edge: rgba(245, 158, 11, 0.4);
-  --amber-glow: #b45309;
+  /* Primary accent — Teardrop 3 Vibrant Sky Cyan (#00abe3) with Crisp White ink */
+  --amber: #00abe3;
+  --amber-light: #29c0f2;
+  --amber-lighter: #67d6fa;
+  --amber-pale: #e0f7ff;
+  --amber-ink: #ffffff;
+  --amber-tint: rgba(0, 171, 227, 0.22);
+  --amber-tint-soft: rgba(0, 171, 227, 0.14);
+  --amber-edge: rgba(0, 171, 227, 0.52);
+  --amber-glow: #00abe3;
 
-  /* Worker accent — emerald */
-  --emerald: #10b981;
-  --emerald-light: #34d399;
-  --emerald-lighter: #6ee7b7;
-  --emerald-pale: #a7f3d0;
-  --emerald-mist: #d1fae5;
-  --emerald-ink: #052e1f;
-  --emerald-tint: rgba(16, 185, 129, 0.14);
-  --emerald-tint-soft: rgba(16, 185, 129, 0.1);
-  --emerald-edge: rgba(16, 185, 129, 0.3);
-  --moss-glow: #3f6b57;
-  --slate-glow: #334155;
+  /* Secondary / worker accent — Teardrop Sky & Royal Blue harmony */
+  --emerald: #00ace8;
+  --emerald-light: #38c6f4;
+  --emerald-lighter: #7ddbfa;
+  --emerald-pale: #d8f3ff;
+  --emerald-mist: #f0faff;
+  --emerald-ink: #ffffff;
+  --emerald-tint: rgba(0, 172, 232, 0.2);
+  --emerald-tint-soft: rgba(0, 172, 232, 0.13);
+  --emerald-edge: rgba(0, 172, 232, 0.48);
+  --moss-glow: #34519f;
+  --slate-glow: #222576;
 
   --danger: #f87171;
-  --danger-tint: rgba(248, 113, 113, 0.12);
-  --danger-edge: rgba(248, 113, 113, 0.35);
+  --danger-tint: rgba(248, 113, 113, 0.14);
+  --danger-edge: rgba(248, 113, 113, 0.4);
 
-  /* Avatar fills */
-  --avatar-slate: #475569;
-  --avatar-stone: #57534e;
-  --avatar-moss: #3f6b57;
-  --avatar-warm: #78716c;
+  /* Avatar fills — Royal & Cyan teardrop spectrum */
+  --avatar-slate: #34519f;
+  --avatar-stone: #008fc4;
+  --avatar-moss: #2d2e83;
+  --avatar-warm: #1d70b8;
 
   /* Typography */
   --font-sans: var(--font-jakarta), "Plus Jakarta Sans", system-ui, sans-serif;
@@ -121,9 +128,6 @@
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* Responsive widening — every screen is built on --app-max-width and
-   --gutter, so growing those two tokens at wider viewports scales the
-   whole app to tablet/desktop without a second layout system. */
 @media (min-width: 640px) {
   :root {
     --app-max-width: 640px;

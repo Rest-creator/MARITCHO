@@ -49,40 +49,24 @@ function uploadedFile(body: Buffer): Buffer {
   return body.subarray(start, end + 2);
 }
 
-test.describe("sign-in code (WEB-005)", () => {
-  test("asks for the code that was sent and signs in with it", async ({ page }) => {
+test.describe("sign-up (WEB-005)", () => {
+  test("signs up with name, phone, and password in one step", async ({ page }) => {
     const unexpected = await stubWorld(page, null, { "POST session": { json: BUYER } });
     await page.goto("/signup?role=buyer");
     await page.getByLabel("Your name").fill("Rudo Ncube");
     await page.getByLabel("Phone number").fill("77 412 3089");
+    await page.getByLabel("Password").fill("Passw0rd!");
+    const signUp = page.waitForRequest((request) => request.url().endsWith("/api/session"));
     await page.getByRole("button", { name: "Continue" }).click();
 
-    await expect(page.getByText("+263 77 412 3089")).toBeVisible();
-    const signIn = page.waitForRequest((request) => request.url().endsWith("/api/session"));
-    await page.getByLabel("6-digit code").fill("482913");
-    expect((await signIn).postDataJSON()).toEqual({
+    expect((await signUp).postDataJSON()).toEqual({
+      mode: "signup",
       phone: "+263774123089",
+      password: "Passw0rd!",
+      name: "Rudo Ncube",
       role: "BUYER",
-      code: "482913",
     });
     await expect(page).toHaveURL(/\/employer$/);
-    expect(unexpected).toEqual([]);
-  });
-
-  test("goes straight in while the backend can't send codes", async ({ page }) => {
-    const unexpected = await stubWorld(page, null, {
-      "POST session/code": { json: { code_required: false } },
-      "POST session": { json: BUYER },
-    });
-    await page.goto("/signup?role=buyer");
-    await page.getByLabel("Your name").fill("Rudo Ncube");
-    await page.getByLabel("Phone number").fill("77 412 3089");
-    const signIn = page.waitForRequest((request) => request.url().endsWith("/api/session"));
-    await page.getByRole("button", { name: "Continue" }).click();
-
-    expect((await signIn).postDataJSON()).toEqual({ phone: "+263774123089", role: "BUYER" });
-    await expect(page).toHaveURL(/\/employer$/);
-    await expect(page.getByRole("heading", { name: "Enter your code" })).toHaveCount(0);
     expect(unexpected).toEqual([]);
   });
 });
@@ -97,7 +81,7 @@ test.describe("photos (WEB-004)", () => {
     await page.getByLabel("Describe the job").fill("Kitchen sink is leaking under the basin");
     await page.getByRole("button", { name: /Where is the job\?/ }).click();
     const sheet = page.getByRole("dialog", { name: "Where is the job?" });
-    await sheet.getByLabel("Suburb").selectOption("Hillside");
+    await sheet.getByLabel("Suburb").fill("Hillside");
     await sheet.getByLabel("Street address").fill("14 Harrow Rd");
     await sheet.getByRole("button", { name: "Use this place" }).click();
 

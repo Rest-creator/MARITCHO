@@ -46,7 +46,7 @@ export async function screenBundle(request: NextRequest, parts: Parts): Promise<
     );
   } catch {
     return NextResponse.json(
-      { detail: "Maricho is unreachable right now. Showing what's saved on your phone." },
+      { detail: "Maritcho is unreachable right now. Showing what's saved on your phone." },
       { status: 503 },
     );
   }

@@ -26,9 +26,10 @@ export function TabBar({ items, ariaLabel }: Props) {
     <nav className="tabbar" aria-label={ariaLabel}>
       <div className="tabbar__brand" aria-hidden="true">
         <span className="brand__mark">
-          <Icon name="wrench" strokeWidth={2} />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo-mark.svg" alt="" width={28} height={28} />
         </span>
-        <span>Maricho</span>
+        <span>Maritcho</span>
       </div>
       {items.map((item) => (
         <Link

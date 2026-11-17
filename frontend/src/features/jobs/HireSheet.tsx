@@ -56,7 +56,7 @@ export function HireSheet({ job, candidate, onClose }: Props) {
           <span className="strong text-amber">{formatMoney(deposit)}</span>
         </div>
         <p className="meta" style={{ lineHeight: 1.5 }}>
-          Maricho holds the deposit. The worker confirms the full price when they see the job, and
+          Maritcho holds the deposit. The worker confirms the full price when they see the job, and
           you only release payment once you&apos;re happy it&apos;s done.
         </p>
       </div>
