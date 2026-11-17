@@ -2,49 +2,29 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-PRODUCTION_DIR="$ROOT_DIR/deploy/production"
 
 : "${MARICHO_VPS:?Set MARICHO_VPS, for example deployer@example-vps}"
 : "${MARICHO_DOMAIN:?Set MARICHO_DOMAIN to the public frontend hostname}"
 : "${MARICHO_WS_URL:?Set MARICHO_WS_URL to the public websocket URL}"
 MARICHO_REMOTE_DIR="${MARICHO_REMOTE_DIR:-apps/maricho}"
-MARICHO_IMAGE_TAG="${MARICHO_IMAGE_TAG:-$(git -C "$ROOT_DIR" rev-parse --short=12 HEAD)}"
+MARICHO_GIT_URL="${MARICHO_GIT_URL:-$(git -C "$ROOT_DIR" remote get-url origin)}"
+MARICHO_GIT_REF="${MARICHO_GIT_REF:-$(git -C "$ROOT_DIR" rev-parse HEAD)}"
+MARICHO_IMAGE_TAG="${MARICHO_IMAGE_TAG:-$(git -C "$ROOT_DIR" rev-parse --short=12 "$MARICHO_GIT_REF")}"
 MARICHO_PUBLIC_URL="${MARICHO_PUBLIC_URL:-https://$MARICHO_DOMAIN}"
 
-export MARICHO_VPS MARICHO_REMOTE_DIR
-source "$PRODUCTION_DIR/deploy_upload.sh"
-
-BACKEND_IMAGE="maricho-backend:$MARICHO_IMAGE_TAG"
-FRONTEND_IMAGE="maricho-frontend:$MARICHO_IMAGE_TAG"
+SSH_OPTS=(-o ServerAliveInterval=15 -o ServerAliveCountMax=8 -o ConnectTimeout=20)
 
 echo "=================================================="
-echo "Building Docker images for $MARICHO_IMAGE_TAG"
-echo "=================================================="
-docker build -t "$BACKEND_IMAGE" "$ROOT_DIR/backend"
-docker build -f "$ROOT_DIR/frontend/Dockerfile" -t "$FRONTEND_IMAGE" \
-    --build-arg NEXT_PUBLIC_WS_URL="$MARICHO_WS_URL" "$ROOT_DIR/frontend"
-
-echo "=================================================="
-echo "Uploading Docker images"
-echo "=================================================="
-retry remote "mkdir -p '$MARICHO_REMOTE_DIR' '$MARICHO_REMOTE_DIR/backups'"
-upload_image "$BACKEND_IMAGE"
-upload_image "$FRONTEND_IMAGE"
-
-echo "=================================================="
-echo "Uploading production Compose & Caddy configuration"
-echo "=================================================="
-retry push_file "$PRODUCTION_DIR/docker-compose.yml" "$MARICHO_REMOTE_DIR/docker-compose.yml"
-retry push_file "$PRODUCTION_DIR/Caddyfile.maricho" "$MARICHO_REMOTE_DIR/Caddyfile.maricho"
-
-echo "=================================================="
-echo "Deploying on $MARICHO_VPS"
+echo "Deploying $MARICHO_GIT_REF (tag $MARICHO_IMAGE_TAG) on $MARICHO_VPS"
+echo "Pulling from $MARICHO_GIT_URL and building on the VPS"
 echo "=================================================="
 
 ssh "${SSH_OPTS[@]}" "$MARICHO_VPS" \
-    "IMAGE_TAG=$(printf '%q' "$MARICHO_IMAGE_TAG") REMOTE_DIR=$(printf '%q' "$MARICHO_REMOTE_DIR") bash -s" <<'EOF'
+    "GIT_URL=$(printf '%q' "$MARICHO_GIT_URL") GIT_REF=$(printf '%q' "$MARICHO_GIT_REF") IMAGE_TAG=$(printf '%q' "$MARICHO_IMAGE_TAG") REMOTE_DIR=$(printf '%q' "$MARICHO_REMOTE_DIR") WS_URL=$(printf '%q' "$MARICHO_WS_URL") bash -s" <<'EOF'
 set -euo pipefail
 
+mkdir -p "$REMOTE_DIR" "$REMOTE_DIR/backups"
+REMOTE_DIR="$(cd "$REMOTE_DIR" && pwd)"
 cd "$REMOTE_DIR"
 test -f .env
 
@@ -56,29 +36,48 @@ for key in POSTGRES_DB POSTGRES_USER POSTGRES_PASSWORD SECRET_KEY; do
     esac
 done
 
+echo "=================================================="
+echo "Fetching $GIT_REF"
+echo "=================================================="
+if [ ! -d repo/.git ]; then
+    git clone "$GIT_URL" repo
+fi
+git -C repo fetch --depth 1 origin "$GIT_REF"
+git -C repo checkout --detach FETCH_HEAD
+git -C repo clean -fdx
+
+cd repo/deploy/production
 export APP_VERSION="$IMAGE_TAG"
-docker compose --env-file .env config --quiet
+export NEXT_PUBLIC_WS_URL="$WS_URL"
+COMPOSE=(docker compose --env-file "$REMOTE_DIR/.env")
+
+"${COMPOSE[@]}" config --quiet
+
+echo "=================================================="
+echo "Building images on the VPS"
+echo "=================================================="
+"${COMPOSE[@]}" build api frontend
 
 if ! docker network inspect proxy-tier >/dev/null 2>&1; then
     docker network create proxy-tier
 fi
 
 # Take a pre-migration database backup when an existing db container is running.
-if [ -n "$(docker compose ps -q db 2>/dev/null || true)" ]; then
-    if docker compose exec -T db sh -c 'pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"' >/dev/null 2>&1; then
-        backup_file="backups/pre-deploy-${IMAGE_TAG}-$(date -u +%Y%m%dT%H%M%SZ).sql.gz"
+if [ -n "$("${COMPOSE[@]}" ps -q db 2>/dev/null || true)" ]; then
+    if "${COMPOSE[@]}" exec -T db sh -c 'pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"' >/dev/null 2>&1; then
+        backup_file="$REMOTE_DIR/backups/pre-deploy-${IMAGE_TAG}-$(date -u +%Y%m%dT%H%M%SZ).sql.gz"
         echo "Creating pre-deploy database snapshot: $backup_file"
-        docker compose exec -T db sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB"' | gzip -9 > "$backup_file"
-        ls -1t backups/pre-deploy-*.sql.gz 2>/dev/null | tail -n +6 | xargs -r rm -f
+        "${COMPOSE[@]}" exec -T db sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB"' | gzip -9 > "$backup_file"
+        ls -1t "$REMOTE_DIR"/backups/pre-deploy-*.sql.gz 2>/dev/null | tail -n +6 | xargs -r rm -f
     fi
 fi
 
 # Rolling update: start stateful services first, then roll api + frontend without full downtime.
-docker compose up -d --no-build db redis
+"${COMPOSE[@]}" up -d --no-build db redis
 
 db_ready=false
 for _ in $(seq 1 30); do
-    if docker compose exec -T db sh -c 'pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"' >/dev/null 2>&1; then
+    if "${COMPOSE[@]}" exec -T db sh -c 'pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"' >/dev/null 2>&1; then
         db_ready=true
         break
     fi
@@ -86,11 +85,11 @@ for _ in $(seq 1 30); do
 done
 test "$db_ready" = true
 
-docker compose up -d --no-build --remove-orphans api frontend
+"${COMPOSE[@]}" up -d --no-build --remove-orphans api frontend
 
 api_ready=false
 for _ in $(seq 1 30); do
-    if docker compose exec -T api python -c \
+    if "${COMPOSE[@]}" exec -T api python -c \
         "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/ready')" \
         >/dev/null 2>&1; then
         api_ready=true
@@ -100,25 +99,25 @@ for _ in $(seq 1 30); do
 done
 test "$api_ready" = true
 
-current_revision="$(docker compose exec -T api alembic current)"
-heads_revision="$(docker compose exec -T api alembic heads)"
+current_revision="$("${COMPOSE[@]}" exec -T api alembic current)"
+heads_revision="$("${COMPOSE[@]}" exec -T api alembic heads)"
 grep -q '(head)' <<< "$current_revision"
 grep -q 'head' <<< "$heads_revision"
 echo "$current_revision"
 
 # Verify pgvector extension is active in PostgreSQL.
-docker compose exec -T db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -tAc "SELECT 1 FROM pg_extension WHERE extname = '\''vector'\''"' | grep -q '1'
+"${COMPOSE[@]}" exec -T db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -tAc "SELECT 1 FROM pg_extension WHERE extname = '\''vector'\''"' | grep -q '1'
 
-docker compose exec -T frontend node -e \
+"${COMPOSE[@]}" exec -T frontend node -e \
     "fetch('http://localhost:3000/').then(r => { if (!r.ok) process.exit(1) }, () => process.exit(1))"
 
-api_container="$(docker compose ps -q api)"
-frontend_container="$(docker compose ps -q frontend)"
+api_container="$("${COMPOSE[@]}" ps -q api)"
+frontend_container="$("${COMPOSE[@]}" ps -q frontend)"
 test "$(docker inspect --format '{{.Config.Image}}' "$api_container")" = "maricho-backend:$IMAGE_TAG"
 test "$(docker inspect --format '{{.Config.Image}}' "$frontend_container")" = "maricho-frontend:$IMAGE_TAG"
 
-docker compose ps
-docker compose logs api --tail=20
+"${COMPOSE[@]}" ps
+"${COMPOSE[@]}" logs api --tail=20
 EOF
 
 echo "=================================================="

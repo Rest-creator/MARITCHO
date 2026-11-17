@@ -49,6 +49,9 @@ services:
   api:
     container_name: maricho-api
     image: maricho-backend:${APP_VERSION:?APP_VERSION is required}
+    build:
+      context: ../../backend
+      dockerfile: Dockerfile
     restart: unless-stopped
     init: true
     stop_grace_period: 30s
@@ -89,6 +92,11 @@ services:
   frontend:
     container_name: maricho-frontend
     image: maricho-frontend:${APP_VERSION:?APP_VERSION is required}
+    build:
+      context: ../../frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_WS_URL: ${NEXT_PUBLIC_WS_URL:?NEXT_PUBLIC_WS_URL is required}
     restart: unless-stopped
     init: true
     stop_grace_period: 20s
