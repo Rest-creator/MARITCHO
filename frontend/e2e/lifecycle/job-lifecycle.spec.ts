@@ -167,7 +167,7 @@ test("a job goes from posted to paid", async ({ browser }) => {
     await buyer.getByRole("button", { name: "On time" }).click();
     await buyer.getByRole("button", { name: `Confirm job done & pay $${PRICE}` }).click();
     await expect(buyer.getByText("Job signed off")).toBeVisible();
-    await expect(buyer.getByText("Confirmed through Maricho")).toBeVisible();
+    await expect(buyer.getByText("Confirmed through Maritcho")).toBeVisible();
   });
 
   await test.step("worker sees the finished job and the earnings", async () => {

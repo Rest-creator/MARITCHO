@@ -287,10 +287,8 @@ function responsesFor(who: Who): Record<string, Reply> {
       assigned: [BOOKED_JOB, LIVE_JOB, DONE_JOB],
     }),
     "GET screens/worker-home": ok({ skills: SKILLS, open_jobs: OPEN_JOBS, offers: MY_OFFERS }),
-    // The world as designed: uploads exist (POST-only route → 405 on GET)
-    // and sign-up sends a 6-digit code.
+    // The world as designed: uploads exist (POST-only route → 405 on GET).
     "GET media": { status: 405, json: { detail: "Method Not Allowed" } },
-    "POST session/code": ok({ code_required: true, resend_after_seconds: 30 }),
   };
 }
 
