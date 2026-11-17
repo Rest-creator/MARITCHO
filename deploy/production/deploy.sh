@@ -86,6 +86,15 @@ for _ in $(seq 1 30); do
 done
 test "$db_ready" = true
 
+# Photo/voice uploads: the media volume was first created root-owned (before
+# the image shipped the directory), while the API runs as the unprivileged
+# `app` user -> every upload failed with PermissionError (HTTP 500). Re-own it
+# on every deploy (idempotent, cheap) and prove `app` can write before rolling.
+docker compose run --rm --no-deps --user 0 --entrypoint sh api -c \
+    'mkdir -p /var/lib/maricho/media && chown -R app:app /var/lib/maricho/media'
+docker compose run --rm --no-deps --entrypoint sh api -c \
+    'probe=/var/lib/maricho/media/.write-probe && touch "$probe" && rm -f "$probe"'
+
 docker compose up -d --no-build --remove-orphans api frontend
 
 api_ready=false

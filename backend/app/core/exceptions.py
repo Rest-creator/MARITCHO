@@ -74,6 +74,29 @@ def _make_handler(status_code: int) -> Callable[[Request, Exception], JSONRespon
     return _handler
 
 
+def _unexpected_error_handler(request: Request, exc: Exception) -> JSONResponse:
+    """Last resort: log with the trace context and return JSON, so clients
+    (the BFF parses `detail`) never get Starlette's bare plain-text 500."""
+    from app.core.telemetry import logger
+
+    logger.exception(
+        f"unhandled error on {request.method} {request.url.path}",
+        extra={
+            "audit": {
+                "event": "unhandled_error",
+                "method": request.method,
+                "path": request.url.path,
+                "error_type": type(exc).__name__,
+            }
+        },
+    )
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Something went wrong on our side. Please try again."},
+    )
+
+
 def register_exception_handlers(app: FastAPI) -> None:
     for exc_type, status_code in _STATUS_BY_EXCEPTION.items():
         app.add_exception_handler(exc_type, _make_handler(status_code))
+    app.add_exception_handler(Exception, _unexpected_error_handler)

@@ -9,3 +9,7 @@ backend/postgres_data/
 *.egg-info/
 .coverage
 build/
+
+# Local media uploads written by the API and test runs (MEDIA_STORAGE_PATH default)
+backend/storage/
+

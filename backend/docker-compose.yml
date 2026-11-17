@@ -38,6 +38,11 @@ services:
       REDIS_URL: redis://redis:6379/0
       # Dev-only placeholder — override with a real secret outside local dev.
       SECRET_KEY: dev-only-secret-change-in-real-deployments
+      # Same path and a named volume as production, so uploads survive
+      # rebuilds and local runs reproduce production's permissions.
+      MEDIA_STORAGE_PATH: /var/lib/maricho/media
+    volumes:
+      - media_data:/var/lib/maricho/media
     ports:
       - "${MARICHO_API_PORT:-8000}:8000"
     depends_on:
@@ -89,3 +94,4 @@ services:
 
 volumes:
   postgres_data:
+  media_data:

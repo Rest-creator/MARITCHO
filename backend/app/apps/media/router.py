@@ -1,17 +1,19 @@
 import os
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, Header, HTTPException, UploadFile, status
 from fastapi.responses import FileResponse
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.apps.accounts.domain.entities import Person
 from app.apps.accounts.interface_adapters.dependencies import get_current_user
 from app.apps.media.models import MediaFileModel
 from app.core.database import get_db_session
+from app.core.telemetry import logger
 
 router = APIRouter(prefix="/media", tags=["media"])
 MAX_PHOTO_BYTES = 2 * 1024 * 1024
@@ -50,10 +52,34 @@ async def upload_media(
     content = await file.read(max_bytes + 1)
     if len(content) > max_bytes:
         raise HTTPException(status_code=413, detail="Media file is too large")
+    if not content:
+        raise HTTPException(status_code=400, detail="The file is empty")
+
     media_id = uuid.uuid4()
-    MEDIA_ROOT.mkdir(parents=True, exist_ok=True)
     name = f"{media_id}{suffix}"
-    (MEDIA_ROOT / name).write_bytes(content)
+    path = MEDIA_ROOT / name
+    try:
+        MEDIA_ROOT.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(content)
+    except OSError as error:
+        # e.g. a media volume the API user can't write to, or a full disk.
+        # Previously an uncaught 500 with a plain-text body.
+        logger.exception(
+            f"media upload could not be stored user_id={current_user.id}",
+            extra={
+                "audit": {
+                    "event": "media_store_failed",
+                    "user_id": str(current_user.id),
+                    "media_root": str(MEDIA_ROOT),
+                    "errno": error.errno,
+                }
+            },
+        )
+        raise HTTPException(
+            status_code=503,
+            detail="We couldn't save your photo right now. Please try again in a moment.",
+        ) from error
+
     model = MediaFileModel(
         id=media_id,
         owner_id=current_user.id,
@@ -61,10 +87,28 @@ async def upload_media(
         storage_name=name,
         content_type=content_type,
         size_bytes=len(content),
-        created_at=datetime.utcnow(),
+        created_at=datetime.now(UTC),
     )
     db.add(model)
-    await db.commit()
+    try:
+        await db.commit()
+    except IntegrityError:
+        # Two requests with the same idempotency key raced (double tap, or a
+        # retry while the first was still in flight): return the winner.
+        await db.rollback()
+        path.unlink(missing_ok=True)
+        winner = await db.scalar(
+            select(MediaFileModel).where(
+                MediaFileModel.owner_id == current_user.id,
+                MediaFileModel.idempotency_key == idempotency_key[:128],
+            )
+        )
+        if winner is None:
+            raise
+        return _response(winner)
+    except Exception:
+        path.unlink(missing_ok=True)
+        raise
     return _response(model)
 
 
@@ -84,9 +128,7 @@ async def download_media(
     db: AsyncSession = Depends(get_db_session),
 ) -> FileResponse:
     model = await db.get(MediaFileModel, media_id)
-    if model is None or (
-        model.owner_id != current_user.id and current_user.role.value != "OPS"
-    ):
+    if model is None or (model.owner_id != current_user.id and current_user.role.value != "OPS"):
         raise HTTPException(status_code=404, detail="Media not found")
     path = (MEDIA_ROOT / model.storage_name).resolve()
     if MEDIA_ROOT not in path.parents or not path.is_file():
