@@ -1,7 +1,7 @@
 import { defineConfig } from "@playwright/test";
 
 /*
- * Two suites, both on a small Android-sized screen (the phones Maricho is
+ * Two suites, both on a small Android-sized screen (the phones Maritcho is
  * built for):
  *
  * - `lifecycle` drives the real stack: this Next.js app in front of the

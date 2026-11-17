@@ -28,7 +28,7 @@ from app.core.redis import get_redis_client
 from app.core.telemetry import logger, setup_telemetry
 from app.shared_kernel.enums import RoleEnum
 
-app = FastAPI(title="Maricho Backend API")
+app = FastAPI(title="Maritcho Backend API")
 
 # Initialize telemetry
 setup_telemetry(app, "maricho-api")

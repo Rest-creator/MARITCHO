@@ -1,4 +1,4 @@
-# Maricho Product Requirements Document (PRD)
+# Maritcho Product Requirements Document (PRD)
 
 ## 1. Personas
 

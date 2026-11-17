@@ -1,4 +1,4 @@
-# Maricho Project Plan & Risk Register
+# Maritcho Project Plan & Risk Register
 
 ## 1. Project Milestones
 

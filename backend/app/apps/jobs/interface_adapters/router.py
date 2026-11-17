@@ -192,7 +192,7 @@ async def search_skills_vector(
     q: str = Query(min_length=1, max_length=200),
     limit: int = Query(default=10, ge=1, le=25),
 ) -> list[SkillSemanticMatch]:
-    """Semantic vector search over the Maricho skill and trade catalogue."""
+    """Semantic vector search over the Maritcho skill and trade catalogue."""
     with tracer.start_as_current_span("jobs.skill_vector_search") as span:
         span.set_attribute("search.query_length", len(q.strip()))
         matches = await run_in_threadpool(rank_skills_by_query, q, limit=limit)

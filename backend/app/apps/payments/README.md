@@ -1,7 +1,7 @@
 # Payments App
 
 ## Overview
-The Payments app handles all financial transactions, escrow, and ledger operations for the Maricho platform.
+The Payments app handles all financial transactions, escrow, and ledger operations for the Maritcho platform.
 
 ## Responsibilities
 - **Ledger Management**: Maintaining an immutable transaction history for deposits, balances, and releases.

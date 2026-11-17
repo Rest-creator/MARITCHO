@@ -1,7 +1,7 @@
 # Crews App
 
 ## Overview
-The Crews app manages the lifecycle and operations of worker crews. In the Maricho platform, tasks might require more than a single worker, and this app facilitates the formation and management of those teams.
+The Crews app manages the lifecycle and operations of worker crews. In the Maritcho platform, tasks might require more than a single worker, and this app facilitates the formation and management of those teams.
 
 ## Responsibilities
 - **Crew Formation**: Grouping individual workers into a single crew.

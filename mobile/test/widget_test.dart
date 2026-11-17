@@ -42,7 +42,7 @@ void main() {
       ),
     );
 
-    expect(find.text('Maricho'), findsOneWidget);
+    expect(find.text('Maritcho'), findsOneWidget);
     expect(find.text('Your skills are your CV.'), findsOneWidget);
     expect(find.text('I need work done'), findsOneWidget);
     expect(find.text("I'm looking for work"), findsOneWidget);

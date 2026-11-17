@@ -1,4 +1,4 @@
--- Maricho Database Schema (reference snapshot)
+-- Maritcho Database Schema (reference snapshot)
 --
 -- This file mirrors the schema produced by the Alembic migrations under
 -- backend/migrations/versions/. Alembic is the source of truth for schema

@@ -5,7 +5,7 @@ import type { IconName } from "@/components/ui/Icon";
  * The design's skill catalogue is broader than the backend's TradeEnum
  * (six trades in Stage One). Skills that map to a backend trade are
  * selectable; the rest are shown as "soon" so people can see where
- * Maricho is heading without being able to post a job nobody can match.
+ * Maritcho is heading without being able to post a job nobody can match.
  */
 
 export interface SkillOption {

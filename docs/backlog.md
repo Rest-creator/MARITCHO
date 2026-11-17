@@ -1,4 +1,4 @@
-# Maricho Sprint Backlog
+# Maritcho Sprint Backlog
 
 ## Sprint 1: Infrastructure & Core API
 

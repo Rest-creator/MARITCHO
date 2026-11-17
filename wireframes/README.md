@@ -1,6 +1,6 @@
-# Maricho App UI
+# Maritcho App UI
 
-The screens below are the approved app UI ("Maricho Recruitment – App UI" design canvas).
+The screens below are the approved app UI ("Maritcho Recruitment – App UI" design canvas).
 They replace the earlier SVG/JPG wireframes. Each PNG is rendered at 390×844 (2× scale);
 the matching static HTML source is in [`html/`](./html).
 

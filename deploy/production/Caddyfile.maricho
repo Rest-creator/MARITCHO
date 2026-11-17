@@ -1,4 +1,4 @@
-# Maricho production reverse-proxy block for central Caddy (`proxy-tier` network).
+# Maritcho production reverse-proxy block for central Caddy (`proxy-tier` network).
 # Uses ECC (ECDSA P-256) TLS certificates and routes live chat WebSockets to
 # `maricho-api:8000` while serving the web app and `/api/*` BFF from `maricho-frontend:3000`.
 

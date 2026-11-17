@@ -105,7 +105,7 @@ export function gradeLabel(grade: Grade): string {
   return GRADE_LABELS[grade];
 }
 
-/** Grades at or above IDENTIFIED have passed Maricho's vetting. */
+/** Grades at or above IDENTIFIED have passed Maritcho's vetting. */
 export function isVerifiedGrade(grade: Grade): boolean {
   return grade !== "REGISTERED";
 }

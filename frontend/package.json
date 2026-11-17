@@ -2,7 +2,7 @@
   "name": "maricho-frontend",
   "version": "0.1.0",
   "private": true,
-  "description": "Maricho Progressive Web App — offline-first web client for the Maricho backend.",
+  "description": "Maritcho Progressive Web App — offline-first web client for the Maritcho backend.",
   "engines": {
     "node": ">=20.9.0"
   },

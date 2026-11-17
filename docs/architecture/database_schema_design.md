@@ -1,6 +1,6 @@
-# Maricho Database Schema Design
+# Maritcho Database Schema Design
 
-This document outlines the normalized, relational database schema for Maricho, designed for PostgreSQL.
+This document outlines the normalized, relational database schema for Maritcho, designed for PostgreSQL.
 
 ## 1. Entity-Relationship Diagram (Mermaid)
 
@@ -217,7 +217,7 @@ The schema is normalized to **3NF (Third Normal Form)** to ensure data integrity
 ### Core Constraints
 
 1.  **Unique Identifiers (UUIDv4):** All primary keys utilize UUIDs to prevent ID guessing and support offline-first sync (clients can generate UUIDs locally before syncing).
-2.  **Phone Number Uniqueness:** `PERSONS.phone` is constrained as `UNIQUE`. A single phone number is the primary identity anchor in Maricho.
+2.  **Phone Number Uniqueness:** `PERSONS.phone` is constrained as `UNIQUE`. A single phone number is the primary identity anchor in Maritcho.
 3.  **Composite Unique Constraints:**
     *   `SKILLS`: `UNIQUE(worker_id, trade)` — A worker cannot have duplicate entries for the same trade.
     *   `SERVICE_AREAS`: `UNIQUE(worker_id, suburb)` — A worker cannot duplicate suburb coverage.
@@ -498,7 +498,7 @@ Per the corrected ADR-002: the platform's fee is collected digitally from
 the **buyer**, at booking, via a real EcoCash collection request — this
 extends the existing `deposit_amount`/`DEPOSIT_HELD` mechanism (§4), it
 does not replace it. The worker's portion of the agreed price is
-collected directly from the buyer in physical cash, off-platform; Maricho
+collected directly from the buyer in physical cash, off-platform; Maritcho
 never holds or debits anything from the worker, at any point, for any
 currency.
 

@@ -93,7 +93,7 @@ class MyApp extends StatelessWidget {
         RepositoryProvider<SyncService>.value(value: syncService),
       ],
       child: MaterialApp(
-        title: 'Maricho',
+        title: 'Maritcho',
         theme: AppTheme.lightTheme,
         initialRoute: '/',
         onGenerateRoute: onGenerateRoute,

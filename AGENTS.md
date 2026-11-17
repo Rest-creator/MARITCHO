@@ -1,4 +1,4 @@
-# Agent Instructions for Maricho Project
+# Agent Instructions for Maritcho Project
 
 This file contains the checkpoint rules aligned with our SDLC implementation.
 

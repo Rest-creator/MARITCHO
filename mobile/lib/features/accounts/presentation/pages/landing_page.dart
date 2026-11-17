@@ -38,7 +38,7 @@ class LandingPage extends StatelessWidget {
                   ),
                   const SizedBox(width: 10),
                   const Text(
-                    'Maricho',
+                    'Maritcho',
                     style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                   ),
                 ],
@@ -53,7 +53,7 @@ class LandingPage extends StatelessWidget {
               ),
               const SizedBox(height: 32),
               Text(
-                'How will you use Maricho?',
+                'How will you use Maritcho?',
                 style: TextStyle(
                   fontWeight: FontWeight.w600,
                   color: AppTheme.coolGray,

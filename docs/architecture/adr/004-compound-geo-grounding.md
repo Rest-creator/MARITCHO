@@ -4,7 +4,7 @@
 Accepted and implemented (migration `b4bcfbff527d`; see `docs/backlog.md` `CORE-006`, now `DONE`)
 
 ## Context
-A comparative review of Zimbabwean and comparable African operating conditions confirmed Bulawayo's high-density and peri-urban suburbs frequently lack reliable street-level addressing — the same condition that leaves ZiMLiNKS's directory model as "call the number and hope." Maricho's current `Job.address` / `CrewOrder.address` is a single free-text field, revealed to the worker only at booking (`database_schema_design.md` §4); nothing structures it for navigation, and nothing captures a GPS coordinate distinct from the suburb-level centroid already used for distance-band matching (§3).
+A comparative review of Zimbabwean and comparable African operating conditions confirmed Bulawayo's high-density and peri-urban suburbs frequently lack reliable street-level addressing — the same condition that leaves ZiMLiNKS's directory model as "call the number and hope." Maritcho's current `Job.address` / `CrewOrder.address` is a single free-text field, revealed to the worker only at booking (`database_schema_design.md` §4); nothing structures it for navigation, and nothing captures a GPS coordinate distinct from the suburb-level centroid already used for distance-band matching (§3).
 
 ## Decision
 1. Add a `landmark_narrative` text field and an optional `latitude`/`longitude` GPS pin to `Job` and `CrewOrder`, captured alongside the existing free-text `address` at request time — a triangulated combination of coordinate, address text, and landmark description, not a replacement for any of them.

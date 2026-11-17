@@ -1,7 +1,7 @@
 # System Design Document (SDD)
 
 ## 1. System Topology
-Maricho utilizes a modular monolithic backend designed for self-hosted containerized deployment, communicating with Progressive Web App (PWA) and native mobile clients.
+Maritcho utilizes a modular monolithic backend designed for self-hosted containerized deployment, communicating with Progressive Web App (PWA) and native mobile clients.
 
 Internally, the backend follows Clean Architecture combined with domain-based "apps" (`app/apps/{accounts,suburbs,payments,workers,jobs,crews}/`, each with `domain/`/`infrastructure/`/`interface_adapters/` layers), plus `app/core/` (shared framework code) and `app/shared_kernel/` (framework-free vocabulary and cross-app ports) — see ADR-007 for the full rationale. This is an internal code-organization decision only: the HTTP contract, Postgres schema, and business behavior described below are unchanged by it.
 
@@ -86,7 +86,7 @@ service exists today.
 A review of comparable service marketplaces (Thumbtack, Taskrabbit, Urban
 Company, Angi, Airtasker, Handy, Porch, Houzz, Checkatrade, MyBuilder,
 Kandua, Lynk/Eden Life, ZiMLiNKS) informed four new ADRs (002–005) adjusting
-Maricho's ledger, quoting, geo-capture, and vetting design for Zimbabwe's
+Maritcho's ledger, quoting, geo-capture, and vetting design for Zimbabwe's
 operating conditions. The same review also surfaced patterns worth
 recording as **deliberately rejected**, so they aren't silently
 reconsidered later without the reasoning that ruled them out the first
@@ -94,10 +94,10 @@ time:
 
 - **Upfront pay-per-lead charges (Thumbtack / Angi):** charging a worker
   before any match is confirmed disintermediates the platform and burdens
-  undercapitalized workers. Maricho already avoids this — CORE-002/CORE-003
+  undercapitalized workers. Maritcho already avoids this — CORE-002/CORE-003
   only ever bill after a real booking, never for a bare lead.
 - **Card/bank escrow as the *only* payment rail (Airtasker / Taskrabbit):**
-  assumes a banking rail most of Maricho's target users don't have. See
+  assumes a banking rail most of Maritcho's target users don't have. See
   ADR-002.
 - **Fixed-SKU catalog pricing with no worker-submitted quote (Urban
   Company):** doesn't survive Zimbabwe's volatile material and transport
@@ -123,7 +123,7 @@ time:
   have professional project photography ready; text/voice intake matters
   more here given data costs and literacy. Job-completion photos may
   opportunistically double as portfolio media later, but this is not a
-  foundational discovery mechanism for Maricho.
+  foundational discovery mechanism for Maritcho.
 - **Home-inspection-report data ingestion (Porch):** no equivalent formal
   home-inspection industry integrated with property transactions exists in
   this market to ingest from.
@@ -133,8 +133,8 @@ time:
   adding later only if missed-appointment/no-show disputes actually become
   a measured problem.
 - **Pure classified-directory model with no transaction mediation
-  (Checkatrade / MyBuilder / ZiMLiNKS):** ZiMLiNKS is Maricho's own
+  (Checkatrade / MyBuilder / ZiMLiNKS):** ZiMLiNKS is Maritcho's own
   cautionary tale for exactly this failure mode in this market — no
   escrow, no quoting, no verification, complete disintermediation into
-  unmonitored WhatsApp/phone calls. Maricho exists specifically to not be
+  unmonitored WhatsApp/phone calls. Maritcho exists specifically to not be
   this.

@@ -38,7 +38,7 @@ class WorkScreenRepository {
       return Error(
         NetworkFailure(
           message:
-              detail?.toString() ?? error.message ?? 'Could not reach Maricho',
+              detail?.toString() ?? error.message ?? 'Could not reach Maritcho',
           exception: error,
         ),
       );

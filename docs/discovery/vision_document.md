@@ -1,8 +1,8 @@
-# Maricho Vision Document
+# Maritcho Vision Document
 
 ## Product Vision
 "Skilled work you can see, hire, and prove." 
-Maricho turns informal trade work into something that leaves a trace — allowing households to hire with confidence, employers to staff sites quickly, and tradesmen to own a permanent record of their work.
+Maritcho turns informal trade work into something that leaves a trace — allowing households to hire with confidence, employers to staff sites quickly, and tradesmen to own a permanent record of their work.
 
 ## Target Audience and Market
 - **Pilot Market:** Bulawayo, Zimbabwe.
@@ -25,4 +25,4 @@ Maricho turns informal trade work into something that leaves a trace — allowin
 - **Spread of earnings (Share of payouts reaching busiest 10%):** Below 40%
 - **Jobs put on hold (Disagreements as a share of jobs):** Below 6%
 - **Worker responses upheld:** Tracked (near zero means the process is decorative)
-- **Records shared (Workers sending record outside Maricho):** Tracked
+- **Records shared (Workers sending record outside Maritcho):** Tracked

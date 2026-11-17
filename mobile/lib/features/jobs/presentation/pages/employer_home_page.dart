@@ -39,7 +39,7 @@ class _EmployerHomeView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Maricho')),
+      appBar: AppBar(title: const Text('Maritcho')),
       body: RefreshIndicator(
         onRefresh: () => context.read<EmployerHomeCubit>().loadJobs(),
         child: ListView(
