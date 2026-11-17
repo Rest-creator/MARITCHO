@@ -14,6 +14,7 @@ import { isUploadUnavailable } from "@/core/media/upload";
 import { useMediaUploads } from "@/core/media/use-media-uploads";
 import { useUpload } from "@/core/media/use-upload";
 import { updateProfile, useLocalProfile } from "@/core/session/profile-store";
+import { useSession } from "@/core/session/SessionProvider";
 import { SkillPicker } from "@/features/worker/SkillPicker";
 import {
   useRegisterServiceArea,
@@ -23,6 +24,7 @@ import {
   useSuburbs,
   useUpdateUserProfile,
 } from "@/features/workers/hooks";
+import { MAX_TRAVEL_KM, MIN_TRAVEL_KM, clampTravelKm } from "@/core/format/travel";
 
 export const MAX_SKILLS = 5;
 
@@ -30,6 +32,7 @@ export const MAX_SKILLS = 5;
 export function WorkerSkillsScreen() {
   const router = useRouter();
   const profile = useLocalProfile();
+  const { user } = useSession();
   const skills = useSkills();
   const serviceAreas = useServiceAreas();
   const suburbs = useSuburbs();
@@ -42,7 +45,10 @@ export function WorkerSkillsScreen() {
   const registered = new Set<Trade>((skills.data ?? []).map((skill) => skill.trade));
   const [picked, setPicked] = useState<Trade[]>([]);
   const [photos, setPhotos] = useState<File[]>([]);
-  const [travelKm, setTravelKm] = useState(profile.travelKm);
+  // The account's saved distance wins over this phone's copy, which may be stale
+  // (e.g. set on another device). Only an edit here overrides it.
+  const [travelDraft, setTravelDraft] = useState<number | null>(null);
+  const travelKm: number = clampTravelKm(travelDraft ?? user?.travel_km ?? profile.travelKm);
   const [chosenSuburb, setSuburb] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -74,12 +80,17 @@ export function WorkerSkillsScreen() {
     }
     setError(null);
     setIsSaving(true);
+    // How they travel was asked at sign-up; it rides along with the first area.
+    const serviceArea = {
+      suburb,
+      ...(profile.travelMeans === "" ? {} : { travel_means: profile.travelMeans }),
+    };
     updateProfile({ travelKm, homeSuburb: suburb });
     updateServerProfile.mutate({ travel_km: travelKm, home_suburb: suburb });
     if (!onlineManager.isOnline()) {
       // Queue everything; it sends itself when the connection returns.
       picked.forEach((trade) => registerSkill.mutate(trade));
-      if (!knownArea) registerArea.mutate({ suburb });
+      if (!knownArea) registerArea.mutate(serviceArea);
       setIsSaving(false);
       router.replace("/worker");
       return;
@@ -98,7 +109,7 @@ export function WorkerSkillsScreen() {
         await registerSkill.mutateAsync(proofUrl ? { trade, proof_url: proofUrl } : trade);
       }
       if (!knownArea) {
-        await registerArea.mutateAsync({ suburb });
+        await registerArea.mutateAsync(serviceArea);
       }
       router.replace("/worker");
     } catch (failure: unknown) {
@@ -164,11 +175,11 @@ export function WorkerSkillsScreen() {
           id="ws-range"
           className="range"
           type="range"
-          min={1}
-          max={25}
+          min={MIN_TRAVEL_KM}
+          max={MAX_TRAVEL_KM}
           value={travelKm}
           aria-valuetext={`${travelKm} kilometres`}
-          onChange={(event) => setTravelKm(Number(event.target.value))}
+          onChange={(event) => setTravelDraft(clampTravelKm(Number(event.target.value)))}
           style={{ marginTop: 12 }}
         />
         <label

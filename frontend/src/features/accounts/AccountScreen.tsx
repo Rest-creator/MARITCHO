@@ -45,16 +45,14 @@ import {
   useVouchForWorker,
   useWorkerVetting,
 } from "@/features/workers/hooks";
+import {
+  MAX_TRAVEL_KM,
+  MIN_TRAVEL_KM,
+  TRAVEL_MEANS_OPTIONS,
+  clampTravelKm,
+} from "@/core/format/travel";
 
 type Props = { tabBar: ReactNode };
-
-const TRAVEL_MEANS_OPTIONS = [
-  "Walking",
-  "Kombi / bus",
-  "Bicycle",
-  "Motorbike",
-  "Own vehicle",
-] as const;
 
 const GRADE_TIERS: readonly {
   grade: Grade;
@@ -127,7 +125,8 @@ export function AccountScreen({ tabBar }: Props) {
   const [suburbOverride, setSuburbOverride] = useState<string | null>(null);
   const suburbDraft = suburbOverride ?? initialSuburb;
   const [isSuburbOpen, setIsSuburbOpen] = useState(false);
-  const [travelKm, setTravelKm] = useState(user?.travel_km ?? profile.travelKm);
+  const [travelDraft, setTravelDraft] = useState<number | null>(null);
+  const travelKm: number = clampTravelKm(travelDraft ?? user?.travel_km ?? profile.travelKm);
   const [travelMeans, setTravelMeans] = useState(
     serviceAreas.data?.[0]?.travel_means || profile.travelMeans || "Kombi / bus",
   );
@@ -184,12 +183,12 @@ export function AccountScreen({ tabBar }: Props) {
   const referenceCount = Math.max(referenceList.length, vetting.data?.reference_count ?? 0);
   const vouchCount = vetting.data?.vouch_count ?? 0;
   const hasIdVerified = Boolean(vetting.data?.id_photo_url) || currentGradeRank >= 1;
+  const canVouchForPeers = currentGrade === "JOURNEYMAN" || currentGrade === "EXPERT";
   // Only once the server has confirmed the tier, and only for a tier this phone hasn't celebrated.
   const gradeToCelebrate: Grade | null =
     isWorker && vetting.isSuccess && currentGradeRank > GRADE_ORDER[profile.celebratedGrade]
       ? currentGrade
       : null;
-  const canVouchForPeers = currentGrade === "JOURNEYMAN" || currentGrade === "EXPERT";
 
   // Employer computed metrics
   const employerActiveList = useMemo(
@@ -634,11 +633,12 @@ export function AccountScreen({ tabBar }: Props) {
                 id="acc-travel-km"
                 className="range"
                 type="range"
-                min={1}
-                max={50}
+                min={MIN_TRAVEL_KM}
+                max={MAX_TRAVEL_KM}
                 value={travelKm}
+                aria-valuetext={`${travelKm} kilometres`}
                 onChange={(event) => {
-                  setTravelKm(Number(event.target.value));
+                  setTravelDraft(clampTravelKm(Number(event.target.value)));
                   setLocationFeedback(null);
                 }}
               />
@@ -1001,7 +1001,7 @@ export function AccountScreen({ tabBar }: Props) {
               </Link>
               <Link href="/employer/workers" className="btn btn--soft">
                 <Icon name="users" size={16} />
-                Browse nearby workers
+                Find workers
               </Link>
             </div>
           </section>

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import { BrandLogo } from "@/components/ui/BrandLogo";
 import { Icon, type IconName } from "@/components/ui/Icon";
 
 export interface TabItem {
@@ -24,12 +25,8 @@ export function TabBar({ items, ariaLabel }: Props) {
   const pathname = usePathname();
   return (
     <nav className="tabbar" aria-label={ariaLabel}>
-      <div className="tabbar__brand" aria-hidden="true">
-        <span className="brand__mark">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo-mark.svg" alt="" width={28} height={28} />
-        </span>
-        <span>Maritcho</span>
+      <div className="tabbar__brand">
+        <BrandLogo isDecorative />
       </div>
       {items.map((item) => (
         <Link

@@ -4,11 +4,12 @@ import { useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
+import { BrandLogo } from "@/components/ui/BrandLogo";
 import { Icon } from "@/components/ui/Icon";
 import { Screen } from "@/components/ui/Screen";
 import { homeFor, useSession } from "@/core/session/SessionProvider";
-
 import { HowItWorks } from "@/features/onboarding/HowItWorks";
+
 /** Design 1 · Welcome – choose your path. */
 export function WelcomeScreen() {
   const { user } = useSession();
@@ -20,13 +21,7 @@ export function WelcomeScreen() {
 
   return (
     <Screen bodyClassName="screen__body--welcome">
-      <div className="brand">
-        <div className="brand__mark">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo-mark.svg" alt="" width={28} height={28} />
-        </div>
-        Maritcho
-      </div>
+      <BrandLogo />
 
       <div style={{ marginTop: 64 }}>
         <h1 className="title title--hero">Your skills are your CV.</h1>
@@ -40,7 +35,7 @@ export function WelcomeScreen() {
         How will you use Maritcho?
       </div>
       <div className="stack path-grid" style={{ marginTop: 12, gap: 12 }}>
-        <Link href="/signup?role=buyer" className="path-card">
+        <Link href="/signup?mode=login&role=buyer" className="path-card">
           <div className="icon-tile icon-tile--lg icon-tile--amber icon-tile--edged">
             <Icon name="home" size={22} strokeWidth={1.75} />
           </div>
@@ -55,7 +50,7 @@ export function WelcomeScreen() {
           </div>
           <Icon name="chevronRight" className="text-muted" strokeWidth={2} />
         </Link>
-        <Link href="/signup?role=worker" className="path-card">
+        <Link href="/signup?mode=login&role=worker" className="path-card">
           <div className="icon-tile icon-tile--lg icon-tile--emerald icon-tile--edged">
             <Icon name="briefcase" size={22} strokeWidth={1.75} />
           </div>
@@ -67,13 +62,13 @@ export function WelcomeScreen() {
             >
               Get jobs for what you can do — no certificates needed
             </div>
-      <div style={{ marginTop: 28 }}>
-        <HowItWorks />
-      </div>
-
           </div>
           <Icon name="chevronRight" strokeWidth={2} />
         </Link>
+      </div>
+
+      <div style={{ marginTop: 28 }}>
+        <HowItWorks />
       </div>
 
       <div className="spacer" style={{ minHeight: 32 }} />
@@ -88,9 +83,9 @@ export function WelcomeScreen() {
         className="meta meta--secondary"
         style={{ marginTop: 20, textAlign: "center", fontSize: 14 }}
       >
-        Already have an account?{" "}
-        <Link href="/signup?mode=login" style={{ fontWeight: 600 }}>
-          Log in
+        Don&apos;t have an account?{" "}
+        <Link href="/signup" style={{ fontWeight: 600 }}>
+          Create account
         </Link>
       </p>
     </Screen>

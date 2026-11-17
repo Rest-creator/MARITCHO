@@ -8,10 +8,12 @@ import { BackButton } from "@/components/ui/BackButton";
 import { Icon } from "@/components/ui/Icon";
 import { Screen } from "@/components/ui/Screen";
 import { formatLocalPhone, toInternationalPhone } from "@/core/format/format";
+import { mergeSuburbs } from "@/core/format/suburbs";
+import { TRAVEL_MEANS_OPTIONS } from "@/core/format/travel";
 import { updateProfile, useLocalProfile } from "@/core/session/profile-store";
 import { homeFor, useSession, type SignInRole } from "@/core/session/SessionProvider";
 import { RoleMismatchNotice } from "@/features/accounts/RoleMismatchNotice";
-import { useUpdateUserProfile } from "@/features/workers/hooks";
+import { useSuburbs, useUpdateUserProfile } from "@/features/workers/hooks";
 
 type Props = {
   initialRole: SignInRole;
@@ -20,6 +22,10 @@ type Props = {
 };
 
 const LOCAL_PHONE_PATTERN = /^0?\d{9}$/;
+
+function digitsOnly(value: string): string {
+  return value.replace(/\D/g, "").replace(/^0/, "");
+}
 
 export function validateSignUp(
   name: string,
@@ -38,26 +44,64 @@ export function validateSignUp(
   return null;
 }
 
-/** Design 2 · Sign up or sign in with phone number and password. */
+export interface SignUpDetails {
+  role: SignInRole;
+  suburb: string;
+  phone: string;
+  emergencyPhone: string;
+}
+
+/** Extra checks for a new account, after `validateSignUp` passes. */
+export function validateSignUpDetails(details: SignUpDetails): string | null {
+  if (details.suburb.trim() === "") {
+    return details.role === "WORKER"
+      ? "Choose the suburb you're based in so we can show jobs nearby."
+      : "Choose the suburb where you usually need work done.";
+  }
+  const emergency: string = details.emergencyPhone.replace(/\s/g, "");
+  if (emergency !== "") {
+    if (!LOCAL_PHONE_PATTERN.test(emergency)) {
+      return "Enter the emergency contact's mobile number, e.g. 77 200 0111.";
+    }
+    if (digitsOnly(emergency) === digitsOnly(details.phone)) {
+      return "Your emergency contact should be someone else's number.";
+    }
+  }
+  return null;
+}
+
+/** Design 2 · Log in, or create an account with a few details about you. */
 export function SignUpScreen({ initialRole, isLogin, isExpired }: Props) {
   const router = useRouter();
   const profile = useLocalProfile();
   const { signUp, signIn, signOut, isSigningIn, signInError } = useSession();
   const updateServerProfile = useUpdateUserProfile();
+  const suburbsQuery = useSuburbs();
+  const suburbOptions: string[] = mergeSuburbs(suburbsQuery.data);
+
   const [role, setRole] = useState<SignInRole>(initialRole);
   const [name, setName] = useState(profile.name);
   const [phone, setPhone] = useState(profile.phone === "" ? "" : formatLocalPhone(profile.phone));
   const [password, setPassword] = useState("");
+  const [suburb, setSuburb] = useState(profile.homeSuburb);
+  const [address, setAddress] = useState(profile.lastAddress);
+  const [travelMeans, setTravelMeans] = useState(profile.travelMeans);
+  const [emergencyPhone, setEmergencyPhone] = useState(
+    profile.nextOfKinPhone === "" ? "" : formatLocalPhone(profile.nextOfKinPhone),
+  );
   const [validationError, setValidationError] = useState<string | null>(null);
   /** Set when the number is registered as the other role (issue #9). */
   const [registeredAs, setRegisteredAs] = useState<SignInRole | null>(null);
 
   const isWorker = role === "WORKER";
+  const roleParam: string = isWorker ? "worker" : "buyer";
   const error = validationError ?? signInError;
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
-    const problem = validateSignUp(name, phone, password, isLogin);
+    const problem: string | null =
+      validateSignUp(name, phone, password, isLogin) ??
+      (isLogin ? null : validateSignUpDetails({ role, suburb, phone, emergencyPhone }));
     setValidationError(problem);
     if (problem !== null) return;
 
@@ -72,13 +116,33 @@ export function SignUpScreen({ initialRole, isLogin, isExpired }: Props) {
         setRegisteredAs(user.role);
         return;
       }
-      if (trimmedName !== "") {
-        updateServerProfile.mutate({ display_name: trimmedName });
+      if (isLogin) {
+        if (trimmedName !== "") updateServerProfile.mutate({ display_name: trimmedName });
+        router.replace(homeFor(user.role));
+        return;
       }
-      router.replace(user.role === "WORKER" && !isLogin ? "/worker/skills" : homeFor(user.role));
+      saveNewAccountDetails(trimmedName);
+      router.replace(user.role === "WORKER" ? "/worker/skills" : homeFor(user.role));
     } catch {
       // signInError carries the message.
     }
+  }
+
+  /** Keeps the extra sign-up details on this phone and on the account. */
+  function saveNewAccountDetails(trimmedName: string): void {
+    const cleanSuburb: string = suburb.trim();
+    const emergency: string =
+      emergencyPhone.trim() === "" ? "" : toInternationalPhone(emergencyPhone);
+    updateProfile({
+      homeSuburb: cleanSuburb,
+      nextOfKinPhone: emergency,
+      ...(isWorker ? { travelMeans } : { lastSuburb: cleanSuburb, lastAddress: address.trim() }),
+    });
+    updateServerProfile.mutate({
+      display_name: trimmedName,
+      home_suburb: cleanSuburb,
+      ...(emergency === "" ? {} : { next_of_kin_phone: emergency }),
+    });
   }
 
   if (registeredAs !== null) {
@@ -91,7 +155,7 @@ export function SignUpScreen({ initialRole, isLogin, isExpired }: Props) {
           onUseAnotherNumber={() => {
             setRegisteredAs(null);
             setPhone("");
-            void signOut(`/signup?role=${role === "WORKER" ? "worker" : "buyer"}`);
+            void signOut(`/signup?${isLogin ? "mode=login&" : ""}role=${roleParam}`);
           }}
         />
       </Screen>
@@ -126,46 +190,45 @@ export function SignUpScreen({ initialRole, isLogin, isExpired }: Props) {
         </h1>
         <p className="lead" style={{ marginTop: 10 }}>
           {isLogin
-            ? "Sign in with your phone number and password."
-            : "Your name, phone number and a password — no email needed."}
+            ? "Log in with your phone number and password."
+            : "A few details so the right people can find you — no email needed."}
         </p>
 
-        {isLogin && (
-          <div
-            className="segmented segmented--choice"
-            style={{ marginTop: 24 }}
-            role="group"
-            aria-label="I am"
+        <div
+          className="segmented segmented--choice"
+          style={{ marginTop: 24 }}
+          role="group"
+          aria-label="I am"
+        >
+          <button
+            type="button"
+            className="segmented__tab"
+            aria-pressed={role === "BUYER"}
+            onClick={() => setRole("BUYER")}
           >
-            <button
-              type="button"
-              className="segmented__tab"
-              aria-pressed={role === "BUYER"}
-              onClick={() => setRole("BUYER")}
-            >
-              I need work done
-            </button>
-            <button
-              type="button"
-              className="segmented__tab"
-              aria-pressed={role === "WORKER"}
-              onClick={() => setRole("WORKER")}
-            >
-              I find work
-            </button>
-          </div>
-        )}
+            I need work done
+          </button>
+          <button
+            type="button"
+            className="segmented__tab"
+            aria-pressed={role === "WORKER"}
+            onClick={() => setRole("WORKER")}
+          >
+            I find work
+          </button>
+        </div>
 
         {!isLogin && (
           <div className="field" style={{ marginTop: 28 }}>
             <label htmlFor="su-name" className="field__label">
-              Your name
+              Your full name
             </label>
             <input
               id="su-name"
               className="input"
               type="text"
               autoComplete="name"
+              placeholder="e.g. Tariro Moyo"
               value={name}
               onChange={(event) => setName(event.target.value)}
               maxLength={80}
@@ -173,7 +236,7 @@ export function SignUpScreen({ initialRole, isLogin, isExpired }: Props) {
           </div>
         )}
 
-        <div className="field" style={{ marginTop: 18 }}>
+        <div className="field" style={{ marginTop: isLogin ? 28 : 18 }}>
           <label htmlFor="su-phone" className="field__label">
             Phone number
           </label>
@@ -226,6 +289,94 @@ export function SignUpScreen({ initialRole, isLogin, isExpired }: Props) {
           />
         </div>
 
+        {!isLogin && (
+          <>
+            <div className="field" style={{ marginTop: 18 }}>
+              <label htmlFor="su-suburb" className="field__label">
+                {isWorker ? "Where are you based?" : "Where do you usually need work done?"}
+              </label>
+              <select
+                id="su-suburb"
+                className="input"
+                style={{ height: 48 }}
+                value={suburb}
+                onChange={(event) => setSuburb(event.target.value)}
+              >
+                <option value="">Choose your suburb</option>
+                {suburbOptions.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+              <span className="meta">
+                {isWorker
+                  ? "We show you jobs near here first."
+                  : "We show you workers near here first."}
+              </span>
+            </div>
+
+            {isWorker ? (
+              <div className="field" style={{ marginTop: 18 }}>
+                <span className="field__label" id="su-travel-label">
+                  How do you get to jobs?
+                </span>
+                <div className="chip-list" role="group" aria-labelledby="su-travel-label">
+                  {TRAVEL_MEANS_OPTIONS.map((mode) => (
+                    <button
+                      key={mode}
+                      type="button"
+                      className={travelMeans === mode ? "tag tag--verified" : "tag"}
+                      aria-pressed={travelMeans === mode}
+                      onClick={() => setTravelMeans(travelMeans === mode ? "" : mode)}
+                    >
+                      {mode}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="field" style={{ marginTop: 18 }}>
+                <label htmlFor="su-address" className="field__label">
+                  House number or street (optional)
+                </label>
+                <input
+                  id="su-address"
+                  className="input"
+                  type="text"
+                  autoComplete="street-address"
+                  placeholder="e.g. 1428 Nkulumane 12"
+                  value={address}
+                  maxLength={500}
+                  onChange={(event) => setAddress(event.target.value)}
+                />
+                <span className="meta">Only shared with the worker you hire.</span>
+              </div>
+            )}
+
+            <div className="field" style={{ marginTop: 18 }}>
+              <label htmlFor="su-emergency" className="field__label">
+                Emergency contact number (optional)
+              </label>
+              <input
+                id="su-emergency"
+                className="input"
+                type="tel"
+                inputMode="tel"
+                placeholder="e.g. 77 200 0111"
+                value={emergencyPhone}
+                maxLength={20}
+                onChange={(event) => setEmergencyPhone(event.target.value)}
+              />
+              <span className="meta">
+                {isWorker
+                  ? "Someone we can call if something goes wrong on a job."
+                  : "Someone we can call if something goes wrong at a job."}
+              </span>
+            </div>
+          </>
+        )}
+
         {error && (
           <p id="su-error" className="field-error" role="alert" style={{ marginTop: 12 }}>
             {error}
@@ -235,10 +386,31 @@ export function SignUpScreen({ initialRole, isLogin, isExpired }: Props) {
         <div className="spacer" style={{ minHeight: 32 }} />
 
         <button type="submit" className="btn btn--primary btn--cta" disabled={isSigningIn}>
-          {isSigningIn ? (isLogin ? "Signing you in…" : "Creating your account…") : "Continue"}
+          {isSigningIn
+            ? isLogin
+              ? "Logging you in…"
+              : "Creating your account…"
+            : isLogin
+              ? "Log in"
+              : "Create account"}
           {!isSigningIn && <Icon name="arrowRight" size={18} strokeWidth={2.2} />}
         </button>
-        <p className="meta" style={{ marginTop: 14, textAlign: "center", lineHeight: 1.5 }}>
+
+        <p
+          className="meta meta--secondary"
+          style={{ marginTop: 16, textAlign: "center", fontSize: 14 }}
+        >
+          {isLogin ? "Don't have an account? " : "Already have an account? "}
+          <Link
+            href={isLogin ? `/signup?role=${roleParam}` : `/signup?mode=login&role=${roleParam}`}
+            style={{ fontWeight: 600 }}
+            onClick={() => setValidationError(null)}
+          >
+            {isLogin ? "Create account" : "Log in"}
+          </Link>
+        </p>
+
+        <p className="meta" style={{ marginTop: 10, textAlign: "center", lineHeight: 1.5 }}>
           By continuing you agree to our{" "}
           <Link
             href="/terms"

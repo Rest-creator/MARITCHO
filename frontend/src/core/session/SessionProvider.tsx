@@ -8,6 +8,7 @@ import { ApiError } from "@/core/api/http";
 import { userSchema, type User } from "@/core/api/schemas";
 import { queryKeys } from "@/core/query/keys";
 import { UNAUTHORIZED_EVENT } from "@/core/query/query-client";
+import { clampTravelKm } from "@/core/format/travel";
 import { updateProfile, useLocalProfile } from "@/core/session/profile-store";
 
 export type SignInRole = "BUYER" | "WORKER";
@@ -117,8 +118,11 @@ export function SessionProvider({ children }: Props) {
     if (typeof user.is_available === "boolean" && user.is_available !== localProfile.isAvailable) {
       patch.isAvailable = user.is_available;
     }
-    if (typeof user.travel_km === "number" && localProfile.travelKm === 10) {
-      patch.travelKm = user.travel_km;
+    // The account is the source of truth for reach (it filters jobs on Home),
+    // so a value saved on another device — or before the old 25 km cap was
+    // lifted — replaces this phone's copy.
+    if (typeof user.travel_km === "number" && user.travel_km !== localProfile.travelKm) {
+      patch.travelKm = clampTravelKm(user.travel_km);
     }
     if (localProfile.homeSuburb === "" && user.home_suburb) {
       patch.homeSuburb = user.home_suburb;

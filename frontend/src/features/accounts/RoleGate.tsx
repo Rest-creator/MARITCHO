@@ -18,7 +18,8 @@ export function RoleGate({ role, children }: Props) {
   useEffect(() => {
     if (isLoading) return;
     if (user === null) {
-      router.replace(`/signup?role=${role === "WORKER" ? "worker" : "buyer"}`);
+      // Signed-out visitors to a protected page most likely already have an account.
+      router.replace(`/signup?mode=login&role=${role === "WORKER" ? "worker" : "buyer"}`);
     } else if (user.role !== role) {
       router.replace(homeFor(user.role));
     }
