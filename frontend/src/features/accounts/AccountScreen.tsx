@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { Avatar } from "@/components/ui/Avatar";
+import { Celebration } from "@/components/ui/Celebration";
 import { Icon } from "@/components/ui/Icon";
 import { PhotoPicker } from "@/components/ui/PhotoPicker";
 import { Screen } from "@/components/ui/Screen";
@@ -183,6 +184,11 @@ export function AccountScreen({ tabBar }: Props) {
   const referenceCount = Math.max(referenceList.length, vetting.data?.reference_count ?? 0);
   const vouchCount = vetting.data?.vouch_count ?? 0;
   const hasIdVerified = Boolean(vetting.data?.id_photo_url) || currentGradeRank >= 1;
+  // Only once the server has confirmed the tier, and only for a tier this phone hasn't celebrated.
+  const gradeToCelebrate: Grade | null =
+    isWorker && vetting.isSuccess && currentGradeRank > GRADE_ORDER[profile.celebratedGrade]
+      ? currentGrade
+      : null;
   const canVouchForPeers = currentGrade === "JOURNEYMAN" || currentGrade === "EXPERT";
 
   // Employer computed metrics
@@ -1200,6 +1206,14 @@ export function AccountScreen({ tabBar }: Props) {
           Sign out
         </button>
       </section>
+
+      {gradeToCelebrate !== null && (
+        <Celebration
+          title={`You're now ${gradeLabel(gradeToCelebrate)}`}
+          detail="Clients nearby see your new badge, and higher tiers are shown first."
+          onDone={() => updateProfile({ celebratedGrade: gradeToCelebrate })}
+        />
+      )}
 
       {tabBar}
     </Screen>

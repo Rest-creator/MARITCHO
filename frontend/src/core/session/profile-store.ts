@@ -1,6 +1,8 @@
 import { useSyncExternalStore } from "react";
 import { z } from "zod";
 
+import { gradeSchema } from "@/core/api/schemas";
+
 /*
  * On-device profile details the backend does not (yet) store: the display
  * name typed at sign-up, the worker's availability switch and travel
@@ -29,6 +31,8 @@ const profileSchema = z.object({
   travelMeans: z.string().max(50).default(""),
   /** Short trade summary or work note kept on device. */
   bio: z.string().max(240).default(""),
+  /** Highest worker tier this phone has already celebrated, so each unlock plays once. */
+  celebratedGrade: gradeSchema.default("REGISTERED"),
 });
 
 export type LocalProfile = z.infer<typeof profileSchema>;

@@ -1180,6 +1180,290 @@ option {
   outline: none;
 }
 
+.stepper__bar--done {
+  background: var(--emerald);
+}
+
+.stepper__bar--current {
+  background: var(--amber);
+}
+
+/* ---------- Job journey (Lottie bars above the stepper labels) ---------- */
+.journey {
+  position: relative;
+  aspect-ratio: 320 / 12;
+  width: 100%;
+}
+
+.journey__static {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px;
+  align-items: center;
+}
+
+.journey__lottie {
+  position: absolute;
+  inset: 0;
+}
+
+.journey__lottie svg {
+  display: block;
+}
+
+/* ---------- Celebration toast (non-blocking milestone) ---------- */
+.celebration {
+  position: fixed;
+  left: 50%;
+  bottom: calc(88px + env(safe-area-inset-bottom, 0px));
+  z-index: 60;
+  width: min(420px, calc(100% - 32px));
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.celebration__card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 16px 10px 8px;
+  border: 1px solid var(--amber-edge);
+  border-radius: var(--radius-lg);
+  background: var(--brand-navy);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+  color: var(--text);
+  text-align: left;
+  pointer-events: auto;
+  cursor: pointer;
+  animation: celebration-in 260ms cubic-bezier(0.2, 0.9, 0.3, 1.2);
+}
+
+.celebration__art {
+  position: relative;
+  flex: none;
+  width: 64px;
+  height: 64px;
+}
+
+.celebration__lottie {
+  position: absolute;
+  inset: 0;
+}
+
+.celebration__badge {
+  position: absolute;
+  inset: 10px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--amber);
+  color: var(--amber-ink);
+}
+
+.celebration__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.celebration__title {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.celebration__detail {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+@keyframes celebration-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .celebration__card {
+    animation: none;
+  }
+}
+
+@media (min-width: 768px) {
+  .celebration {
+    bottom: 24px;
+  }
+}
+
+/* ---------- How Maritcho works (Theatre.js onboarding) ---------- */
+.hiw {
+  gap: 12px;
+}
+
+.hiw__title {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.hiw-stage {
+  border-radius: var(--radius-lg);
+  background: var(--glass-faint);
+  border: 1px solid var(--line-faint);
+  cursor: grab;
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.hiw-stage:active {
+  cursor: grabbing;
+}
+
+.hiw-stage__svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 320 / 168;
+  overflow: visible;
+}
+
+.hiw-card {
+  fill: var(--brand-royal);
+  stroke: var(--line-strong);
+}
+
+.hiw-card__icon {
+  fill: var(--amber-tint);
+}
+
+.hiw-card__drop {
+  fill: var(--amber-lighter);
+}
+
+.hiw-card__title {
+  fill: var(--text);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.hiw-card__meta,
+.hiw-track__labels {
+  fill: var(--text-muted);
+  font-size: 10px;
+}
+
+.hiw-shadow {
+  fill: rgba(0, 0, 0, 0.25);
+}
+
+.hiw-pin {
+  fill: var(--amber);
+}
+
+.hiw-pin__dot {
+  fill: var(--brand-indigo-deep);
+}
+
+.hiw-worker {
+  fill: var(--brand-navy);
+  stroke: var(--amber-light);
+  stroke-width: 2;
+}
+
+.hiw-worker__initial {
+  fill: var(--text);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.hiw-quote {
+  fill: var(--text);
+}
+
+.hiw-quote__text {
+  fill: var(--brand-indigo-deep);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.hiw-track {
+  fill: var(--line-faint);
+}
+
+.hiw-fill {
+  fill: var(--emerald);
+}
+
+.hiw-badge {
+  fill: var(--amber);
+}
+
+.hiw-badge__tick {
+  fill: none;
+  stroke: var(--amber-ink);
+  stroke-width: 5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.hiw-star {
+  fill: var(--amber-lighter);
+}
+
+.hiw-caption {
+  min-height: 52px;
+}
+
+.hiw-caption__title {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.hiw-caption__text {
+  margin-top: 2px;
+  line-height: 1.45;
+}
+
+.hiw-dots {
+  display: flex;
+  gap: 2px;
+}
+
+/* 24px tap target around an 8px dot. */
+.hiw-dot {
+  position: relative;
+  width: 24px;
+  height: 24px;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+
+.hiw-dot::after {
+  content: "";
+  position: absolute;
+  inset: 8px;
+  border-radius: 50%;
+  background: var(--line-bold);
+  transition:
+    background 160ms ease,
+    transform 160ms ease;
+}
+
+.hiw-dot[aria-current="step"]::after {
+  background: var(--amber);
+  transform: scale(1.25);
+}
+
 .otp__cell--filled {
   background: var(--glass-bold);
   border-color: rgba(255, 255, 255, 0.16);

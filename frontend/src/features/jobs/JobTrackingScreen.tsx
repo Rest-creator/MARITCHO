@@ -5,6 +5,7 @@ import Link from "next/link";
 
 import { Avatar } from "@/components/ui/Avatar";
 import { BackButton } from "@/components/ui/BackButton";
+import { Celebration } from "@/components/ui/Celebration";
 import { Icon } from "@/components/ui/Icon";
 import { TapToLoadPhoto } from "@/components/ui/TapToLoadPhoto";
 import { Screen } from "@/components/ui/Screen";
@@ -14,6 +15,7 @@ import { formatMoney, formatRelativeTime, formatShortDate } from "@/core/format/
 import { tradeLabel } from "@/core/format/trades";
 import { DisputeSheet } from "@/features/jobs/DisputeSheet";
 import { useCompleteJob, useJob, useRecord, useSubmitReview } from "@/features/jobs/hooks";
+import { JobJourney } from "@/features/jobs/JobJourney";
 import {
   TRACKING_STEPS,
   completedSteps,
@@ -29,21 +31,23 @@ type Props = { jobId: string };
 function Stepper({ job }: { job: Job }) {
   const done = completedSteps(job.status);
   return (
-    <ol className="stepper" aria-label="Job progress">
-      {TRACKING_STEPS.map((step, index) => {
-        const state = index < done ? "done" : index === done ? "current" : "todo";
-        return (
-          <li
-            key={step}
-            className={`stepper__step ${state === "done" ? "stepper__step--done" : ""} ${state === "current" ? "stepper__step--current" : ""}`}
-            aria-current={state === "current" ? "step" : undefined}
-          >
-            <span className="stepper__bar" />
-            {step}
-          </li>
-        );
-      })}
-    </ol>
+    <div className="stack" style={{ gap: 8 }}>
+      <JobJourney done={done} />
+      <ol className="stepper" aria-label="Job progress">
+        {TRACKING_STEPS.map((step, index) => {
+          const state = index < done ? "done" : index === done ? "current" : "todo";
+          return (
+            <li
+              key={step}
+              className={`stepper__step ${state === "done" ? "stepper__step--done" : ""} ${state === "current" ? "stepper__step--current" : ""}`}
+              aria-current={state === "current" ? "step" : undefined}
+            >
+              {step}
+            </li>
+          );
+        })}
+      </ol>
+    </div>
   );
 }
 
@@ -82,6 +86,7 @@ export function JobTrackingScreen({ jobId }: Props) {
   const record = useRecord(jobId, job.data?.status === "COMPLETED");
   const [review, setReview] = useState<ReviewDraft>({ stars: 5, tags: [], note: "" });
   const [isDisputeOpen, setIsDisputeOpen] = useState(false);
+  const [hasJustSignedOff, setHasJustSignedOff] = useState(false);
 
   if (job.isPending) {
     return (
@@ -122,6 +127,7 @@ export function JobTrackingScreen({ jobId }: Props) {
       },
       {
         onSuccess: () => {
+          setHasJustSignedOff(true);
           if (review.stars >= 1) {
             submitReview.mutate({
               jobId,
@@ -237,6 +243,14 @@ export function JobTrackingScreen({ jobId }: Props) {
       )}
 
       {isDisputeOpen && <DisputeSheet jobId={jobId} onClose={() => setIsDisputeOpen(false)} />}
+
+      {hasJustSignedOff && (
+        <Celebration
+          title="Job signed off"
+          detail={`Thank you. ${workerName}'s work record now shows this job.`}
+          onDone={() => setHasJustSignedOff(false)}
+        />
+      )}
     </Screen>
   );
 }

@@ -8,6 +8,7 @@ import { Icon } from "@/components/ui/Icon";
 import { Screen } from "@/components/ui/Screen";
 import { homeFor, useSession } from "@/core/session/SessionProvider";
 
+import { HowItWorks } from "@/features/onboarding/HowItWorks";
 /** Design 1 · Welcome – choose your path. */
 export function WelcomeScreen() {
   const { user } = useSession();
@@ -66,6 +67,10 @@ export function WelcomeScreen() {
             >
               Get jobs for what you can do — no certificates needed
             </div>
+      <div style={{ marginTop: 28 }}>
+        <HowItWorks />
+      </div>
+
           </div>
           <Icon name="chevronRight" strokeWidth={2} />
         </Link>
