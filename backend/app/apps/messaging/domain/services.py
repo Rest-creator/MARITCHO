@@ -2,12 +2,18 @@ import uuid
 from collections.abc import Sequence
 from decimal import Decimal
 
+from app.apps.jobs.domain.entities import JobStatusEnum
 from app.apps.jobs.domain.repositories import JobOfferRepository, JobRepository
 from app.apps.messaging.domain.entities import Message, MessageTypeEnum
 from app.apps.messaging.domain.repositories import ChatBroadcaster, MessageRepository
 from app.core.exceptions import ForbiddenError, NotFoundError, ValidationConflictError
 from app.shared_kernel.enums import RoleEnum
 from app.shared_kernel.unit_of_work import UnitOfWork
+
+# Offer-submitted-but-not-booked workers are only job parties while the job
+# is still open for offers. Once it's BOOKED (or later), a losing bidder's
+# offer row must stop granting access — only job.buyer_id/job.worker_id do.
+_OFFER_GRANTS_PARTY_STATUSES = (JobStatusEnum.REQUESTED, JobStatusEnum.MATCHED)
 
 
 def _validate_message_payload(
@@ -36,7 +42,12 @@ async def _require_job_party(
     if job is None:
         raise NotFoundError("Job not found")
     is_party = user_id in (job.buyer_id, job.worker_id)
-    if not is_party and offers is not None and user_role == RoleEnum.WORKER:
+    if (
+        not is_party
+        and offers is not None
+        and user_role == RoleEnum.WORKER
+        and job.status in _OFFER_GRANTS_PARTY_STATUSES
+    ):
         job_offers = await offers.get_for_job(job_id)
         is_party = user_id in job_offers
     if not is_party and user_role != RoleEnum.OPS:

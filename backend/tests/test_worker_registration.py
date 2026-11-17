@@ -1,3 +1,4 @@
+from app.shared_kernel.enums import TradeEnum
 from tests.conftest import auth_headers
 
 
@@ -168,5 +169,26 @@ async def test_buyer_can_browse_nearby_workers_and_view_public_profile(client, b
     assert len(sem_items) == 1
     assert sem_items[0]["worker_id"] == str(worker.id)
     assert sem_items[0]["similarity_score"] is not None
+
+
+async def test_worker_cannot_browse_the_employer_directory(client, worker, worker_factory):
+    """The worker directory is an employer-facing feature (regression:
+    both routes used bare get_current_user, letting any authenticated
+    worker browse the full directory and other workers' profiles)."""
+    other_worker = await worker_factory(TradeEnum.PLUMBING, "Hillside")
+
+    directory = await client.get(
+        "/workers",
+        params={"suburb": "Hillside"},
+        headers=auth_headers(worker),
+    )
+    assert directory.status_code == 403
+
+    profile = await client.get(
+        f"/workers/{other_worker.id}",
+        params={"suburb": "Hillside"},
+        headers=auth_headers(worker),
+    )
+    assert profile.status_code == 403
 
 

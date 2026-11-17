@@ -7,7 +7,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.apps.accounts.domain.entities import Person
-from app.apps.accounts.interface_adapters.dependencies import RequireRole, get_current_user
+from app.apps.accounts.interface_adapters.dependencies import RequireRole
 from app.apps.jobs.infrastructure.review_models import ReviewModel
 from app.apps.workers.domain.entities import (
     ServiceArea,
@@ -186,7 +186,7 @@ async def list_nearby_workers(
     suburb: str | None = Query(default=None, max_length=100),
     trade: TradeEnum | None = Query(default=None),
     q: str | None = Query(default=None, max_length=200),
-    current_user: Person = Depends(get_current_user),
+    current_user: Person = Depends(RequireRole([RoleEnum.BUYER])),
     pagination: Pagination = Depends(pagination_params),
     use_case: ListNearbyWorkersUseCase = Depends(get_list_nearby_workers_use_case),
 ) -> list[WorkerDirectoryItem]:
@@ -216,7 +216,7 @@ async def list_nearby_workers(
 async def get_worker_public_profile(
     worker_id: uuid.UUID,
     suburb: str | None = Query(default=None, max_length=100),
-    current_user: Person = Depends(get_current_user),
+    current_user: Person = Depends(RequireRole([RoleEnum.BUYER])),
     use_case: GetWorkerPublicProfileUseCase = Depends(get_worker_public_profile_use_case),
 ) -> WorkerPublicProfile:
     """Fetch a worker's public profile, skills, standing, and past job records."""
