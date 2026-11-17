@@ -97,7 +97,7 @@ test.describe("photos (WEB-004)", () => {
     await page.getByLabel("Describe the job").fill("Kitchen sink is leaking under the basin");
     await page.getByRole("button", { name: /Where is the job\?/ }).click();
     const sheet = page.getByRole("dialog", { name: "Where is the job?" });
-    await sheet.getByLabel("Suburb").selectOption("Hillside");
+    await sheet.getByLabel("Suburb").fill("Hillside");
     await sheet.getByLabel("Street address").fill("14 Harrow Rd");
     await sheet.getByRole("button", { name: "Use this place" }).click();
 

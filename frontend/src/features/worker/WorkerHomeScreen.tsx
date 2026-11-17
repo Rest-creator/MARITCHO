@@ -11,7 +11,7 @@ import { Switch } from "@/components/ui/Switch";
 import { firstName, greeting } from "@/core/format/format";
 import { tradeWorkLabel } from "@/core/format/trades";
 import { updateProfile, useLocalProfile } from "@/core/session/profile-store";
-import { useOpenJobsSearch } from "@/features/jobs/hooks";
+import { useOpenJobsSearch, useSearchOpenJobs } from "@/features/jobs/hooks";
 import { OpenJobCard } from "@/features/worker/OpenJobCard";
 import {
   applyJobFilter,
@@ -36,13 +36,32 @@ export function WorkerHomeScreen() {
   const [filter, setFilter] = useState<JobFilter>({ kind: "all" });
   const [searchQuery, setSearchQuery] = useState("");
   const vectorSearch = useOpenJobsSearch(searchQuery);
+  const directVectorSearch = useSearchOpenJobs(searchQuery);
 
   const reachable = jobsWithinReach(openJobs ?? [], profile.travelKm);
-  const searched = filterJobsByQuery(
-    reachable,
-    searchQuery,
-    vectorSearch.data ? jobsWithinReach(vectorSearch.data, profile.travelKm) : undefined,
-  );
+  const vectorJobs =
+    vectorSearch.data && vectorSearch.data.length > 0
+      ? jobsWithinReach(vectorSearch.data, profile.travelKm)
+      : directVectorSearch.data && directVectorSearch.data.length > 0
+        ? directVectorSearch.data.map((hit) => {
+            const existing = reachable.find((item) => item.job_id === hit.job_id);
+            return (
+              existing ?? {
+                job_id: hit.job_id,
+                trade: hit.trade,
+                suburb: hit.suburb,
+                budget_amount: hit.budget_amount,
+                problem_description: hit.problem_description,
+                created_at: hit.created_at,
+                distance_band: "NEARBY" as const,
+                distance_km: 2,
+                needed_by: hit.needed_by,
+                similarity_score: hit.similarity_score,
+              }
+            );
+          })
+        : undefined;
+  const searched = filterJobsByQuery(reachable, searchQuery, vectorJobs);
   const offeredJobIds = new Set((screen.data?.offers ?? []).map((offer) => offer.job_id));
   const visible = rankOpenJobs(applyJobFilter(searched, filter), offeredJobIds);
   const hasNoSkills = skills !== undefined && skills.length === 0;

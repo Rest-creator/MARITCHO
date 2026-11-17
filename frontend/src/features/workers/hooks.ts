@@ -1,16 +1,28 @@
 import { useMutation, useQuery, type UseQueryResult } from "@tanstack/react-query";
 
 import {
+  fetchNearbyWorkers,
   fetchReferences,
   fetchServiceAreas,
   fetchSkills,
   fetchStanding,
   fetchSuburbs,
+  fetchWorkerProfile,
+  type FetchNearbyWorkersParams,
   type RegisterServiceAreaInput,
   type RegisterSkillInput,
   type UpdateUserProfileInput,
 } from "@/core/api/endpoints";
-import type { Reference, ServiceArea, Skill, Standing, Suburb, User } from "@/core/api/schemas";
+import type {
+  Reference,
+  ServiceArea,
+  Skill,
+  Standing,
+  Suburb,
+  User,
+  WorkerProfile,
+  WorkerSummary,
+} from "@/core/api/schemas";
 import { mutationKeys, queryKeys } from "@/core/query/keys";
 
 export function useSkills(): UseQueryResult<Skill[]> {
@@ -51,5 +63,25 @@ export function useRegisterServiceArea() {
 export function useUpdateUserProfile() {
   return useMutation<User, Error, UpdateUserProfileInput>({
     mutationKey: mutationKeys.updateProfile,
+  });
+}
+
+export function useNearbyWorkers(
+  params: FetchNearbyWorkersParams = {},
+): UseQueryResult<WorkerSummary[]> {
+  const suburb = params.suburb?.trim() ?? "";
+  const trade = params.trade ?? "";
+  const query = params.q?.trim() ?? "";
+  return useQuery({
+    queryKey: queryKeys.nearbyWorkers(suburb, trade, query),
+    queryFn: ({ signal }) => fetchNearbyWorkers(params, signal),
+  });
+}
+
+export function useWorkerProfile(workerId: string, suburb?: string): UseQueryResult<WorkerProfile> {
+  const cleanSuburb = suburb?.trim() ?? "";
+  return useQuery({
+    queryKey: queryKeys.workerProfile(workerId, cleanSuburb),
+    queryFn: ({ signal }) => fetchWorkerProfile(workerId, cleanSuburb, signal),
   });
 }

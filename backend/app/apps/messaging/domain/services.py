@@ -2,7 +2,7 @@ import uuid
 from collections.abc import Sequence
 from decimal import Decimal
 
-from app.apps.jobs.domain.repositories import JobRepository
+from app.apps.jobs.domain.repositories import JobOfferRepository, JobRepository
 from app.apps.messaging.domain.entities import Message, MessageTypeEnum
 from app.apps.messaging.domain.repositories import ChatBroadcaster, MessageRepository
 from app.core.exceptions import ForbiddenError, NotFoundError, ValidationConflictError
@@ -26,12 +26,19 @@ def _validate_message_payload(
 
 
 async def _require_job_party(
-    jobs: JobRepository, job_id: uuid.UUID, user_id: uuid.UUID, user_role: RoleEnum
+    jobs: JobRepository,
+    job_id: uuid.UUID,
+    user_id: uuid.UUID,
+    user_role: RoleEnum,
+    offers: JobOfferRepository | None = None,
 ) -> None:
     job = await jobs.get(job_id)
     if job is None:
         raise NotFoundError("Job not found")
     is_party = user_id in (job.buyer_id, job.worker_id)
+    if not is_party and offers is not None and user_role == RoleEnum.WORKER:
+        job_offers = await offers.get_for_job(job_id)
+        is_party = user_id in job_offers
     if not is_party and user_role != RoleEnum.OPS:
         raise ForbiddenError("Not permitted to view this job's messages")
 
@@ -47,11 +54,13 @@ class SendMessageUseCase:
         jobs: JobRepository,
         broadcaster: ChatBroadcaster,
         uow: UnitOfWork,
+        offers: JobOfferRepository | None = None,
     ) -> None:
         self._messages = messages
         self._jobs = jobs
         self._broadcaster = broadcaster
         self._uow = uow
+        self._offers = offers
 
     async def execute(
         self,
@@ -66,7 +75,7 @@ class SendMessageUseCase:
         latitude: Decimal | None,
         longitude: Decimal | None,
     ) -> Message:
-        await _require_job_party(self._jobs, job_id, sender_id, sender_role)
+        await _require_job_party(self._jobs, job_id, sender_id, sender_role, self._offers)
         _validate_message_payload(message_type, body, media_url, latitude, longitude)
 
         message = await self._messages.add(
@@ -86,9 +95,15 @@ class SendMessageUseCase:
 
 
 class ListMessagesUseCase:
-    def __init__(self, messages: MessageRepository, jobs: JobRepository) -> None:
+    def __init__(
+        self,
+        messages: MessageRepository,
+        jobs: JobRepository,
+        offers: JobOfferRepository | None = None,
+    ) -> None:
         self._messages = messages
         self._jobs = jobs
+        self._offers = offers
 
     async def execute(
         self,
@@ -99,19 +114,28 @@ class ListMessagesUseCase:
         limit: int,
         offset: int,
     ) -> Sequence[Message]:
-        await _require_job_party(self._jobs, job_id, current_user_id, current_user_role)
+        await _require_job_party(
+            self._jobs, job_id, current_user_id, current_user_role, self._offers
+        )
         return await self._messages.list_by_job(job_id, limit=limit, offset=offset)
 
 
 class MarkMessagesReadUseCase:
-    def __init__(self, messages: MessageRepository, jobs: JobRepository, uow: UnitOfWork) -> None:
+    def __init__(
+        self,
+        messages: MessageRepository,
+        jobs: JobRepository,
+        uow: UnitOfWork,
+        offers: JobOfferRepository | None = None,
+    ) -> None:
         self._messages = messages
         self._jobs = jobs
         self._uow = uow
+        self._offers = offers
 
     async def execute(
         self, job_id: uuid.UUID, reader_id: uuid.UUID, reader_role: RoleEnum
     ) -> None:
-        await _require_job_party(self._jobs, job_id, reader_id, reader_role)
+        await _require_job_party(self._jobs, job_id, reader_id, reader_role, self._offers)
         await self._messages.mark_read(job_id, reader_id)
         await self._uow.commit()

@@ -120,6 +120,44 @@ async def test_mark_messages_read_marks_the_other_partys_messages(
     assert list_response.json()[0]["read_at"] is not None
 
 
+async def test_offering_worker_can_message_buyer_before_booking(
+    client, buyer, worker_factory
+):
+    worker = await worker_factory(TradeEnum.PLUMBING, "Nkulumane")
+    create_response = await client.post(
+        "/jobs/request", json=JOB_PAYLOAD, headers=auth_headers(buyer)
+    )
+    job = create_response.json()
+
+    # Worker submits an offer before booking
+    offer_response = await client.post(
+        f"/jobs/{job['id']}/offers",
+        json={"quoted_amount": "35.00", "availability_note": "Can come at 2pm"},
+        headers=auth_headers(worker),
+    )
+    assert offer_response.status_code == 201
+
+    # Offering worker can view job summary for chat header, with street address masked
+    job_view = await client.get(f"/jobs/{job['id']}", headers=auth_headers(worker))
+    assert job_view.status_code == 200
+    assert job_view.json()["address"] == ""
+
+    # Offering worker and buyer can exchange messages before booking
+    msg_response = await client.post(
+        f"/jobs/{job['id']}/messages",
+        json={"message_type": "TEXT", "body": "Do you have the replacement valve?"},
+        headers=auth_headers(worker),
+    )
+    assert msg_response.status_code == 201
+
+    buyer_msgs = await client.get(
+        f"/jobs/{job['id']}/messages", headers=auth_headers(buyer)
+    )
+    assert buyer_msgs.status_code == 200
+    assert len(buyer_msgs.json()) == 1
+
+
+
 # No automated test for the WebSocket route itself: httpx (this test
 # module's client) has no WebSocket support at all, and the obvious
 # alternative — Starlette's sync TestClient, which drives the ASGI app

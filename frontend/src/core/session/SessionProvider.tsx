@@ -95,12 +95,22 @@ export function SessionProvider({ children }: Props) {
   const session = useQuery({
     queryKey: queryKeys.session,
     queryFn: fetchSession,
-    staleTime: 5 * 60_000,
+    staleTime: 0,
+    refetchOnMount: "always",
   });
 
   useEffect(() => {
     const user = session.data;
     if (!user) return;
+    if (user.role === "BUYER") {
+      queryClient.removeQueries({ queryKey: queryKeys.assignedJobs });
+      queryClient.removeQueries({ queryKey: queryKeys.openJobs });
+      queryClient.removeQueries({ queryKey: queryKeys.myOffers });
+      queryClient.removeQueries({ queryKey: queryKeys.workerWorkScreen });
+      queryClient.removeQueries({ queryKey: queryKeys.workerHomeScreen });
+    } else if (user.role === "WORKER") {
+      queryClient.removeQueries({ queryKey: queryKeys.myJobs });
+    }
     const patch: Parameters<typeof updateProfile>[0] = {};
     if (localProfile.phone === "" && user.phone) patch.phone = user.phone;
     if (localProfile.name === "" && user.display_name) patch.name = user.display_name;
@@ -116,11 +126,12 @@ export function SessionProvider({ children }: Props) {
     if (Object.keys(patch).length > 0) {
       updateProfile(patch);
     }
-  }, [session.data, localProfile]);
+  }, [session.data, localProfile, queryClient]);
 
   const signInMutation = useMutation({
     mutationFn: postSession,
     onSuccess: (user) => {
+      queryClient.clear();
       queryClient.setQueryData(queryKeys.session, user);
     },
   });

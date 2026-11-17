@@ -18,6 +18,10 @@ export const queryKeys = {
   serviceAreas: ["workers", "service-areas"] as const,
   standing: ["workers", "standing"] as const,
   references: ["workers", "references"] as const,
+  nearbyWorkers: (suburb: string = "", trade: string = "", query: string = "") =>
+    ["workers", "directory", suburb, trade, query] as const,
+  workerProfile: (workerId: string, suburb: string = "") =>
+    ["workers", "profile", workerId, suburb] as const,
   suburbs: ["suburbs"] as const,
   mediaUploads: ["media", "uploads-available"] as const,
   /** Screen bundles; under "jobs" so any job change can refresh them too. */

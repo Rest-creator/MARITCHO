@@ -4,24 +4,54 @@ import { useState } from "react";
 
 import { Icon } from "@/components/ui/Icon";
 import { Sheet } from "@/components/ui/Sheet";
-import { findSkill, searchSkills, type SkillOption } from "@/core/format/trades";
+import {
+  composeSkillWithWriteIn,
+  findSkill,
+  searchSkills,
+  type SkillOption,
+} from "@/core/format/trades";
 
 type Props = {
   isOpen: boolean;
   selectedId: string | null;
+  initialWriteIn?: string;
   onClose: () => void;
   onSelect: (skill: SkillOption) => void;
+  onWriteInChange?: (writeIn: string) => void;
 };
 
-/** Design E3 · Pick the skill needed. */
-export function TradePickerSheet({ isOpen, selectedId, onClose, onSelect }: Props) {
+/** Design E3 · Pick the skill needed, or write in on top of your pick. */
+export function TradePickerSheet({
+  isOpen,
+  selectedId,
+  initialWriteIn = "",
+  onClose,
+  onSelect,
+  onWriteInChange,
+}: Props) {
   const [query, setQuery] = useState("");
   const [pendingId, setPendingId] = useState<string | null>(selectedId);
-  const pending = findSkill(pendingId);
+  const [writeIn, setWriteIn] = useState(initialWriteIn);
+  const pending = findSkill(pendingId) ?? null;
   const groups = searchSkills(query);
+  const resolved =
+    composeSkillWithWriteIn(pending, writeIn) ??
+    (query.trim() !== "" && groups.length === 0 ? composeSkillWithWriteIn(null, query) : null);
 
   function handleDone(): void {
-    if (pending) onSelect(pending);
+    if (!resolved) return;
+    const effectiveWriteIn =
+      writeIn.trim() !== ""
+        ? writeIn.trim()
+        : pending === null && query.trim() !== ""
+          ? query.trim()
+          : "";
+    if (onWriteInChange) {
+      onWriteInChange(effectiveWriteIn);
+      onSelect(pending ?? findSkill(resolved.id) ?? resolved);
+    } else {
+      onSelect(resolved);
+    }
     onClose();
   }
 
@@ -34,10 +64,10 @@ export function TradePickerSheet({ isOpen, selectedId, onClose, onSelect }: Prop
         <button
           type="button"
           className="btn btn--primary btn--cta"
-          disabled={!pending}
+          disabled={!resolved}
           onClick={handleDone}
         >
-          {pending ? `Done — ${pending.label}` : "Pick a skill"}
+          {resolved ? `Done — ${resolved.label}` : "Pick a skill"}
         </button>
       }
     >
@@ -51,7 +81,30 @@ export function TradePickerSheet({ isOpen, selectedId, onClose, onSelect }: Prop
           onChange={(event) => setQuery(event.target.value)}
         />
       </label>
-      {groups.length === 0 && <p className="meta meta--secondary">No skills match “{query}”.</p>}
+      <div className="field" style={{ gap: 6 }}>
+        <label htmlFor="tp-writein" className="field__label">
+          Write in on top of your pick (optional)
+        </label>
+        <input
+          id="tp-writein"
+          type="text"
+          className="input input--compact"
+          placeholder={
+            pending
+              ? `Add details on top of ${pending.label} (e.g. geyser, ceiling)…`
+              : "Or write in who you want (e.g. borehole plumber, carpenter)…"
+          }
+          aria-label="Write in on top of your pick"
+          value={writeIn}
+          maxLength={80}
+          onChange={(event) => setWriteIn(event.target.value)}
+        />
+      </div>
+      {groups.length === 0 && (
+        <p className="meta meta--secondary">
+          No preset skills match “{query}” — tap Done below to use it as a write-in.
+        </p>
+      )}
       {groups.map((group) => (
         <section key={group.title} aria-label={group.title}>
           <div className="eyebrow">{group.title}</div>

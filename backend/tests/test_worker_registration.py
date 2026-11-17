@@ -120,3 +120,53 @@ async def test_registering_skill_creates_a_standing_row(client, worker):
 
     assert response.status_code == 200
     assert response.json()["worker_id"] == str(worker.id)
+
+
+async def test_buyer_can_browse_nearby_workers_and_view_public_profile(client, buyer, worker):
+    await client.post(
+        "/workers/me/skills",
+        json={"trade": "PLUMBING", "proof_url": "/media/work-1.jpg"},
+        headers=auth_headers(worker),
+    )
+    await client.post(
+        "/workers/me/service-areas",
+        json={"suburb": "Hillside", "travel_means": "COMBI"},
+        headers=auth_headers(worker),
+    )
+
+    directory = await client.get(
+        "/workers",
+        params={"suburb": "Hillside", "trade": "PLUMBING"},
+        headers=auth_headers(buyer),
+    )
+    assert directory.status_code == 200
+    items = directory.json()
+    assert len(items) == 1
+    assert items[0]["worker_id"] == str(worker.id)
+    assert items[0]["distance_band"] == "SAME_SUBURB"
+    assert items[0]["trades"] == ["PLUMBING"]
+
+    profile = await client.get(
+        f"/workers/{worker.id}",
+        params={"suburb": "Hillside"},
+        headers=auth_headers(buyer),
+    )
+    assert profile.status_code == 200
+    body = profile.json()
+    assert body["worker_id"] == str(worker.id)
+    assert body["service_areas"] == ["Hillside"]
+    assert body["proof_urls"] == ["/media/work-1.jpg"]
+
+    # Semantic vector query ("pombi yemvura" -> PLUMBING) finds the plumber
+    semantic = await client.get(
+        "/workers",
+        params={"suburb": "Hillside", "q": "pombi yemvura leaking geyser"},
+        headers=auth_headers(buyer),
+    )
+    assert semantic.status_code == 200
+    sem_items = semantic.json()
+    assert len(sem_items) == 1
+    assert sem_items[0]["worker_id"] == str(worker.id)
+    assert sem_items[0]["similarity_score"] is not None
+
+

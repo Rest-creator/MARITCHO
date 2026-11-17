@@ -9,10 +9,13 @@ import { Icon } from "@/components/ui/Icon";
 import { PhotoStrip } from "@/components/ui/PhotoStrip";
 import { Screen } from "@/components/ui/Screen";
 import type { Trade } from "@/core/api/schemas";
+import { mergeSuburbs, resolveSuburbForJob } from "@/core/format/suburbs";
 import {
   ALL_SKILLS,
+  composeSkillWithWriteIn,
   describeWithSkill,
   findSkill,
+  predictSkills,
   tradeIcon,
   tradeLabel,
   type SkillOption,
@@ -22,10 +25,11 @@ import { useDictation } from "@/core/media/use-dictation";
 import { useMediaUploads } from "@/core/media/use-media-uploads";
 import { useUpload } from "@/core/media/use-upload";
 import { updateProfile, useLocalProfile } from "@/core/session/profile-store";
-import { useCreateJob } from "@/features/jobs/hooks";
+import { useCreateJob, useSearchSkills } from "@/features/jobs/hooks";
 import { withTiming } from "@/features/jobs/job-helpers";
 import { LocationSheet, type JobLocation } from "@/features/jobs/LocationSheet";
 import { TradePickerSheet } from "@/features/jobs/TradePickerSheet";
+import { useSuburbs } from "@/features/workers/hooks";
 
 const DESCRIPTION_LIMIT = 300;
 
@@ -56,7 +60,8 @@ export function validatePostJob(
   if (skill === null || skill.trade === null) return "Pick who you need first.";
   if (description.trim().length < 5)
     return "Say a few words about the job — or tap the mic and say it.";
-  if (location.suburb === "" || location.address.trim() === "") return "Tell us where the job is.";
+  if (location.suburb.trim() === "" || location.address.trim() === "")
+    return "Tell us where the job is.";
   return null;
 }
 
@@ -65,12 +70,15 @@ export function PostJobScreen({ initialTrade, initialSkillId, shouldOpenPicker }
   const router = useRouter();
   const profile = useLocalProfile();
   const createJob = useCreateJob();
+  const suburbs = useSuburbs();
   const canUpload = useMediaUploads();
   const { upload, isUploading } = useUpload();
 
   const [skill, setSkill] = useState<SkillOption | null>(() =>
     initialSkill(initialTrade, initialSkillId),
   );
+  const [writeInSkill, setWriteInSkill] = useState("");
+  const [isSkillSuggestOpen, setIsSkillSuggestOpen] = useState(false);
   const [isPickerOpen, setIsPickerOpen] = useState(shouldOpenPicker || skill === null);
   const [isLocationOpen, setIsLocationOpen] = useState(false);
   const [description, setDescription] = useState("");
@@ -85,6 +93,22 @@ export function PostJobScreen({ initialTrade, initialSkillId, shouldOpenPicker }
   const [formError, setFormError] = useState<string | null>(null);
   const [photos, setPhotos] = useState<File[]>([]);
   const [hasPhotoFailed, setHasPhotoFailed] = useState(false);
+
+  const effectiveSkill = composeSkillWithWriteIn(skill, writeInSkill);
+  const vectorSkills = useSearchSkills(writeInSkill);
+  const localPredictions = predictSkills(writeInSkill);
+  const skillPredictions: SkillOption[] = [
+    ...localPredictions,
+    ...(vectorSkills.data ?? [])
+      .map((hit) => findSkill(hit.id))
+      .filter(
+        (item): item is SkillOption =>
+          item !== undefined &&
+          item.trade !== null &&
+          !localPredictions.some((local) => local.id === item.id),
+      ),
+  ].slice(0, 6);
+  const allSuburbs = mergeSuburbs(suburbs.data);
 
   const dictation = useDictation((text) =>
     setDescription((current) =>
@@ -119,9 +143,9 @@ export function PostJobScreen({ initialTrade, initialSkillId, shouldOpenPicker }
   }
 
   async function submit(isWithoutPhoto: boolean): Promise<void> {
-    const problem = validatePostJob(skill, description, location);
+    const problem = validatePostJob(effectiveSkill, description, location);
     setFormError(problem);
-    if (problem !== null || skill === null || skill.trade === null) return;
+    if (problem !== null || effectiveSkill === null || effectiveSkill.trade === null) return;
 
     const photoUrl = isWithoutPhoto ? undefined : await photoUrlFor(photos[0]);
     if (photoUrl === "failed") return;
@@ -134,13 +158,17 @@ export function PostJobScreen({ initialTrade, initialSkillId, shouldOpenPicker }
         : timing === "This week"
           ? ("THIS_WEEK" as const)
           : ("FLEXIBLE" as const);
+    const resolvedLocation = resolveSuburbForJob(location.suburb, location.address, allSuburbs);
     updateProfile({ lastSuburb: location.suburb, lastAddress: location.address });
     const input = {
-      trade: skill.trade,
-      suburb: location.suburb,
-      address: location.address,
+      trade: effectiveSkill.trade,
+      suburb: resolvedLocation.suburb,
+      address: resolvedLocation.address,
       ...(location.landmark === "" ? {} : { landmark_narrative: location.landmark }),
-      problem_description: withTiming(describeWithSkill(skill, description), timingLabel()),
+      problem_description: withTiming(
+        describeWithSkill(effectiveSkill, description),
+        timingLabel(),
+      ),
       needed_by: neededBy,
       ...(budget !== "" && budgetAmount > 0 ? { budget_amount: budgetAmount } : {}),
       ...(photoUrl === undefined ? {} : { problem_photo_url: photoUrl }),
@@ -173,26 +201,91 @@ export function PostJobScreen({ initialTrade, initialSkillId, shouldOpenPicker }
           <h1 className="title">Post a job</h1>
         </div>
 
-        <button
-          type="button"
-          className="card card--compact row"
-          style={{ gap: 14, textAlign: "left" }}
-          onClick={() => setIsPickerOpen(true)}
-        >
-          <div
-            className="icon-tile icon-tile--amber icon-tile--edged"
-            style={{ width: 42, height: 42 }}
+        <div className="card card--compact stack" style={{ gap: 10 }}>
+          <button
+            type="button"
+            className="row"
+            style={{
+              gap: 14,
+              textAlign: "left",
+              background: "none",
+              border: 0,
+              padding: 0,
+              color: "inherit",
+              width: "100%",
+            }}
+            onClick={() => setIsPickerOpen(true)}
           >
-            <Icon name={skill?.trade ? tradeIcon(skill.trade) : "search"} />
-          </div>
-          <div className="grow">
-            <div className="label">What needs doing?</div>
-            <div style={{ marginTop: 2, fontSize: 16, fontWeight: 700 }}>
-              {skill?.label ?? "Pick a skill"}
+            <div
+              className="icon-tile icon-tile--amber icon-tile--edged"
+              style={{ width: 42, height: 42 }}
+            >
+              <Icon name={effectiveSkill?.trade ? tradeIcon(effectiveSkill.trade) : "search"} />
             </div>
+            <div className="grow">
+              <div className="label">Who do you want?</div>
+              <div style={{ marginTop: 2, fontSize: 16, fontWeight: 700 }}>
+                {effectiveSkill?.label ?? "Pick a skill"}
+              </div>
+            </div>
+            <span className="text-link">{skill ? "Change" : "Choose"}</span>
+          </button>
+
+          <div className="combobox">
+            <input
+              id="pj-who-writein"
+              type="text"
+              className="input input--compact"
+              placeholder={
+                skill
+                  ? `Write in on top of ${skill.label} (e.g. specific role or work)…`
+                  : "Or write in who you want (e.g. plumber, geyser repair)…"
+              }
+              aria-label="Write in who you want"
+              value={writeInSkill}
+              maxLength={80}
+              onFocus={() => setIsSkillSuggestOpen(true)}
+              onBlur={() => {
+                setTimeout(() => setIsSkillSuggestOpen(false), 150);
+              }}
+              onChange={(event) => {
+                setWriteInSkill(event.target.value);
+                setIsSkillSuggestOpen(true);
+              }}
+            />
+            {isSkillSuggestOpen && skillPredictions.length > 0 && (
+              <ul className="combobox__menu" role="listbox" aria-label="Suggested skills">
+                {skillPredictions.map((option, index) => (
+                  <li
+                    key={option.id}
+                    role="option"
+                    aria-selected={index === 0 || skill?.id === option.id}
+                  >
+                    <button
+                      type="button"
+                      className={
+                        index === 0
+                          ? "combobox__option combobox__option--active"
+                          : "combobox__option"
+                      }
+                      onMouseDown={(event) => {
+                        event.preventDefault();
+                        setSkill(option);
+                        setWriteInSkill("");
+                        setIsSkillSuggestOpen(false);
+                      }}
+                    >
+                      <span>{option.label}</span>
+                      {option.trade && (
+                        <span className="combobox__badge">{tradeLabel(option.trade)}</span>
+                      )}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
-          <span className="text-link">{skill ? "Change" : "Choose"}</span>
-        </button>
+        </div>
 
         <div className="card card--compact" style={{ padding: "14px 16px" }}>
           <div className="row row--between row--baseline">
@@ -347,8 +440,10 @@ export function PostJobScreen({ initialTrade, initialSkillId, shouldOpenPicker }
         <TradePickerSheet
           isOpen
           selectedId={skill?.id ?? null}
+          initialWriteIn={writeInSkill}
           onClose={() => setIsPickerOpen(false)}
           onSelect={setSkill}
+          onWriteInChange={setWriteInSkill}
         />
       )}
       {isLocationOpen && (

@@ -776,7 +776,8 @@ a.card:hover {
   backdrop-filter: var(--blur-bar);
   -webkit-backdrop-filter: var(--blur-bar);
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
 }
 
 .tabbar__item {
@@ -857,6 +858,131 @@ a.card:hover {
 
 .input[aria-invalid="true"] {
   border-color: var(--danger-edge);
+}
+
+.input--compact {
+  height: 44px;
+  padding: 0 14px;
+  font-size: var(--text-md);
+}
+
+/* Native <select> popups on Windows/Android default to a white OS menu while
+   inheriting light --text colour, making options unreadable. Force a solid
+   dark surface and light text on both the select and its options. */
+select.input {
+  background-color: var(--color-bg);
+  color: var(--text);
+}
+
+select.input option,
+option {
+  background-color: var(--color-bg);
+  color: var(--text);
+}
+
+/* ---------- Combobox (dropdown pick + write-in + autofill predictions) ---------- */
+.combobox {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.combobox__control {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.combobox__input {
+  padding-right: 48px;
+}
+
+.combobox__autofill {
+  position: absolute;
+  right: 44px;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--amber-edge);
+  background: var(--amber-tint);
+  color: var(--amber-light);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.combobox__autofill:hover {
+  background: var(--amber);
+  color: var(--amber-ink);
+}
+
+.combobox__toggle {
+  position: absolute;
+  right: 6px;
+  width: 38px;
+  height: 38px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.combobox__toggle:hover {
+  background: var(--glass-bold);
+  color: var(--text);
+}
+
+.combobox__menu {
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  max-height: 210px;
+  overflow-y: auto;
+  border-radius: var(--radius-lg);
+  background: var(--color-bg);
+  border: 1px solid var(--line-bold);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.combobox__option {
+  width: 100%;
+  min-height: 42px;
+  padding: 8px 12px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text);
+  font-size: var(--text-base);
+  font-weight: 600;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.combobox__option:hover,
+.combobox__option--active {
+  background: var(--amber-tint);
+  border-color: var(--amber-edge);
+  color: var(--amber-pale);
+}
+
+.combobox__badge {
+  padding: 2px 8px;
+  border-radius: var(--radius-xs);
+  background: var(--glass-bold);
+  color: var(--amber-light);
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  letter-spacing: 0.02em;
 }
 
 /* The 6-digit sign-in code: big, spaced digits that are easy to check. */
@@ -1788,7 +1914,8 @@ a.list-row:hover {
 }
 
 .worker-search {
-  display: none;
+  display: flex;
+  width: 100%;
 }
 
 /* ---------- Web & Tablet Responsive Layout (>= 768px) ---------- */

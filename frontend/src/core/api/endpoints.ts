@@ -20,6 +20,8 @@ import {
   suburbSchema,
   userSchema,
   workerHomeScreenSchema,
+  workerProfileSchema,
+  workerSummarySchema,
   workerWorkScreenSchema,
   type Dispute,
   type Job,
@@ -43,6 +45,8 @@ import {
   type Trade,
   type User,
   type WorkerHomeScreen,
+  type WorkerProfile,
+  type WorkerSummary,
   type WorkerWorkScreen,
 } from "@/core/api/schemas";
 
@@ -317,6 +321,39 @@ export function fetchStanding(): Promise<Standing> {
 
 export function fetchReferences(): Promise<Reference[]> {
   return apiRequest("/workers/me/references", { schema: z.array(referenceSchema) });
+}
+
+export interface FetchNearbyWorkersParams {
+  suburb?: string;
+  trade?: Trade;
+  q?: string;
+}
+
+export function fetchNearbyWorkers(
+  params: FetchNearbyWorkersParams = {},
+  signal?: AbortSignal,
+): Promise<WorkerSummary[]> {
+  const query = new URLSearchParams();
+  if (params.suburb && params.suburb.trim() !== "") query.set("suburb", params.suburb.trim());
+  if (params.trade) query.set("trade", params.trade);
+  if (params.q && params.q.trim() !== "") query.set("q", params.q.trim());
+  const qs = query.toString();
+  return apiRequest(`/workers${qs ? `?${qs}` : ""}`, {
+    schema: z.array(workerSummarySchema),
+    signal,
+  });
+}
+
+export function fetchWorkerProfile(
+  workerId: string,
+  suburb?: string,
+  signal?: AbortSignal,
+): Promise<WorkerProfile> {
+  const qs = suburb && suburb.trim() !== "" ? `?suburb=${encodeURIComponent(suburb.trim())}` : "";
+  return apiRequest(`/workers/${encodeURIComponent(workerId)}${qs}`, {
+    schema: workerProfileSchema,
+    signal,
+  });
 }
 
 /* ---------- Screens (one request per screen, ADR-009 phase 2) ---------- */

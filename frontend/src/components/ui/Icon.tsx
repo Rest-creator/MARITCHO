@@ -25,6 +25,14 @@ const PATHS = {
       <path d="M4 21a8 8 0 0 1 16 0" />
     </>
   ),
+  users: (
+    <>
+      <circle cx="9" cy="8" r="3.5" />
+      <path d="M2.5 20a6.5 6.5 0 0 1 13 0" />
+      <circle cx="17" cy="9" r="2.8" />
+      <path d="M16 14.5a5.5 5.5 0 0 1 5.5 5.5" />
+    </>
+  ),
   back: <path d="m15 18-6-6 6-6" />,
   chevronRight: <path d="m9 6 6 6-6 6" />,
   chevronDown: <path d="m6 9 6 6 6-6" />,

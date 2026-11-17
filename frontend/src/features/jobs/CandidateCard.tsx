@@ -67,13 +67,19 @@ export function CandidateCard({ job, candidate, isTopPick, onHire }: Props) {
           {response}
         </div>
       )}
-      <div className="btn-grid" style={{ marginTop: 14 }}>
-        <Link href={`/employer/jobs/${job.id}/workers/${candidate.worker_id}`} className="btn">
+      <div className="btn-grid btn-grid--three" style={{ marginTop: 14 }}>
+        <Link
+          href={`/employer/jobs/${job.id}/workers/${candidate.worker_id}`}
+          className="btn btn--sm"
+        >
           View profile
+        </Link>
+        <Link href={`/chat/${job.id}`} className="btn btn--sm">
+          Message
         </Link>
         <button
           type="button"
-          className={isTopPick ? "btn btn--primary" : "btn btn--soft"}
+          className={isTopPick ? "btn btn--primary btn--sm" : "btn btn--soft btn--sm"}
           onClick={() => onHire(candidate)}
         >
           Approve
