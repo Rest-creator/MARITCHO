@@ -12,6 +12,7 @@ from app.apps.accounts.interface_adapters.router import router as accounts_route
 from app.apps.crews.interface_adapters.router import crew_orders_router, crews_router
 from app.apps.jobs.interface_adapters.router import router as jobs_router
 from app.apps.media.router import router as media_router
+from app.apps.messaging.interface_adapters.router import inbox_router as messaging_inbox_router
 from app.apps.messaging.interface_adapters.router import router as messaging_router
 from app.apps.payments.interface_adapters.router import router as payment_gateways_router
 from app.apps.suburbs.interface_adapters.router import router as suburbs_router
@@ -37,6 +38,7 @@ register_exception_handlers(app)
 app.include_router(accounts_router)
 app.include_router(jobs_router)
 app.include_router(messaging_router)
+app.include_router(messaging_inbox_router)
 app.include_router(workers_router)
 app.include_router(workers_directory_router)
 app.include_router(suburbs_router)

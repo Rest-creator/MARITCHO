@@ -12,6 +12,12 @@ export interface TabItem {
   icon: IconName;
   /** Extra path prefixes that should light this tab up. */
   matches?: readonly string[];
+  /** Unread count shown on the icon (hidden when 0). */
+  badge?: number;
+}
+
+function badgeText(count: number): string {
+  return count > 99 ? "99+" : String(count);
 }
 
 type Props = { items: readonly TabItem[]; ariaLabel: string };
@@ -28,17 +34,28 @@ export function TabBar({ items, ariaLabel }: Props) {
       <div className="tabbar__brand">
         <BrandLogo isDecorative />
       </div>
-      {items.map((item) => (
-        <Link
-          key={item.href}
-          href={item.href}
-          className="tabbar__item"
-          aria-current={isTabActive(pathname, item) ? "page" : undefined}
-        >
-          <Icon name={item.icon} size={22} strokeWidth={1.8} />
-          <span>{item.label}</span>
-        </Link>
-      ))}
+      {items.map((item) => {
+        const badge: number = item.badge ?? 0;
+        return (
+          <Link
+            key={item.href}
+            href={item.href}
+            className="tabbar__item"
+            aria-current={isTabActive(pathname, item) ? "page" : undefined}
+            aria-label={badge > 0 ? `${item.label}, ${badgeText(badge)} unread` : undefined}
+          >
+            <span className="tabbar__icon">
+              <Icon name={item.icon} size={22} strokeWidth={1.8} />
+              {badge > 0 && (
+                <span className="tabbar__badge" aria-hidden="true">
+                  {badgeText(badge)}
+                </span>
+              )}
+            </span>
+            <span>{item.label}</span>
+          </Link>
+        );
+      })}
     </nav>
   );
 }

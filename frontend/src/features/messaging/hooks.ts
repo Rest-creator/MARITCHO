@@ -8,8 +8,13 @@ import {
 } from "@tanstack/react-query";
 import { z } from "zod";
 
-import { fetchMessages, markMessagesRead, type SendMessageInput } from "@/core/api/endpoints";
-import { messageSchema, type Message } from "@/core/api/schemas";
+import {
+  fetchMessages,
+  fetchUnreadSummary,
+  markMessagesRead,
+  type SendMessageInput,
+} from "@/core/api/endpoints";
+import { messageSchema, type ConversationUnread, type Message } from "@/core/api/schemas";
 import { useOnlineStatus } from "@/core/offline/use-online-status";
 import { mutationKeys, queryKeys } from "@/core/query/keys";
 
@@ -47,15 +52,71 @@ export function useSendMessage(jobId: string) {
       void queryClient.invalidateQueries({ queryKey: queryKeys.myJobs });
       void queryClient.invalidateQueries({ queryKey: queryKeys.assignedJobs });
       void queryClient.invalidateQueries({ queryKey: queryKeys.myOffers });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.unreadMessages });
     },
   });
 }
 
+/**
+ * Marks the thread read, but only while the person can actually see it: a
+ * chat left open in a background tab no longer swallows new messages
+ * (which also cleared the sender's "unread" before anyone looked).
+ */
 export function useMarkMessagesRead(jobId: string, latestIncomingId: string | undefined): void {
+  const queryClient = useQueryClient();
   useEffect(() => {
-    if (latestIncomingId === undefined) return;
-    markMessagesRead(jobId).catch(() => undefined);
-  }, [jobId, latestIncomingId]);
+    if (latestIncomingId === undefined) return undefined;
+
+    function markRead(): void {
+      markMessagesRead(jobId)
+        .then(() => queryClient.invalidateQueries({ queryKey: queryKeys.unreadMessages }))
+        .catch(() => undefined);
+    }
+
+    if (document.visibilityState === "visible") {
+      markRead();
+      return undefined;
+    }
+    function handleVisible(): void {
+      if (document.visibilityState !== "visible") return;
+      document.removeEventListener("visibilitychange", handleVisible);
+      markRead();
+    }
+    document.addEventListener("visibilitychange", handleVisible);
+    return () => document.removeEventListener("visibilitychange", handleVisible);
+  }, [jobId, latestIncomingId, queryClient]);
+}
+
+/** How often the badge checks for new messages when no chat is open. */
+const UNREAD_POLL_MS = 30_000;
+
+/**
+ * Unread counts across all conversations: drives the Messages badge, the
+ * tab title and inbox order. Polls gently (and on focus) because new
+ * messages for chats that aren't open have no other way in.
+ */
+export function useUnreadMessages(isEnabled: boolean = true): UseQueryResult<ConversationUnread[]> {
+  return useQuery({
+    queryKey: queryKeys.unreadMessages,
+    queryFn: ({ signal }) => fetchUnreadSummary(signal),
+    enabled: isEnabled,
+    staleTime: 10_000,
+    refetchInterval: UNREAD_POLL_MS,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: true,
+  });
+}
+
+export function unreadTotal(summary: readonly ConversationUnread[] | undefined): number {
+  return (summary ?? []).reduce((total, item) => total + item.unread_count, 0);
+}
+
+/** "(3) Maritcho": the unread count in the browser tab / task switcher. */
+export function useUnreadDocumentTitle(total: number): void {
+  useEffect(() => {
+    const base: string = document.title.replace(/^\(\d+\+?\)\s*/, "");
+    document.title = total > 0 ? `(${total > 99 ? "99+" : total}) ${base}` : base;
+  }, [total]);
 }
 
 const socketTokenSchema = z.object({ token: z.string().min(1) });
@@ -69,14 +130,20 @@ function socketBaseUrl(): string {
   return `ws://${window.location.hostname}:8000`;
 }
 
-function applySocketPayload(queryClient: QueryClient, jobId: string, raw: string): void {
-  let parsed: ReturnType<typeof messageSchema.safeParse>;
+const heartbeatSchema = z.object({ type: z.literal("ping") });
+
+/** Applies one socket frame. Returns false for heartbeats (no data). */
+export function applySocketPayload(queryClient: QueryClient, jobId: string, raw: string): boolean {
+  let payload: unknown;
   try {
-    parsed = messageSchema.safeParse(JSON.parse(raw));
+    payload = JSON.parse(raw);
   } catch {
     void queryClient.invalidateQueries({ queryKey: queryKeys.messages(jobId) });
-    return;
+    return true;
   }
+  if (heartbeatSchema.safeParse(payload).success) return false;
+
+  const parsed = messageSchema.safeParse(payload);
   if (parsed.success) {
     queryClient.setQueryData<Message[]>(queryKeys.messages(jobId), (existing) =>
       mergeMessage(existing, parsed.data),
@@ -84,7 +151,12 @@ function applySocketPayload(queryClient: QueryClient, jobId: string, raw: string
   } else {
     void queryClient.invalidateQueries({ queryKey: queryKeys.messages(jobId) });
   }
+  void queryClient.invalidateQueries({ queryKey: queryKeys.unreadMessages });
+  return true;
 }
+
+/** The server pings every 25 s; silence this long means the socket is dead. */
+const SOCKET_SILENCE_MS = 60_000;
 
 /**
  * Live push of new messages (receive-only — sending always goes through
@@ -102,6 +174,14 @@ export function useChatSocket(jobId: string): boolean {
     let isCancelled = false;
     let retryTimer: ReturnType<typeof setTimeout> | undefined;
     let attempt = 0;
+    let lastFrameAt = Date.now();
+    // Mobile networks drop idle sockets without telling either side; close a
+    // silent one so onclose reconnects instead of "live" with nothing arriving.
+    const watchdog = setInterval(() => {
+      if (socket?.readyState === WebSocket.OPEN && Date.now() - lastFrameAt > SOCKET_SILENCE_MS) {
+        socket.close();
+      }
+    }, SOCKET_SILENCE_MS / 4);
 
     async function connect(): Promise<void> {
       try {
@@ -112,10 +192,12 @@ export function useChatSocket(jobId: string): boolean {
         socket = new WebSocket(url);
         socket.onopen = () => {
           attempt = 0;
+          lastFrameAt = Date.now();
           setIsConnected(true);
           void queryClient.invalidateQueries({ queryKey: queryKeys.messages(jobId) });
         };
         socket.onmessage = (event: MessageEvent<string>) => {
+          lastFrameAt = Date.now();
           applySocketPayload(queryClient, jobId, event.data);
         };
         socket.onclose = (event: CloseEvent) => {
@@ -134,6 +216,7 @@ export function useChatSocket(jobId: string): boolean {
     return () => {
       isCancelled = true;
       clearTimeout(retryTimer);
+      clearInterval(watchdog);
       socket?.close();
       setIsConnected(false);
     };

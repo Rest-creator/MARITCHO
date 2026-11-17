@@ -7,6 +7,7 @@ import {
   jobSchema,
   jobSearchResultSchema,
   matchCandidateSchema,
+  conversationUnreadSchema,
   jobEligibilitySchema,
   messageSchema,
   myJobSchema,
@@ -31,6 +32,7 @@ import {
   type JobOffer,
   type JobSearchResult,
   type MatchCandidate,
+  type ConversationUnread,
   type JobEligibility,
   type Message,
   type MessageType,
@@ -305,6 +307,14 @@ export function markMessagesRead(jobId: string): Promise<void> {
 export function fetchJobEligibility(jobId: string): Promise<JobEligibility> {
   return apiRequest(`/jobs/${encodeURIComponent(jobId)}/eligibility`, {
     schema: jobEligibilitySchema,
+  });
+}
+
+/** Unread counts and last message for every conversation, newest first. */
+export function fetchUnreadSummary(signal?: AbortSignal): Promise<ConversationUnread[]> {
+  return apiRequest("/messages/unread", {
+    schema: z.array(conversationUnreadSchema),
+    signal,
   });
 }
 
