@@ -153,7 +153,7 @@ export function LocationSheet({ isOpen, value, onClose, onSave }: Props) {
             <button
               type="button"
               className="combobox__toggle"
-              aria-label={isDropdownOpen ? "Hide suburb options" : "Show suburb options"}
+              aria-label={isDropdownOpen ? "Hide the list" : "Show the list"}
               onClick={() => {
                 setIsFiltering(false);
                 setIsDropdownOpen((open) => !open);

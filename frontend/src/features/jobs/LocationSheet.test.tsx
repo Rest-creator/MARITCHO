@@ -37,7 +37,7 @@ describe("LocationSheet", () => {
     const onSave = vi.fn();
     renderSheet(onSave);
 
-    await user.click(screen.getByRole("button", { name: "Show suburb options" }));
+    await user.click(screen.getByRole("button", { name: "Show the list" }));
     const listbox = screen.getByRole("listbox", { name: "Suburb options" });
     await user.click(within(listbox).getByRole("button", { name: /Hillside/ }));
     await user.type(screen.getByLabelText("Street address"), "14 Harrow Rd");

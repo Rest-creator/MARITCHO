@@ -157,7 +157,7 @@ export function WorkersScreen() {
               <button
                 type="button"
                 className="combobox__toggle"
-                aria-label={isSuburbMenuOpen ? "Hide suburb options" : "Show suburb options"}
+                aria-label={isSuburbMenuOpen ? "Hide the list" : "Show the list"}
                 onClick={() => {
                   setIsFilteringSuburb(false);
                   setIsSuburbMenuOpen((open) => !open);
