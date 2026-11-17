@@ -1,9 +1,13 @@
 # Production VPS Deployment
 
-This deployment builds version-tagged Docker images locally, uploads them to the
-VPS in resumable compressed chunks (`deploy_upload.sh`), takes an automated
-pre-migration PostgreSQL backup, and rolls out the production Compose stack with
-health, Alembic head, and `pgvector` verification.
+This deployment clones (or fetches) the repository directly onto the VPS at
+the requested ref, builds the version-tagged Docker images there with
+`docker compose build`, takes an automated pre-migration PostgreSQL backup,
+and rolls out the production Compose stack with health, Alembic head, and
+`pgvector` verification. Nothing is built or uploaded from the machine
+running `deploy.sh` — it only drives the build and rollout over SSH, so
+deploy speed depends on the VPS's own build time, not your local upload
+bandwidth.
 
 ## Architecture & Security
 
@@ -35,6 +39,14 @@ docker network inspect proxy-tier >/dev/null 2>&1 || docker network create proxy
 
 Copy `.env.example` to `~/apps/maricho/.env`, replace every placeholder, and
 set the production domain/websocket values. Do not commit the real `.env`.
+This `.env` lives outside the git clone (`~/apps/maricho/.env`, not
+`~/apps/maricho/repo/.env`) and survives every deploy.
+
+The VPS deploy user needs `git` installed and network access to clone the
+repository (public, or with deploy keys/credentials configured for a
+private repo — `deploy.sh` passes whatever `git remote get-url origin`
+resolves to locally, so a private repo needs the VPS's own git credentials
+set up for that URL).
 
 ## Deploy
 
@@ -47,22 +59,35 @@ export MARICHO_WS_URL=wss://maricho.restk.tech
 deploy/production/deploy.sh
 ```
 
+This fetches and checks out the current local `HEAD` commit on the VPS (via
+`git fetch --depth 1 origin <sha>`, so the VPS always builds exactly the
+commit you're deploying from, not just whatever is on a branch), builds the
+`api`/`frontend` images there with `docker compose build`, and rolls out.
+
 Optional values:
 
 ```bash
 export MARICHO_REMOTE_DIR=/home/deployer/apps/maricho
+export MARICHO_GIT_URL=git@github.com:Org/MARITCHO.git   # defaults to the local `origin` remote
+export MARICHO_GIT_REF="$(git rev-parse HEAD)"            # any ref git fetch accepts: a SHA, tag, or branch
 export MARICHO_IMAGE_TAG="$(git rev-parse --short=12 HEAD)"
 export MARICHO_PUBLIC_URL=https://maricho.restk.tech
 ```
 
 ### Central Caddy (`Caddyfile.maricho`)
 
-Include or merge `deploy/production/Caddyfile.maricho` into the VPS central
-Caddyfile (`/home/winstontino/core/Caddyfile`) and restart `caddy-proxy`:
+The repo clone on the VPS (`~/apps/maricho/repo/deploy/production/Caddyfile.maricho`)
+always has the current version after a deploy. Merging it into the VPS's
+central Caddyfile and reloading `caddy-proxy` is a separate, manual step —
+`deploy.sh` does not touch the central Caddy config:
 
 ```bash
-scp deploy/production/Caddyfile.maricho deployer@vps:/home/winstontino/core/Caddyfile.maricho
-ssh deployer@vps docker restart caddy-proxy
+ssh deployer@vps
+cp ~/core/Caddyfile ~/core/Caddyfile.maricho-backup-"$(date -u +%Y%m%dT%H%M%SZ)"
+# merge apps/maricho/repo/deploy/production/Caddyfile.maricho's `maricho.restk.tech { ... }`
+# block into ~/core/Caddyfile, then validate before reloading:
+docker exec caddy-proxy caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+docker exec caddy-proxy caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile
 ```
 
 ## Pre-deploy Backups & Rollback
