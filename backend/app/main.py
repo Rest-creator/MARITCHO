@@ -17,6 +17,8 @@ from app.apps.payments.interface_adapters.router import router as payment_gatewa
 from app.apps.suburbs.interface_adapters.router import router as suburbs_router
 from app.apps.workers.interface_adapters.router import (
     directory_router as workers_directory_router,
+)
+from app.apps.workers.interface_adapters.router import (
     router as workers_router,
 )
 from app.core.database import get_db_session

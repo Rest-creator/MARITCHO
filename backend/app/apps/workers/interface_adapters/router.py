@@ -206,7 +206,8 @@ async def list_nearby_workers(
         )
         span.set_attribute("workers.result_count", len(results))
         logger.info(
-            f"Worker directory queried by user={current_user.id} suburb={origin_suburb} hits={len(results)}"
+            f"Worker directory queried by user={current_user.id} "
+            f"suburb={origin_suburb} hits={len(results)}"
         )
         return results
 

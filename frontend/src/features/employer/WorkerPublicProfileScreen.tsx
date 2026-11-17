@@ -172,7 +172,7 @@ export function WorkerPublicProfileScreen({ workerId, initialSuburb }: Props) {
             <h2 style={{ fontSize: 14, fontWeight: 700 }}>Photos of past work</h2>
             <div className="stack" style={{ gap: 8 }}>
               {worker.proof_urls.map((url) => (
-                <TapToLoadPhoto key={url} url={url} alt={`${title}'s work`} />
+                <TapToLoadPhoto key={url} url={url} label={`Photo of ${title}'s work`} />
               ))}
             </div>
           </section>

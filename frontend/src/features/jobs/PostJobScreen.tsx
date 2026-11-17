@@ -83,9 +83,9 @@ export function PostJobScreen({ initialTrade, initialSkillId, shouldOpenPicker }
   const [isLocationOpen, setIsLocationOpen] = useState(false);
   const [description, setDescription] = useState("");
   const [location, setLocation] = useState<JobLocation>({
-    suburb: profile.lastSuburb,
+    suburb: profile.lastSuburb || profile.homeSuburb,
     address: profile.lastAddress,
-    landmark: "",
+    landmark: profile.defaultLandmark,
   });
   const [timing, setTiming] = useState<Timing>("Today");
   const [date, setDate] = useState("");

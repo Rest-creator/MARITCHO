@@ -71,6 +71,8 @@ export const userSchema = z.object({
   is_available: z.boolean().optional(),
   travel_km: z.number().int().optional(),
   home_suburb: z.string().nullable().optional(),
+  next_of_kin_phone: z.string().nullable().optional(),
+  created_at: isoDate.nullable().optional(),
 });
 
 export const jobSchema = z.object({
@@ -249,6 +251,22 @@ export const referenceSchema = z.object({
   created_at: isoDate,
 });
 
+export const workerVettingSchema = z.object({
+  worker_id: uuid,
+  id_photo_url: z.string().nullable(),
+  id_submitted_at: isoDate.nullable(),
+  reference_count: z.number().int(),
+  vouch_count: z.number().int(),
+  grade: gradeSchema,
+});
+
+export const vouchSchema = z.object({
+  id: uuid,
+  worker_id: uuid,
+  voucher_id: uuid,
+  created_at: isoDate,
+});
+
 export const suburbSchema = z.object({
   name: z.string(),
   latitude: decimal,
@@ -329,6 +347,8 @@ export type Skill = z.infer<typeof skillSchema>;
 export type ServiceArea = z.infer<typeof serviceAreaSchema>;
 export type Standing = z.infer<typeof standingSchema>;
 export type Reference = z.infer<typeof referenceSchema>;
+export type WorkerVetting = z.infer<typeof workerVettingSchema>;
+export type Vouch = z.infer<typeof vouchSchema>;
 export type Suburb = z.infer<typeof suburbSchema>;
 export type WorkerWorkRecord = z.infer<typeof workerWorkRecordSchema>;
 export type WorkerSummary = z.infer<typeof workerSummarySchema>;

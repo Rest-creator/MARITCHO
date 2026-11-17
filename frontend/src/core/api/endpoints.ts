@@ -19,9 +19,11 @@ import {
   standingSchema,
   suburbSchema,
   userSchema,
+  vouchSchema,
   workerHomeScreenSchema,
   workerProfileSchema,
   workerSummarySchema,
+  workerVettingSchema,
   workerWorkScreenSchema,
   type Dispute,
   type Job,
@@ -44,9 +46,11 @@ import {
   type Suburb,
   type Trade,
   type User,
+  type Vouch,
   type WorkerHomeScreen,
   type WorkerProfile,
   type WorkerSummary,
+  type WorkerVetting,
   type WorkerWorkScreen,
 } from "@/core/api/schemas";
 
@@ -127,6 +131,21 @@ export interface UpdateUserProfileInput {
   is_available?: boolean;
   travel_km?: number;
   home_suburb?: string;
+  next_of_kin_phone?: string;
+  role?: "BUYER" | "WORKER";
+}
+
+export interface SubmitIdPhotoInput {
+  id_photo_url: string;
+}
+
+export interface AddReferenceInput {
+  name: string;
+  phone: string;
+}
+
+export interface VouchForWorkerInput {
+  worker_id: string;
 }
 
 /* ---------- Jobs ---------- */
@@ -319,8 +338,36 @@ export function fetchStanding(): Promise<Standing> {
   return apiRequest("/workers/me/standing", { schema: standingSchema });
 }
 
+export function fetchWorkerVetting(): Promise<WorkerVetting> {
+  return apiRequest("/workers/me/vetting", { schema: workerVettingSchema });
+}
+
+export function submitIdPhoto(input: SubmitIdPhotoInput): Promise<WorkerVetting> {
+  return apiRequest("/workers/me/vetting/id-photo", {
+    method: "POST",
+    body: input,
+    schema: workerVettingSchema,
+  });
+}
+
 export function fetchReferences(): Promise<Reference[]> {
   return apiRequest("/workers/me/references", { schema: z.array(referenceSchema) });
+}
+
+export function addReference(input: AddReferenceInput): Promise<Reference> {
+  return apiRequest("/workers/me/references", {
+    method: "POST",
+    body: input,
+    schema: referenceSchema,
+  });
+}
+
+export function vouchForWorker(input: VouchForWorkerInput): Promise<Vouch> {
+  return apiRequest("/workers/me/vouches", {
+    method: "POST",
+    body: input,
+    schema: vouchSchema,
+  });
 }
 
 export interface FetchNearbyWorkersParams {

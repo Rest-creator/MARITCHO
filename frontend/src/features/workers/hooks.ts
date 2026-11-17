@@ -8,10 +8,14 @@ import {
   fetchStanding,
   fetchSuburbs,
   fetchWorkerProfile,
+  fetchWorkerVetting,
+  type AddReferenceInput,
   type FetchNearbyWorkersParams,
   type RegisterServiceAreaInput,
   type RegisterSkillInput,
+  type SubmitIdPhotoInput,
   type UpdateUserProfileInput,
+  type VouchForWorkerInput,
 } from "@/core/api/endpoints";
 import type {
   Reference,
@@ -20,25 +24,31 @@ import type {
   Standing,
   Suburb,
   User,
+  Vouch,
   WorkerProfile,
   WorkerSummary,
+  WorkerVetting,
 } from "@/core/api/schemas";
 import { mutationKeys, queryKeys } from "@/core/query/keys";
 
-export function useSkills(): UseQueryResult<Skill[]> {
-  return useQuery({ queryKey: queryKeys.skills, queryFn: fetchSkills });
+export function useSkills(enabled: boolean = true): UseQueryResult<Skill[]> {
+  return useQuery({ queryKey: queryKeys.skills, queryFn: fetchSkills, enabled });
 }
 
-export function useServiceAreas(): UseQueryResult<ServiceArea[]> {
-  return useQuery({ queryKey: queryKeys.serviceAreas, queryFn: fetchServiceAreas });
+export function useServiceAreas(enabled: boolean = true): UseQueryResult<ServiceArea[]> {
+  return useQuery({ queryKey: queryKeys.serviceAreas, queryFn: fetchServiceAreas, enabled });
 }
 
-export function useStanding(): UseQueryResult<Standing> {
-  return useQuery({ queryKey: queryKeys.standing, queryFn: fetchStanding });
+export function useStanding(enabled: boolean = true): UseQueryResult<Standing> {
+  return useQuery({ queryKey: queryKeys.standing, queryFn: fetchStanding, enabled });
 }
 
-export function useReferences(): UseQueryResult<Reference[]> {
-  return useQuery({ queryKey: queryKeys.references, queryFn: fetchReferences });
+export function useWorkerVetting(enabled: boolean = true): UseQueryResult<WorkerVetting> {
+  return useQuery({ queryKey: queryKeys.vetting, queryFn: fetchWorkerVetting, enabled });
+}
+
+export function useReferences(enabled: boolean = true): UseQueryResult<Reference[]> {
+  return useQuery({ queryKey: queryKeys.references, queryFn: fetchReferences, enabled });
 }
 
 /** Suburb list changes rarely — keep it for a day. */
@@ -63,6 +73,24 @@ export function useRegisterServiceArea() {
 export function useUpdateUserProfile() {
   return useMutation<User, Error, UpdateUserProfileInput>({
     mutationKey: mutationKeys.updateProfile,
+  });
+}
+
+export function useSubmitIdPhoto() {
+  return useMutation<WorkerVetting, Error, SubmitIdPhotoInput>({
+    mutationKey: mutationKeys.submitIdPhoto,
+  });
+}
+
+export function useAddReference() {
+  return useMutation<Reference, Error, AddReferenceInput>({
+    mutationKey: mutationKeys.addReference,
+  });
+}
+
+export function useVouchForWorker() {
+  return useMutation<Vouch, Error, VouchForWorkerInput>({
+    mutationKey: mutationKeys.vouchForWorker,
   });
 }
 

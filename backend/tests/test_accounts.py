@@ -63,9 +63,7 @@ async def test_signin_with_correct_password_succeeds(client):
         json={"phone": phone, "password": "correct-horse", "name": "Farai", "role": "WORKER"},
     )
 
-    response = await client.post(
-        "/auth/signin", json={"phone": phone, "password": "correct-horse"}
-    )
+    response = await client.post("/auth/signin", json={"phone": phone, "password": "correct-horse"})
     assert response.status_code == 200
     token = response.json()["access_token"]
 
@@ -103,10 +101,51 @@ async def test_signin_token_lasts_the_configured_seven_days(client):
         "/auth/signup",
         json={"phone": phone, "password": "correct-horse", "name": "Nyasha", "role": "WORKER"},
     )
-    response = await client.post(
-        "/auth/signin", json={"phone": phone, "password": "correct-horse"}
-    )
+    response = await client.post("/auth/signin", json={"phone": phone, "password": "correct-horse"})
     claims = decode_access_token(response.json()["access_token"])
 
     remaining_minutes = (claims["exp"] - datetime.now(timezone.utc).timestamp()) / 60
     assert remaining_minutes > ACCESS_TOKEN_EXPIRE_MINUTES - 5
+
+
+async def test_patch_users_me_updates_buyer_and_worker_profile_and_role_switch(client):
+    phone = "+263771234575"
+    signup = await client.post(
+        "/auth/signup",
+        json={"phone": phone, "password": "correct-horse", "name": "Tariro", "role": "BUYER"},
+    )
+    assert signup.status_code == 200
+    headers = {"Authorization": f"Bearer {signup.json()['access_token']}"}
+
+    patched = await client.patch(
+        "/users/me",
+        json={
+            "display_name": "Tariro Moyo",
+            "home_suburb": "Hillside",
+            "next_of_kin_phone": "+263772000111",
+        },
+        headers=headers,
+    )
+    assert patched.status_code == 200
+    body = patched.json()
+    assert body["display_name"] == "Tariro Moyo"
+    assert body["home_suburb"] == "Hillside"
+    assert body["next_of_kin_phone"] == "+263772000111"
+    assert body["role"] == "BUYER"
+
+    switched = await client.patch(
+        "/users/me",
+        json={"role": "WORKER", "travel_km": 18, "is_available": False},
+        headers=headers,
+    )
+    assert switched.status_code == 200
+    assert switched.json()["role"] == "WORKER"
+    assert switched.json()["travel_km"] == 18
+    assert switched.json()["is_available"] is False
+
+    forbidden_role = await client.patch(
+        "/users/me",
+        json={"role": "OPS"},
+        headers=headers,
+    )
+    assert forbidden_role.status_code == 422

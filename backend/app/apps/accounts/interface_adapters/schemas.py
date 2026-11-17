@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -19,6 +20,8 @@ class UserOut(BaseModel):
     is_available: bool = True
     travel_km: int = 50
     home_suburb: str | None = None
+    next_of_kin_phone: str | None = None
+    created_at: datetime | None = None
 
 
 class UserProfilePatch(BaseModel):
@@ -26,8 +29,10 @@ class UserProfilePatch(BaseModel):
     is_available: bool | None = None
     travel_km: int | None = Field(default=None, ge=1, le=50)
     home_suburb: str | None = Field(default=None, min_length=1, max_length=100)
+    next_of_kin_phone: str | None = Field(default=None, max_length=20)
+    role: RoleEnum | None = None
 
-    @field_validator("display_name", "home_suburb")
+    @field_validator("display_name", "home_suburb", "next_of_kin_phone")
     @classmethod
     def sanitize_profile_text(cls, value: str | None) -> str | None:
         return strip_tags(value) if value is not None else value

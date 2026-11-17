@@ -123,6 +123,9 @@ export function SessionProvider({ children }: Props) {
     if (localProfile.homeSuburb === "" && user.home_suburb) {
       patch.homeSuburb = user.home_suburb;
     }
+    if (localProfile.nextOfKinPhone === "" && user.next_of_kin_phone) {
+      patch.nextOfKinPhone = user.next_of_kin_phone;
+    }
     if (Object.keys(patch).length > 0) {
       updateProfile(patch);
     }

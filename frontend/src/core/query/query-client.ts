@@ -1,6 +1,7 @@
 import { MutationCache, QueryCache, QueryClient, type QueryKey } from "@tanstack/react-query";
 
 import {
+  addReference,
   bookJob,
   completeJob,
   createJob,
@@ -9,10 +10,13 @@ import {
   registerSkill,
   respondToDispute,
   sendMessage,
+  submitIdPhoto,
   submitOffer,
   submitQuote,
   submitReview,
   updateUserProfile,
+  vouchForWorker,
+  type AddReferenceInput,
   type BookJobInput,
   type CompleteJobInput,
   type CreateJobInput,
@@ -21,10 +25,12 @@ import {
   type RegisterSkillInput,
   type RespondToDisputeInput,
   type SendMessageInput,
+  type SubmitIdPhotoInput,
   type SubmitOfferInput,
   type SubmitQuoteInput,
   type SubmitReviewInput,
   type UpdateUserProfileInput,
+  type VouchForWorkerInput,
 } from "@/core/api/endpoints";
 import { ApiError } from "@/core/api/http";
 import { mutationKeys, queryKeys } from "@/core/query/keys";
@@ -159,6 +165,23 @@ export function createQueryClient(): QueryClient {
     mutationKeys.updateProfile,
     updateUserProfile,
     () => [queryKeys.session, queryKeys.openJobs, queryKeys.screens],
+  );
+  registerReplayable<SubmitIdPhotoInput>(client, mutationKeys.submitIdPhoto, submitIdPhoto, () => [
+    queryKeys.vetting,
+    queryKeys.standing,
+    queryKeys.screens,
+  ]);
+  registerReplayable<AddReferenceInput>(client, mutationKeys.addReference, addReference, () => [
+    queryKeys.references,
+    queryKeys.vetting,
+    queryKeys.standing,
+    queryKeys.screens,
+  ]);
+  registerReplayable<VouchForWorkerInput>(
+    client,
+    mutationKeys.vouchForWorker,
+    vouchForWorker,
+    () => [queryKeys.vetting, queryKeys.standing],
   );
 
   return client;
