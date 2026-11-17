@@ -32,7 +32,7 @@ const loginSchema = z.discriminatedUnion("mode", [signUpSchema, signInSchema]);
 
 function unreachable(): NextResponse {
   return NextResponse.json(
-    { detail: "Could not reach Maricho. Check your connection and try again." },
+    { detail: "Could not reach Maritcho. Check your connection and try again." },
     { status: 503 },
   );
 }

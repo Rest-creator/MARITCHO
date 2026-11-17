@@ -205,7 +205,7 @@ export function matchExplanation(
   const where = `${distanceBandLabel(candidate.distance_band).toLowerCase()} — based in ${candidate.suburb}, ${formatKm(candidate.distance_km)} away`;
   const skill = `Registered for ${tradeLabel(trade).toLowerCase()} work`;
   if (candidate.jobs_completed === 0) {
-    return `${skill}, ${where}. New on Maricho, so there's no track record yet.`;
+    return `${skill}, ${where}. New on Maritcho, so there's no track record yet.`;
   }
   return (
     `${skill}, ${where}. ${gradeLabel(candidate.grade)} with ${candidate.jobs_completed} ` +

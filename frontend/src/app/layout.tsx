@@ -16,11 +16,11 @@ const jakarta = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  title: { default: "Maricho", template: "%s · Maricho" },
+  title: { default: "Maritcho", template: "%s · Maritcho" },
   description:
     "Find trusted hands for any job nearby, or get hired for the work you already know how to do.",
-  applicationName: "Maricho",
-  appleWebApp: { capable: true, title: "Maricho", statusBarStyle: "black-translucent" },
+  applicationName: "Maritcho",
+  appleWebApp: { capable: true, title: "Maritcho", statusBarStyle: "black-translucent" },
   icons: {
     icon: [
       { url: "/logo-mark.svg", type: "image/svg+xml" },
@@ -31,7 +31,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#1B1C4F",
+  themeColor: "#2d2e83",
   colorScheme: "dark",
   width: "device-width",
   initialScale: 1,

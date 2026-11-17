@@ -141,7 +141,7 @@ export function JobDetailScreen({ jobId }: Props) {
           <span className="text-emerald" style={{ display: "flex" }}>
             <Icon name="shieldCheck" size={18} />
           </span>
-          The exact address is shared with you once you&apos;re hired. Payment is held by Maricho.
+          The exact address is shared with you once you&apos;re hired. Payment is held by Maritcho.
         </div>
 
         {existing && (

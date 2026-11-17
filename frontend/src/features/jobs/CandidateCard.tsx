@@ -32,7 +32,7 @@ export function CandidateCard({ job, candidate, isTopPick, onHire }: Props) {
             <h3 style={{ fontSize: 16, fontWeight: 700 }}>{title}</h3>
             {isVerifiedGrade(candidate.grade) && (
               <span className="text-emerald" style={{ display: "flex" }}>
-                <Icon name="shieldCheck" size={16} label="Checked by Maricho" />
+                <Icon name="shieldCheck" size={16} label="Checked by Maritcho" />
               </span>
             )}
           </div>
@@ -41,7 +41,7 @@ export function CandidateCard({ job, candidate, isTopPick, onHire }: Props) {
           </div>
           <div className="row meta meta--secondary" style={{ marginTop: 6, gap: 10 }}>
             {candidate.jobs_completed === 0 ? (
-              <span>No jobs on Maricho yet</span>
+              <span>No jobs on Maritcho yet</span>
             ) : (
               <>
                 <span className="rating">

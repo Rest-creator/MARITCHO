@@ -10,7 +10,7 @@ import { BACKEND_ROUTES } from "@/server/backend-routes";
  * through the ordinary proxy.
  */
 
-const UNREACHABLE = { detail: "Could not reach Maricho. Your photo is still on your phone." };
+const UNREACHABLE = { detail: "Could not reach Maritcho. Your photo is still on your phone." };
 
 /**
  * Whether uploads exist yet: 200 when the backend has its upload route,

@@ -87,7 +87,7 @@ async function proxy(request: NextRequest, context: RouteContext): Promise<Respo
     return new Response(responseBody, { status: upstream.status, headers: responseHeaders });
   } catch {
     return NextResponse.json(
-      { detail: "Maricho is unreachable right now. Your changes are saved and will send later." },
+      { detail: "Maritcho is unreachable right now. Your changes are saved and will send later." },
       { status: 503 },
     );
   }

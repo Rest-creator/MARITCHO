@@ -68,7 +68,7 @@ describe("apiRequest", () => {
 
   it("falls back to a friendly message when there is no detail", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(respond(500, null)));
-    await expect(apiRequest("/x")).rejects.toThrow("Maricho is having trouble");
+    await expect(apiRequest("/x")).rejects.toThrow("Maritcho is having trouble");
   });
 
   it("marks a failed connection as a network error", async () => {

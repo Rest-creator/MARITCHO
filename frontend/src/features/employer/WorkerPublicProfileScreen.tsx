@@ -79,7 +79,7 @@ export function WorkerPublicProfileScreen({ workerId, initialSuburb }: Props) {
               <h1 style={{ fontSize: 21, fontWeight: 700 }}>{title}</h1>
               {isVerifiedGrade(worker.grade) && (
                 <span className="text-emerald" style={{ display: "flex" }}>
-                  <Icon name="shieldCheck" size={18} label="Checked by Maricho" />
+                  <Icon name="shieldCheck" size={18} label="Checked by Maritcho" />
                 </span>
               )}
             </div>
@@ -180,7 +180,7 @@ export function WorkerPublicProfileScreen({ workerId, initialSuburb }: Props) {
 
         {worker.recent_work.length > 0 && (
           <section className="stack" style={{ gap: 8 }}>
-            <h2 style={{ fontSize: 14, fontWeight: 700 }}>Signed-off jobs on Maricho</h2>
+            <h2 style={{ fontSize: 14, fontWeight: 700 }}>Signed-off jobs on Maritcho</h2>
             {worker.recent_work.map((record) => (
               <article key={record.job_id} className="card card--compact stack" style={{ gap: 6 }}>
                 <div style={{ fontSize: 14, fontWeight: 700 }}>{record.what_was_done}</div>

@@ -266,7 +266,7 @@ export function WorkersScreen() {
                         <span style={{ fontSize: 16, fontWeight: 700 }}>{title}</span>
                         {isVerifiedGrade(worker.grade) && (
                           <span className="text-emerald" style={{ display: "inline-flex" }}>
-                            <Icon name="shieldCheck" size={16} label="Checked by Maricho" />
+                            <Icon name="shieldCheck" size={16} label="Checked by Maritcho" />
                           </span>
                         )}
                       </div>
@@ -305,7 +305,7 @@ export function WorkersScreen() {
                   <span className="tag">
                     {hasHistory
                       ? `${formatPercent(worker.on_time_rate)} on time`
-                      : "New on Maricho"}
+                      : "New on Maritcho"}
                   </span>
                   <span className="tag">{worker.jobs_completed} jobs done</span>
                 </div>

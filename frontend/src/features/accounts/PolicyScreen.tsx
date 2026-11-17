@@ -13,7 +13,7 @@ export function PolicyScreen({ title }: Props) {
       </div>
       <div className="card">
         <p className="lead">
-          The full {title.toLowerCase()} will be published here before Maricho opens to the public.
+          The full {title.toLowerCase()} will be published here before Maritcho opens to the public.
         </p>
       </div>
     </Screen>
