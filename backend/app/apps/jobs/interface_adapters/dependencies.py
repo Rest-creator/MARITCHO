@@ -6,6 +6,7 @@ from app.apps.accounts.interface_adapters.dependencies import get_person_reposit
 from app.apps.jobs.domain.matching import JobMatchingService
 from app.apps.jobs.domain.services import (
     BookJobUseCase,
+    CheckJobEligibilityUseCase,
     CompleteJobUseCase,
     CreateJobRequestUseCase,
     GetJobLedgerUseCase,
@@ -154,8 +155,16 @@ def get_list_open_jobs_use_case(
 
 def get_search_open_jobs_use_case(
     jobs: SqlAlchemyJobRepository = Depends(get_job_repository),
+    worker_profiles: WorkerMatchingProfileAdapter = Depends(get_worker_matching_profile_port),
 ) -> SearchOpenJobsUseCase:
-    return SearchOpenJobsUseCase(jobs)
+    return SearchOpenJobsUseCase(jobs, worker_profiles)
+
+
+def get_check_job_eligibility_use_case(
+    jobs: SqlAlchemyJobRepository = Depends(get_job_repository),
+    worker_profiles: WorkerMatchingProfileAdapter = Depends(get_worker_matching_profile_port),
+) -> CheckJobEligibilityUseCase:
+    return CheckJobEligibilityUseCase(jobs, worker_profiles)
 
 
 def get_submit_job_offer_use_case(

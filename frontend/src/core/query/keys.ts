@@ -14,6 +14,7 @@ export const queryKeys = {
   assignedJobs: ["jobs", "assigned"] as const,
   myOffers: ["jobs", "my-offers"] as const,
   messages: (jobId: string) => ["messages", jobId] as const,
+  jobEligibility: (jobId: string) => ["jobs", "eligibility", jobId] as const,
   skills: ["workers", "skills"] as const,
   serviceAreas: ["workers", "service-areas"] as const,
   standing: ["workers", "standing"] as const,

@@ -63,6 +63,7 @@ export const PROXIED_ROUTES: readonly BackendRoute[] = [
   { method: "GET", path: "/jobs/{job_id}/messages" },
   { method: "POST", path: "/jobs/{job_id}/messages" },
   { method: "POST", path: "/jobs/{job_id}/messages/read" },
+  { method: "GET", path: "/jobs/{job_id}/eligibility" },
   { method: "GET", path: "/workers/me/skills" },
   { method: "POST", path: "/workers/me/skills" },
   { method: "GET", path: "/workers/me/service-areas" },

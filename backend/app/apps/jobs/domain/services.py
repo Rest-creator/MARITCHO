@@ -4,6 +4,14 @@ from datetime import datetime
 from decimal import Decimal
 
 from app.apps.accounts.domain.repositories import PersonRepository
+from app.apps.jobs.domain.eligibility import (
+    EligibilityAction,
+    JobEligibility,
+    audit_eligibility_denial,
+    evaluate_job_eligibility,
+    trade_label,
+    trades_worth_scanning,
+)
 from app.apps.jobs.domain.entities import (
     Dispute,
     DisputeStatusEnum,
@@ -110,9 +118,7 @@ class CreateJobRequestUseCase:
 
 
 class GetJobUseCase:
-    def __init__(
-        self, jobs: JobRepository, offers: JobOfferRepository | None = None
-    ) -> None:
+    def __init__(self, jobs: JobRepository, offers: JobOfferRepository | None = None) -> None:
         self._jobs = jobs
         self._offers = offers
 
@@ -262,7 +268,7 @@ class ListOpenJobsForWorkerUseCase:
         if cleaned_query:
             query_vec = embed_text(cleaned_query)
             vector_hits = await self._jobs.search_open_by_vector(
-                query_vec, trades=list(skills), limit=100
+                query_vec, trades=trades_worth_scanning(skills), limit=100
             )
             candidate_jobs = []
             for job, sim in vector_hits:
@@ -278,8 +284,19 @@ class ListOpenJobsForWorkerUseCase:
                     similarity_by_job_id[job.id] = score
         else:
             candidate_jobs = []
-            for trade in skills:
+            for trade in trades_worth_scanning(skills):
                 candidate_jobs.extend(await self._jobs.list_open_for_trade(trade))
+        # Own trades always pass; catch-all jobs only when their description
+        # clearly reads as one of this worker's trades (similarity search).
+        candidate_jobs = [
+            job
+            for job in candidate_jobs
+            if evaluate_job_eligibility(
+                job_trade=job.trade,
+                problem_description=job.problem_description,
+                worker_skills=skills,
+            ).is_eligible
+        ]
         if not candidate_jobs:
             return []
 
@@ -332,10 +349,17 @@ class ListOpenJobsForWorkerUseCase:
 
 
 class SearchOpenJobsUseCase:
-    """pgvector-powered hybrid semantic search across open jobs."""
+    """pgvector-powered hybrid semantic search across open jobs.
 
-    def __init__(self, jobs: JobRepository) -> None:
+    Buyers search everything. A *worker* only ever sees jobs they're
+    eligible for (see `eligibility.py`): previously a solar installer's
+    search surfaced plumbing jobs they could open but never take."""
+
+    def __init__(
+        self, jobs: JobRepository, worker_profiles: WorkerMatchingProfilePort | None = None
+    ) -> None:
         self._jobs = jobs
+        self._worker_profiles = worker_profiles
 
     async def execute(
         self,
@@ -344,13 +368,27 @@ class SearchOpenJobsUseCase:
         trade: TradeEnum | None = None,
         suburb: str | None = None,
         limit: int = 20,
+        worker_id: uuid.UUID | None = None,
     ) -> list[JobSearchResult]:
         cleaned = query.strip()
         if not cleaned:
             return []
+
+        worker_skills: set[TradeEnum] | None = None
+        if worker_id is not None and self._worker_profiles is not None:
+            worker_skills = await self._worker_profiles.get_skills_for_worker(worker_id)
+            scannable = trades_worth_scanning(worker_skills)
+            if not scannable or (trade is not None and trade not in scannable):
+                return []
+
         inferred_trade, _ = infer_best_trade(cleaned)
         query_vec = embed_text(cleaned, trade=trade, suburb=suburb)
-        trades_filter = [trade] if trade is not None else None
+        if trade is not None:
+            trades_filter: list[TradeEnum] | None = [trade]
+        elif worker_skills is not None:
+            trades_filter = trades_worth_scanning(worker_skills)
+        else:
+            trades_filter = None
         rows = await self._jobs.search_open_by_vector(
             query_vec,
             trades=trades_filter,
@@ -359,6 +397,15 @@ class SearchOpenJobsUseCase:
         )
         results: list[JobSearchResult] = []
         for job, sim in rows:
+            if (
+                worker_skills is not None
+                and not evaluate_job_eligibility(
+                    job_trade=job.trade,
+                    problem_description=job.problem_description,
+                    worker_skills=worker_skills,
+                ).is_eligible
+            ):
+                continue
             # Re-check direct cosine similarity as a safeguard if DB distance was 0
             if sim == 0.0 and job.problem_description:
                 job_vec = embed_text(job.problem_description, trade=job.trade, suburb=job.suburb)
@@ -394,6 +441,36 @@ class SearchOpenJobsUseCase:
         return results[:limit]
 
 
+class CheckJobEligibilityUseCase:
+    """Can this worker see and offer on this job? Lets the app explain a
+    mismatch ("this job needs plumbing…") instead of a dead end, and audits
+    every denied look."""
+
+    def __init__(self, jobs: JobRepository, worker_profiles: WorkerMatchingProfilePort) -> None:
+        self._jobs = jobs
+        self._worker_profiles = worker_profiles
+
+    async def execute(self, *, job_id: uuid.UUID, worker_id: uuid.UUID) -> JobEligibility:
+        job = await self._jobs.get(job_id)
+        if job is None:
+            raise NotFoundError("Job not found")
+        skills = await self._worker_profiles.get_skills_for_worker(worker_id)
+        eligibility = evaluate_job_eligibility(
+            job_trade=job.trade,
+            problem_description=job.problem_description,
+            worker_skills=skills,
+        )
+        if not eligibility.is_eligible:
+            audit_eligibility_denial(
+                action=EligibilityAction.VIEW,
+                worker_id=worker_id,
+                job_id=job_id,
+                eligibility=eligibility,
+                worker_skills=skills,
+            )
+        return eligibility
+
+
 class SubmitJobOfferUseCase:
     """A worker (not yet booked) attaches their own price + availability to
     a job that's still open (REQUESTED/MATCHED) — the hybrid matching
@@ -426,8 +503,21 @@ class SubmitJobOfferUseCase:
         if job.status not in (JobStatusEnum.REQUESTED, JobStatusEnum.MATCHED):
             raise ConflictError("Job is no longer open for offers")
 
-        if not await self._worker_profiles.has_skill(worker_id, job.trade):
-            raise ValidationConflictError("You are not skilled in this job's trade")
+        skills = await self._worker_profiles.get_skills_for_worker(worker_id)
+        eligibility = evaluate_job_eligibility(
+            job_trade=job.trade,
+            problem_description=job.problem_description,
+            worker_skills=skills,
+        )
+        if not eligibility.is_eligible:
+            audit_eligibility_denial(
+                action=EligibilityAction.OFFER,
+                worker_id=worker_id,
+                job_id=job_id,
+                eligibility=eligibility,
+                worker_skills=skills,
+            )
+            raise ValidationConflictError(eligibility.reason)
 
         if await self._jobs.is_worker_busy(worker_id):
             raise ConflictError("You are already committed to another active job")
@@ -489,8 +579,24 @@ class BookJobUseCase:
         if worker is None or worker.role != RoleEnum.WORKER:
             raise ValidationConflictError("worker_id does not refer to a registered worker")
 
-        if not await self._worker_profiles.has_skill(worker_id, job.trade):
-            raise ValidationConflictError("Worker is not skilled in this job's trade")
+        skills = await self._worker_profiles.get_skills_for_worker(worker_id)
+        eligibility = evaluate_job_eligibility(
+            job_trade=job.trade,
+            problem_description=job.problem_description,
+            worker_skills=skills,
+        )
+        if not eligibility.is_eligible:
+            audit_eligibility_denial(
+                action=EligibilityAction.BOOK,
+                worker_id=worker_id,
+                job_id=job_id,
+                eligibility=eligibility,
+                worker_skills=skills,
+            )
+            raise ValidationConflictError(
+                f"This worker doesn't list {trade_label(job.trade)} among their skills. "
+                "Choose a worker who does."
+            )
 
         if await self._jobs.is_worker_busy(worker_id):
             raise ConflictError("Worker is already committed to another active job")

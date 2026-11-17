@@ -7,6 +7,7 @@ import {
   jobSchema,
   jobSearchResultSchema,
   matchCandidateSchema,
+  jobEligibilitySchema,
   messageSchema,
   myJobSchema,
   myOfferSchema,
@@ -30,6 +31,7 @@ import {
   type JobOffer,
   type JobSearchResult,
   type MatchCandidate,
+  type JobEligibility,
   type Message,
   type MessageType,
   type MyJob,
@@ -297,6 +299,13 @@ export function sendMessage({ jobId, ...body }: SendMessageInput): Promise<Messa
 
 export function markMessagesRead(jobId: string): Promise<void> {
   return apiRequest(`/jobs/${encodeURIComponent(jobId)}/messages/read`, { method: "POST" });
+}
+
+/** Whether the signed-in worker's skills match this job, and why not. */
+export function fetchJobEligibility(jobId: string): Promise<JobEligibility> {
+  return apiRequest(`/jobs/${encodeURIComponent(jobId)}/eligibility`, {
+    schema: jobEligibilitySchema,
+  });
 }
 
 /* ---------- Workers ---------- */

@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.apps.accounts.domain.entities import Person
 from app.apps.accounts.interface_adapters.dependencies import RequireRole, get_current_user
+from app.apps.jobs.domain.eligibility import JobEligibility
 from app.apps.jobs.domain.entities import (
     Dispute,
     Job,
@@ -22,6 +23,7 @@ from app.apps.jobs.domain.entities import (
 )
 from app.apps.jobs.domain.services import (
     BookJobUseCase,
+    CheckJobEligibilityUseCase,
     CompleteJobUseCase,
     CreateJobRequestUseCase,
     GetJobLedgerUseCase,
@@ -43,6 +45,7 @@ from app.apps.jobs.infrastructure.models import JobModel
 from app.apps.jobs.infrastructure.review_models import ReviewModel
 from app.apps.jobs.interface_adapters.dependencies import (
     get_book_job_use_case,
+    get_check_job_eligibility_use_case,
     get_complete_job_use_case,
     get_create_job_request_use_case,
     get_get_job_ledger_use_case,
@@ -66,6 +69,7 @@ from app.apps.jobs.interface_adapters.schemas import (
     DisputeCreate,
     DisputeOut,
     DisputeResponseCreate,
+    JobEligibilityOut,
     JobOfferCreate,
     JobOfferOut,
     JobOut,
@@ -168,11 +172,18 @@ async def search_open_jobs(
         span.set_attribute("search.query_length", len(q.strip()))
         if trade is not None:
             span.set_attribute("search.trade", trade.value)
-        results = await use_case.execute(q, trade=trade, suburb=suburb, limit=limit)
-        span.set_attribute("search.result_count", len(results))
-        logger.info(
-            f"pgvector job search executed by user={current_user.id} hits={len(results)}"
+        # Workers only ever see jobs that match their skills.
+        is_worker = current_user.role == RoleEnum.WORKER
+        span.set_attribute("search.restricted_to_skills", is_worker)
+        results = await use_case.execute(
+            q,
+            trade=trade,
+            suburb=suburb,
+            limit=limit,
+            worker_id=current_user.id if is_worker else None,
         )
+        span.set_attribute("search.result_count", len(results))
+        logger.info(f"pgvector job search executed by user={current_user.id} hits={len(results)}")
         return results
 
 
@@ -244,6 +255,21 @@ async def get_job(
 ) -> Job:
     job = await use_case.execute(job_id, current_user.id, current_user.role)
     return job
+
+
+@router.get("/{job_id}/eligibility", response_model=JobEligibilityOut)
+async def get_job_eligibility(
+    job_id: uuid.UUID,
+    current_user: Person = Depends(RequireRole([RoleEnum.WORKER])),
+    use_case: CheckJobEligibilityUseCase = Depends(get_check_job_eligibility_use_case),
+) -> JobEligibility:
+    """Whether this worker's listed skills match the job, and why not if
+    they don't. Denials are written to the audit log."""
+    with tracer.start_as_current_span("jobs.check_eligibility") as span:
+        eligibility = await use_case.execute(job_id=job_id, worker_id=current_user.id)
+        span.set_attribute("eligibility.is_eligible", eligibility.is_eligible)
+        span.set_attribute("eligibility.required_trade", eligibility.required_trade.value)
+        return eligibility
 
 
 @router.get("/{job_id}/matches", response_model=list[MatchCandidateOut])

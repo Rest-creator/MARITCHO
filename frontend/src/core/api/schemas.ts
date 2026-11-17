@@ -202,6 +202,14 @@ export const recordEntrySchema = z.object({
   signed_off_at: isoDate,
 });
 
+export const jobEligibilitySchema = z.object({
+  is_eligible: z.boolean(),
+  required_trade: tradeSchema,
+  matched_by: z.enum(["TRADE", "SIMILARITY"]).nullable(),
+  similarity_score: z.number().nullable(),
+  reason: z.string(),
+});
+
 export const messageSchema = z.object({
   id: uuid,
   job_id: uuid,
@@ -343,6 +351,7 @@ export type MatchCandidate = z.infer<typeof matchCandidateSchema>;
 export type Dispute = z.infer<typeof disputeSchema>;
 export type RecordEntry = z.infer<typeof recordEntrySchema>;
 export type Message = z.infer<typeof messageSchema>;
+export type JobEligibility = z.infer<typeof jobEligibilitySchema>;
 export type Skill = z.infer<typeof skillSchema>;
 export type ServiceArea = z.infer<typeof serviceAreaSchema>;
 export type Standing = z.infer<typeof standingSchema>;
