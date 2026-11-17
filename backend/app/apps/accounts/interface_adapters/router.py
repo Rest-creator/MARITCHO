@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
+from opentelemetry import trace
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.apps.accounts.domain.entities import Person
@@ -20,9 +21,12 @@ from app.apps.accounts.interface_adapters.schemas import (
 from app.apps.suburbs.infrastructure.models import SuburbModel
 from app.core.database import get_db_session
 from app.core.security import create_access_token
+from app.core.telemetry import logger
 from app.shared_kernel.enums import RoleEnum
 
 router = APIRouter(tags=["accounts"])
+tracer = trace.get_tracer(__name__)
+_SELF_SWITCHABLE_ROLES = {RoleEnum.BUYER, RoleEnum.WORKER}
 
 
 @router.post("/auth/signup", response_model=TokenOut)
@@ -55,20 +59,44 @@ async def update_users_me(
     persons: PersonRepository = Depends(get_person_repository),
     db: AsyncSession = Depends(get_db_session),
 ) -> Person:
-    values = payload.model_dump(exclude_unset=True)
-    if (
-        values.get("home_suburb") is not None
-        and await db.get(SuburbModel, values["home_suburb"]) is None
-    ):
-        from fastapi import HTTPException
+    with tracer.start_as_current_span("accounts.update_users_me") as span:
+        span.set_attribute("user.id", str(current_user.id))
+        values = payload.model_dump(exclude_unset=True)
+        if (
+            values.get("home_suburb") is not None
+            and await db.get(SuburbModel, values["home_suburb"]) is None
+        ):
+            raise HTTPException(status_code=422, detail="Unknown home suburb")
 
-        raise HTTPException(status_code=422, detail="Unknown home suburb")
-    if "display_name" in values:
-        current_user.display_name = values["display_name"]
-    for key in ("is_available", "travel_km", "home_suburb"):
-        if key in values:
-            if current_user.role != RoleEnum.WORKER:
-                continue
-            setattr(current_user, key, values[key])
-    await persons.update(current_user)
-    return current_user
+        if "role" in values and values["role"] is not None:
+            target_role = values["role"]
+            if (
+                target_role not in _SELF_SWITCHABLE_ROLES
+                or current_user.role not in _SELF_SWITCHABLE_ROLES
+            ):
+                raise HTTPException(
+                    status_code=422,
+                    detail="Can only switch between BUYER and WORKER roles",
+                )
+            current_user.role = target_role
+
+        if "display_name" in values:
+            current_user.display_name = values["display_name"]
+        if "home_suburb" in values:
+            current_user.home_suburb = values["home_suburb"]
+        if "next_of_kin_phone" in values:
+            raw_kin = (values["next_of_kin_phone"] or "").strip()
+            current_user.next_of_kin_phone = raw_kin if raw_kin else None
+
+        for key in ("is_available", "travel_km"):
+            if key in values and values[key] is not None:
+                if current_user.role != RoleEnum.WORKER:
+                    continue
+                setattr(current_user, key, values[key])
+
+        await persons.update(current_user)
+        logger.info(
+            f"Updated user profile user_id={current_user.id} "
+            f"role={current_user.role.value} fields={sorted(values.keys())}"
+        )
+        return current_user

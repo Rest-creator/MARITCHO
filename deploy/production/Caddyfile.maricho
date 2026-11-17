@@ -1,0 +1,34 @@
+# Maricho production reverse-proxy block for central Caddy (`proxy-tier` network).
+# Uses ECC (ECDSA P-256) TLS certificates and routes live chat WebSockets to
+# `maricho-api:8000` while serving the web app and `/api/*` BFF from `maricho-frontend:3000`.
+
+maricho.restk.tech {
+    tls {
+        key_type p256
+        protocols tls1.2 tls1.3
+    }
+
+    encode zstd gzip
+
+    header {
+        Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        Permissions-Policy "camera=(self), microphone=(self), geolocation=(self)"
+        -Server
+    }
+
+    # Live chat WebSocket upgrade and health probes go directly to FastAPI.
+    @backend_ws_and_health {
+        path /jobs/*/ws /health/live /health/ready
+    }
+    handle @backend_ws_and_health {
+        reverse_proxy maricho-api:8000
+    }
+
+    # Everything else (Next.js PWA + BFF `/api/*` for web and mobile) goes to the frontend.
+    handle {
+        reverse_proxy maricho-frontend:3000
+    }
+}

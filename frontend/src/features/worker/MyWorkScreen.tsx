@@ -162,7 +162,7 @@ export function MyWorkScreen({ initialTab }: Props) {
         <>
           {doneJobs.length === 0 && (
             <EmptyState title="No finished jobs yet" icon="check">
-              Each signed-off job builds your record on Maricho.
+              Each signed-off job builds your record on Maritcho.
             </EmptyState>
           )}
           {doneJobs.map((job) => (

@@ -9,9 +9,11 @@ from app.apps.workers.domain.services import (
     AddReferenceUseCase,
     GetStandingUseCase,
     GetVettingViewUseCase,
+    GetWorkerPublicProfileUseCase,
     ListMyReferencesUseCase,
     ListMyServiceAreasUseCase,
     ListMySkillsUseCase,
+    ListNearbyWorkersUseCase,
     RecomputeGradeUseCase,
     RegisterServiceAreaUseCase,
     RegisterSkillUseCase,
@@ -22,6 +24,7 @@ from app.apps.workers.infrastructure.repositories import (
     SqlAlchemyServiceAreaRepository,
     SqlAlchemySkillRepository,
     SqlAlchemyStandingRepository,
+    SqlAlchemyWorkerDirectoryRepository,
     SqlAlchemyWorkerReferenceRepository,
     SqlAlchemyWorkerVettingRepository,
     SqlAlchemyWorkerVouchRepository,
@@ -159,3 +162,24 @@ def get_vouch_for_worker_use_case(
     recompute_grade: RecomputeGradeUseCase = Depends(get_recompute_grade_use_case),
 ) -> VouchForWorkerUseCase:
     return VouchForWorkerUseCase(persons, standings, vouches, uow, recompute_grade)
+
+
+def get_worker_directory_repository(
+    db: AsyncSession = Depends(get_db_session),
+) -> SqlAlchemyWorkerDirectoryRepository:
+    return SqlAlchemyWorkerDirectoryRepository(db)
+
+
+def get_list_nearby_workers_use_case(
+    directory: SqlAlchemyWorkerDirectoryRepository = Depends(get_worker_directory_repository),
+    suburbs: SqlAlchemySuburbRepository = Depends(get_suburb_repository),
+) -> ListNearbyWorkersUseCase:
+    return ListNearbyWorkersUseCase(directory, suburbs)
+
+
+def get_worker_public_profile_use_case(
+    directory: SqlAlchemyWorkerDirectoryRepository = Depends(get_worker_directory_repository),
+    suburbs: SqlAlchemySuburbRepository = Depends(get_suburb_repository),
+) -> GetWorkerPublicProfileUseCase:
+    return GetWorkerPublicProfileUseCase(directory, suburbs)
+

@@ -214,7 +214,7 @@ describe("matchExplanation", () => {
       "PLUMBING",
     );
     expect(text).toBe(
-      "Registered for plumber work, same suburb — based in Entumbane, 0.0 km away. New on Maricho, so there's no track record yet.",
+      "Registered for plumber work, same suburb — based in Entumbane, 0.0 km away. New on Maritcho, so there's no track record yet.",
     );
   });
 

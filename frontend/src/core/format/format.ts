@@ -94,7 +94,7 @@ export function distanceBandLabel(band: DistanceBand): string {
 }
 
 const GRADE_LABELS: Record<Grade, string> = {
-  REGISTERED: "New on Maricho",
+  REGISTERED: "New on Maritcho",
   IDENTIFIED: "ID checked",
   APPRENTICE: "Apprentice",
   JOURNEYMAN: "Journeyman",

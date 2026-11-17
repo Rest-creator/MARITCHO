@@ -84,7 +84,7 @@ export function WorkerProfileScreen({ jobId, workerId }: Props) {
               <h1 style={{ fontSize: 21, fontWeight: 700 }}>{title}</h1>
               {isVerifiedGrade(candidate.grade) && (
                 <span className="text-emerald" style={{ display: "flex" }}>
-                  <Icon name="shieldCheck" size={18} label="Checked by Maricho" />
+                  <Icon name="shieldCheck" size={18} label="Checked by Maritcho" />
                 </span>
               )}
             </div>
@@ -114,7 +114,7 @@ export function WorkerProfileScreen({ jobId, workerId }: Props) {
         </div>
 
         <section>
-          <h2 style={{ fontSize: 14, fontWeight: 700 }}>Checked by Maricho</h2>
+          <h2 style={{ fontSize: 14, fontWeight: 700 }}>Checked by Maritcho</h2>
           <div className="chip-list" style={{ marginTop: 8, gap: 6 }}>
             <span className={isVerifiedGrade(candidate.grade) ? "tag tag--verified" : "tag"}>
               {isVerifiedGrade(candidate.grade) && (

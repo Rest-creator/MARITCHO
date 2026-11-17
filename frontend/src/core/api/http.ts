@@ -51,7 +51,7 @@ function fallbackMessage(status: number): string {
   if (status === 401) return "Please sign in again.";
   if (status === 403) return "You can't do that with this account.";
   if (status === 404) return "We couldn't find that.";
-  if (status >= 500) return "Maricho is having trouble. Please try again soon.";
+  if (status >= 500) return "Maritcho is having trouble. Please try again soon.";
   return "Something went wrong. Please try again.";
 }
 

@@ -27,14 +27,15 @@ docker build -f "$ROOT_DIR/frontend/Dockerfile" -t "$FRONTEND_IMAGE" \
 echo "=================================================="
 echo "Uploading Docker images"
 echo "=================================================="
-retry remote "mkdir -p '$MARICHO_REMOTE_DIR'"
+retry remote "mkdir -p '$MARICHO_REMOTE_DIR' '$MARICHO_REMOTE_DIR/backups'"
 upload_image "$BACKEND_IMAGE"
 upload_image "$FRONTEND_IMAGE"
 
 echo "=================================================="
-echo "Uploading production Compose configuration"
+echo "Uploading production Compose & Caddy configuration"
 echo "=================================================="
 retry push_file "$PRODUCTION_DIR/docker-compose.yml" "$MARICHO_REMOTE_DIR/docker-compose.yml"
+retry push_file "$PRODUCTION_DIR/Caddyfile.maricho" "$MARICHO_REMOTE_DIR/Caddyfile.maricho"
 
 echo "=================================================="
 echo "Deploying on $MARICHO_VPS"
@@ -58,11 +59,22 @@ done
 export APP_VERSION="$IMAGE_TAG"
 docker compose --env-file .env config --quiet
 
-docker compose down --remove-orphans
 if ! docker network inspect proxy-tier >/dev/null 2>&1; then
     docker network create proxy-tier
 fi
-docker compose up -d --no-build
+
+# Take a pre-migration database backup when an existing db container is running.
+if [ -n "$(docker compose ps -q db 2>/dev/null || true)" ]; then
+    if docker compose exec -T db sh -c 'pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"' >/dev/null 2>&1; then
+        backup_file="backups/pre-deploy-${IMAGE_TAG}-$(date -u +%Y%m%dT%H%M%SZ).sql.gz"
+        echo "Creating pre-deploy database snapshot: $backup_file"
+        docker compose exec -T db sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB"' | gzip -9 > "$backup_file"
+        ls -1t backups/pre-deploy-*.sql.gz 2>/dev/null | tail -n +6 | xargs -r rm -f
+    fi
+fi
+
+# Rolling update: start stateful services first, then roll api + frontend without full downtime.
+docker compose up -d --no-build db redis
 
 db_ready=false
 for _ in $(seq 1 30); do
@@ -73,6 +85,8 @@ for _ in $(seq 1 30); do
     sleep 2
 done
 test "$db_ready" = true
+
+docker compose up -d --no-build --remove-orphans api frontend
 
 api_ready=false
 for _ in $(seq 1 30); do
@@ -91,6 +105,10 @@ heads_revision="$(docker compose exec -T api alembic heads)"
 grep -q '(head)' <<< "$current_revision"
 grep -q 'head' <<< "$heads_revision"
 echo "$current_revision"
+
+# Verify pgvector extension is active in PostgreSQL.
+docker compose exec -T db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -tAc "SELECT 1 FROM pg_extension WHERE extname = '\''vector'\''"' | grep -q '1'
+
 docker compose exec -T frontend node -e \
     "fetch('http://localhost:3000/').then(r => { if (!r.ok) process.exit(1) }, () => process.exit(1))"
 

@@ -46,8 +46,13 @@ import { mutationKeys, queryKeys } from "@/core/query/keys";
  */
 const CHANGED_BY_OTHERS = { staleTime: 0 } as const;
 
-export function useMyJobs(): UseQueryResult<MyJob[]> {
-  return useQuery({ queryKey: queryKeys.myJobs, queryFn: fetchMyJobs, ...CHANGED_BY_OTHERS });
+export function useMyJobs(isEnabled: boolean = true): UseQueryResult<MyJob[]> {
+  return useQuery({
+    queryKey: queryKeys.myJobs,
+    queryFn: fetchMyJobs,
+    enabled: isEnabled,
+    ...CHANGED_BY_OTHERS,
+  });
 }
 
 export function useJob(jobId: string): UseQueryResult<Job> {
@@ -99,10 +104,11 @@ export function useDisputes(jobId: string, isEnabled: boolean): UseQueryResult<D
   });
 }
 
-export function useOpenJobs(): UseQueryResult<OpenJob[]> {
+export function useOpenJobs(isEnabled: boolean = true): UseQueryResult<OpenJob[]> {
   return useQuery({
     queryKey: queryKeys.openJobs,
     queryFn: ({ signal }) => fetchOpenJobs(undefined, signal),
+    enabled: isEnabled,
     ...CHANGED_BY_OTHERS,
   });
 }
@@ -135,24 +141,31 @@ export function useSearchOpenJobs(
 
 export function useSearchSkills(query: string): UseQueryResult<SkillSearchResult[]> {
   const trimmed = query.trim();
+  const debounced = useDebouncedValue(trimmed, 250);
   return useQuery({
-    queryKey: queryKeys.skillSearch(trimmed),
-    queryFn: ({ signal }) => searchSkillsVector(trimmed, signal),
-    enabled: trimmed.length >= 2,
+    queryKey: queryKeys.skillSearch(debounced),
+    queryFn: ({ signal }) => searchSkillsVector(debounced, signal),
+    enabled: debounced.length >= 2,
     staleTime: 60_000,
   });
 }
 
-export function useAssignedJobs(): UseQueryResult<Job[]> {
+export function useAssignedJobs(isEnabled: boolean = true): UseQueryResult<Job[]> {
   return useQuery({
     queryKey: queryKeys.assignedJobs,
     queryFn: fetchAssignedJobs,
+    enabled: isEnabled,
     ...CHANGED_BY_OTHERS,
   });
 }
 
-export function useMyOffers(): UseQueryResult<MyOffer[]> {
-  return useQuery({ queryKey: queryKeys.myOffers, queryFn: fetchMyOffers, ...CHANGED_BY_OTHERS });
+export function useMyOffers(isEnabled: boolean = true): UseQueryResult<MyOffer[]> {
+  return useQuery({
+    queryKey: queryKeys.myOffers,
+    queryFn: fetchMyOffers,
+    enabled: isEnabled,
+    ...CHANGED_BY_OTHERS,
+  });
 }
 
 /*

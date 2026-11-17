@@ -110,8 +110,9 @@ def get_create_job_request_use_case(
 
 def get_get_job_use_case(
     jobs: SqlAlchemyJobRepository = Depends(get_job_repository),
+    offers: SqlAlchemyJobOfferRepository = Depends(get_job_offer_repository),
 ) -> GetJobUseCase:
-    return GetJobUseCase(jobs)
+    return GetJobUseCase(jobs, offers)
 
 
 def get_list_my_jobs_use_case(

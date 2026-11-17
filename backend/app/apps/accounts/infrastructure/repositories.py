@@ -42,10 +42,12 @@ class SqlAlchemyPersonRepository(PersonRepository):
         model = await self._db.get(PersonModel, person.id)
         if model is None:
             return
+        model.role = person.role
         model.display_name = person.display_name
         model.is_available = person.is_available
         model.travel_km = person.travel_km
         model.home_suburb = person.home_suburb
+        model.next_of_kin_phone = person.next_of_kin_phone
         await self._db.commit()
 
     async def create(

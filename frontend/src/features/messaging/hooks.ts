@@ -13,14 +13,17 @@ import { messageSchema, type Message } from "@/core/api/schemas";
 import { useOnlineStatus } from "@/core/offline/use-online-status";
 import { mutationKeys, queryKeys } from "@/core/query/keys";
 
-/** Poll only as a fallback when the live socket is down — data bundles are small. */
-const FALLBACK_POLL_MS = 15_000;
+/** Poll as a fallback when the live socket is down, and reconcile periodically when live. */
+const FALLBACK_POLL_MS = 4_000;
+const LIVE_RECONCILE_MS = 12_000;
 
 export function useMessages(jobId: string, isLive: boolean): UseQueryResult<Message[]> {
   return useQuery({
     queryKey: queryKeys.messages(jobId),
     queryFn: () => fetchMessages(jobId),
-    refetchInterval: isLive ? false : FALLBACK_POLL_MS,
+    staleTime: 0,
+    refetchOnWindowFocus: true,
+    refetchInterval: isLive ? LIVE_RECONCILE_MS : FALLBACK_POLL_MS,
   });
 }
 
@@ -41,6 +44,9 @@ export function useSendMessage(jobId: string) {
       queryClient.setQueryData<Message[]>(queryKeys.messages(jobId), (existing) =>
         mergeMessage(existing, message),
       );
+      void queryClient.invalidateQueries({ queryKey: queryKeys.myJobs });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.assignedJobs });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.myOffers });
     },
   });
 }
@@ -57,8 +63,10 @@ const socketTokenSchema = z.object({ token: z.string().min(1) });
 function socketBaseUrl(): string {
   const configured = process.env.NEXT_PUBLIC_WS_URL;
   if (configured) return configured.replace(/\/+$/, "");
-  const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-  return `${protocol}//${window.location.hostname}:8000`;
+  if (window.location.protocol === "https:") {
+    return `wss://${window.location.host}`;
+  }
+  return `ws://${window.location.hostname}:8000`;
 }
 
 function applySocketPayload(queryClient: QueryClient, jobId: string, raw: string): void {
@@ -105,6 +113,7 @@ export function useChatSocket(jobId: string): boolean {
         socket.onopen = () => {
           attempt = 0;
           setIsConnected(true);
+          void queryClient.invalidateQueries({ queryKey: queryKeys.messages(jobId) });
         };
         socket.onmessage = (event: MessageEvent<string>) => {
           applySocketPayload(queryClient, jobId, event.data);

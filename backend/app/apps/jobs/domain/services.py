@@ -54,6 +54,11 @@ from app.shared_kernel.ports import (
 )
 from app.shared_kernel.unit_of_work import UnitOfWork
 
+# Offer-submitted-but-not-booked workers are only job parties while the job
+# is still open for offers. Once it's BOOKED (or later), a losing bidder's
+# offer row must stop granting access — only job.buyer_id/job.worker_id do.
+_OFFER_GRANTS_PARTY_STATUSES = (JobStatusEnum.REQUESTED, JobStatusEnum.MATCHED)
+
 
 def _require_job_party(job: Job, current_user_id: uuid.UUID, current_user_role: RoleEnum) -> None:
     is_party_to_job = current_user_id in (job.buyer_id, job.worker_id)
@@ -105,8 +110,11 @@ class CreateJobRequestUseCase:
 
 
 class GetJobUseCase:
-    def __init__(self, jobs: JobRepository) -> None:
+    def __init__(
+        self, jobs: JobRepository, offers: JobOfferRepository | None = None
+    ) -> None:
         self._jobs = jobs
+        self._offers = offers
 
     async def execute(
         self, job_id: uuid.UUID, current_user_id: uuid.UUID, current_user_role: RoleEnum
@@ -114,7 +122,23 @@ class GetJobUseCase:
         job = await self._jobs.get(job_id)
         if job is None:
             raise NotFoundError("Job not found")
-        _require_job_party(job, current_user_id, current_user_role)
+        is_direct_party = current_user_id in (job.buyer_id, job.worker_id)
+        if not is_direct_party and current_user_role != RoleEnum.OPS:
+            has_offer = False
+            if (
+                self._offers is not None
+                and current_user_role == RoleEnum.WORKER
+                and job.status in _OFFER_GRANTS_PARTY_STATUSES
+            ):
+                job_offers = await self._offers.get_for_job(job_id)
+                has_offer = current_user_id in job_offers
+            if not has_offer:
+                raise ForbiddenError("Not permitted to view this job")
+            # Keep exact location hidden until the worker is booked (ADR-004).
+            job.address = ""
+            job.landmark_narrative = None
+            job.latitude = None
+            job.longitude = None
         return job
 
 

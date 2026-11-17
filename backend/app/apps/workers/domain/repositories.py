@@ -7,6 +7,8 @@ from app.apps.workers.domain.entities import (
     ServiceArea,
     Skill,
     Standing,
+    WorkerDirectoryItem,
+    WorkerPublicProfile,
     WorkerReference,
     WorkerVetting,
     WorkerVouch,
@@ -95,3 +97,23 @@ class WorkerVouchRepository(ABC):
     ) -> int:
         """Counts vouches where the *current* voucher grade is one of
         `qualifying_grades`."""
+
+
+class WorkerDirectoryRepository(ABC):
+    @abstractmethod
+    async def list_workers(
+        self,
+        *,
+        trade: TradeEnum | None = None,
+        query_embedding: list[float] | None = None,
+    ) -> list[tuple[WorkerDirectoryItem, list[tuple[str, str | None]]]]:
+        """Returns (WorkerDirectoryItem, [(suburb, travel_means), ...]) for
+        all registered workers who have at least one skill."""
+
+    @abstractmethod
+    async def get_public_profile(
+        self, worker_id: uuid.UUID
+    ) -> tuple[WorkerPublicProfile, list[tuple[str, str | None]]] | None:
+        """Returns the public profile and service areas for `worker_id`, or
+        None if not found."""
+

@@ -354,3 +354,67 @@ export function describeWithSkill(skill: SkillOption, description: string): stri
   }
   return `${skill.label}: ${text}`;
 }
+
+/**
+ * Predicts selectable skills while the user is typing in "Who do you want?",
+ * including short prefixes ("pl" -> Plumber) and everyday words ("geyser" -> Plumber).
+ */
+export function predictSkills(query: string): SkillOption[] {
+  const q = query.trim().toLowerCase();
+  if (q === "") return [];
+
+  const selectable = ALL_SKILLS.filter((skill) => skill.trade !== null);
+  const byPrefix = selectable.filter((skill) => skill.label.toLowerCase().startsWith(q));
+  const byLabel = selectable.filter(
+    (skill) => !byPrefix.includes(skill) && skill.label.toLowerCase().includes(q),
+  );
+  const byKeyword = selectable.filter(
+    (skill) =>
+      !byPrefix.includes(skill) &&
+      !byLabel.includes(skill) &&
+      (skill.keywords ?? []).some((kw) => kw.startsWith(q) || (q.length >= 3 && kw.includes(q))),
+  );
+  const byFreeText = matchSkills(query).filter(
+    (skill) =>
+      skill.trade !== null &&
+      !byPrefix.includes(skill) &&
+      !byLabel.includes(skill) &&
+      !byKeyword.includes(skill),
+  );
+
+  return [...byPrefix, ...byLabel, ...byKeyword, ...byFreeText].slice(0, 6);
+}
+
+/**
+ * Combines an existing picked skill with an optional write-in on top of it,
+ * or resolves a pure write-in to the closest backend trade.
+ */
+export function composeSkillWithWriteIn(
+  baseSkill: SkillOption | null,
+  writeIn: string,
+): SkillOption | null {
+  const trimmed = writeIn.trim();
+  if (baseSkill !== null && baseSkill.trade !== null) {
+    if (trimmed === "" || trimmed.toLowerCase() === baseSkill.label.toLowerCase()) {
+      return baseSkill;
+    }
+    return {
+      id: baseSkill.id,
+      label: `${baseSkill.label} — ${trimmed}`,
+      trade: baseSkill.trade,
+    };
+  }
+  if (trimmed === "") return null;
+
+  const exact = ALL_SKILLS.find(
+    (skill) => skill.trade !== null && skill.label.toLowerCase() === trimmed.toLowerCase(),
+  );
+  if (exact) return exact;
+
+  const matched = predictSkills(trimmed)[0];
+  return {
+    id: matched?.id ?? "custom",
+    label: trimmed,
+    trade: matched?.trade ?? "BUILDING",
+  };
+}

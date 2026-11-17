@@ -19,6 +19,16 @@ const profileSchema = z.object({
   /** Last job address a buyer used, offered as the default next time. */
   lastAddress: z.string().max(500).default(""),
   lastSuburb: z.string().max(100).default(""),
+  /** Next-of-kin / emergency contact phone number (+263). */
+  nextOfKinPhone: z.string().max(20).default(""),
+  /** Preferred settlement currency for jobs/deposits (ADR-002). */
+  preferredCurrency: z.enum(["USD", "ECOCASH", "ZWG"]).default("USD"),
+  /** Default landmark narrative for employer job postings (ADR-004). */
+  defaultLandmark: z.string().max(300).default(""),
+  /** Primary transport mode for workers ("Walking", "Kombi / bus", etc.). */
+  travelMeans: z.string().max(50).default(""),
+  /** Short trade summary or work note kept on device. */
+  bio: z.string().max(240).default(""),
 });
 
 export type LocalProfile = z.infer<typeof profileSchema>;

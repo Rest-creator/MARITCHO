@@ -71,6 +71,8 @@ export const userSchema = z.object({
   is_available: z.boolean().optional(),
   travel_km: z.number().int().optional(),
   home_suburb: z.string().nullable().optional(),
+  next_of_kin_phone: z.string().nullable().optional(),
+  created_at: isoDate.nullable().optional(),
 });
 
 export const jobSchema = z.object({
@@ -249,10 +251,62 @@ export const referenceSchema = z.object({
   created_at: isoDate,
 });
 
+export const workerVettingSchema = z.object({
+  worker_id: uuid,
+  id_photo_url: z.string().nullable(),
+  id_submitted_at: isoDate.nullable(),
+  reference_count: z.number().int(),
+  vouch_count: z.number().int(),
+  grade: gradeSchema,
+});
+
+export const vouchSchema = z.object({
+  id: uuid,
+  worker_id: uuid,
+  voucher_id: uuid,
+  created_at: isoDate,
+});
+
 export const suburbSchema = z.object({
   name: z.string(),
   latitude: decimal,
   longitude: decimal,
+});
+
+export const workerWorkRecordSchema = z.object({
+  job_id: uuid,
+  what_was_done: z.string(),
+  client_words: z.string().nullable().optional(),
+  before_photo_url: z.string().nullable().optional(),
+  after_photo_url: z.string().nullable().optional(),
+  signed_off_at: isoDate.nullable().optional(),
+});
+
+export const workerSummarySchema = z.object({
+  worker_id: uuid,
+  display_name: z.string().nullable().optional(),
+  suburb: z.string().nullable().optional(),
+  trades: z.array(tradeSchema),
+  proof_urls: z.array(z.string()).optional().default([]),
+  grade: gradeSchema,
+  on_time_rate: decimal,
+  dispute_rate: decimal,
+  fill_rate: decimal,
+  jobs_completed: z.number().int(),
+  rating_average: nullableDecimal.optional(),
+  rating_count: z.number().int().optional(),
+  is_available: z.boolean().optional().default(true),
+  travel_km: z.number().int().optional().default(50),
+  travel_means: z.string().nullable().optional(),
+  distance_band: distanceBandSchema.nullable().optional(),
+  distance_km: z.number().nullable().optional(),
+  similarity_score: z.number().nullable().optional(),
+});
+
+export const workerProfileSchema = workerSummarySchema.extend({
+  service_areas: z.array(z.string()).optional().default([]),
+  reference_count: z.number().int().optional().default(0),
+  recent_work: z.array(workerWorkRecordSchema).optional().default([]),
 });
 
 /* Screen bundles from the BFF (`/api/screens/*`, ADR-009 phase 2). */
@@ -293,6 +347,11 @@ export type Skill = z.infer<typeof skillSchema>;
 export type ServiceArea = z.infer<typeof serviceAreaSchema>;
 export type Standing = z.infer<typeof standingSchema>;
 export type Reference = z.infer<typeof referenceSchema>;
+export type WorkerVetting = z.infer<typeof workerVettingSchema>;
+export type Vouch = z.infer<typeof vouchSchema>;
 export type Suburb = z.infer<typeof suburbSchema>;
+export type WorkerWorkRecord = z.infer<typeof workerWorkRecordSchema>;
+export type WorkerSummary = z.infer<typeof workerSummarySchema>;
+export type WorkerProfile = z.infer<typeof workerProfileSchema>;
 export type WorkerWorkScreen = z.infer<typeof workerWorkScreenSchema>;
 export type WorkerHomeScreen = z.infer<typeof workerHomeScreenSchema>;

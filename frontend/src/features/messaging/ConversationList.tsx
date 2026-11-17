@@ -7,10 +7,13 @@ import { formatRelativeTime, jobStatusLabel } from "@/core/format/format";
 import { tradeIcon, tradeLabel } from "@/core/format/trades";
 import { splitTiming } from "@/features/jobs/job-helpers";
 
-type ConversationJob = Pick<
+export type ConversationJob = Pick<
   Job,
   "id" | "trade" | "suburb" | "status" | "updated_at" | "problem_description" | "worker_id"
->;
+> & {
+  offer_count?: number;
+  has_offer?: boolean;
+};
 
 type Props = {
   jobs: readonly ConversationJob[] | undefined;
@@ -20,10 +23,10 @@ type Props = {
   emptyHint: string;
 };
 
-/** Chats exist per hired job — one row per job with someone on it. */
+/** Chats exist per hired job or job with an active offer — one row per conversation. */
 export function ConversationList({ jobs, isPending, error, onRetry, emptyHint }: Props) {
   const withChat = (jobs ?? [])
-    .filter((job) => job.worker_id !== null)
+    .filter((job) => job.worker_id !== null || (job.offer_count ?? 0) > 0 || job.has_offer === true)
     .sort((a, b) => b.updated_at.localeCompare(a.updated_at));
 
   if (isPending) return <Skeleton height={72} count={3} />;
@@ -38,24 +41,33 @@ export function ConversationList({ jobs, isPending, error, onRetry, emptyHint }:
 
   return (
     <ul className="stack" style={{ listStyle: "none", margin: 0, padding: 0 }}>
-      {withChat.map((job) => (
-        <li key={job.id}>
-          <Link href={`/chat/${job.id}`} className="list-row">
-            <div className="icon-tile icon-tile--amber">
-              <Icon name={tradeIcon(job.trade)} />
-            </div>
-            <div className="grow">
-              <div style={{ fontSize: 15, fontWeight: 700 }} className="truncate">
-                {splitTiming(job.problem_description).text.split("\n")[0] || tradeLabel(job.trade)}
+      {withChat.map((job) => {
+        const statusText =
+          job.worker_id !== null
+            ? jobStatusLabel(job.status)
+            : (job.offer_count ?? 0) > 0
+              ? `${job.offer_count} ${job.offer_count === 1 ? "offer" : "offers"}`
+              : "Offer sent";
+        return (
+          <li key={job.id}>
+            <Link href={`/chat/${job.id}`} className="list-row">
+              <div className="icon-tile icon-tile--amber">
+                <Icon name={tradeIcon(job.trade)} />
               </div>
-              <div className="meta truncate">
-                {tradeLabel(job.trade)} · {job.suburb} · {jobStatusLabel(job.status)}
+              <div className="grow">
+                <div style={{ fontSize: 15, fontWeight: 700 }} className="truncate">
+                  {splitTiming(job.problem_description).text.split("\n")[0] ||
+                    tradeLabel(job.trade)}
+                </div>
+                <div className="meta truncate">
+                  {tradeLabel(job.trade)} · {job.suburb} · {statusText}
+                </div>
               </div>
-            </div>
-            <span className="meta">{formatRelativeTime(job.updated_at)}</span>
-          </Link>
-        </li>
-      ))}
+              <span className="meta">{formatRelativeTime(job.updated_at)}</span>
+            </Link>
+          </li>
+        );
+      })}
     </ul>
   );
 }

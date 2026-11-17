@@ -8,7 +8,7 @@ import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client
 import { CACHE_MAX_AGE_MS, createQueryClient, shouldPersistQuery } from "@/core/query/query-client";
 
 /** Bump when a cached payload shape changes, so stale caches are discarded. */
-const CACHE_BUSTER = "maricho-v1";
+const CACHE_BUSTER = "maricho-v2";
 
 function safeStorage(): Storage | undefined {
   try {

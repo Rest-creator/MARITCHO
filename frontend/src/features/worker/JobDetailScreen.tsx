@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { onlineManager } from "@tanstack/react-query";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { BackButton } from "@/components/ui/BackButton";
@@ -140,15 +141,20 @@ export function JobDetailScreen({ jobId }: Props) {
           <span className="text-emerald" style={{ display: "flex" }}>
             <Icon name="shieldCheck" size={18} />
           </span>
-          The exact address is shared with you once you&apos;re hired. Payment is held by Maricho.
+          The exact address is shared with you once you&apos;re hired. Payment is held by Maritcho.
         </div>
 
         {existing && (
           <div className="banner banner--emerald" role="status">
             <Icon name="check" size={18} />
-            {isAccepted
-              ? `You accepted ${formatMoney(existing.quoted_amount)}. Waiting for the client to approve.`
-              : `You offered ${formatMoney(existing.quoted_amount)}. Waiting for the client to approve.`}
+            <span className="grow">
+              {isAccepted
+                ? `You accepted ${formatMoney(existing.quoted_amount)}. Waiting for the client to approve.`
+                : `You offered ${formatMoney(existing.quoted_amount)}. Waiting for the client to approve.`}
+            </span>
+            <Link href={`/chat/${jobId}`} className="btn btn--sm">
+              Message
+            </Link>
           </div>
         )}
 

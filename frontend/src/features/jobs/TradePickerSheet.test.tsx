@@ -43,4 +43,24 @@ describe("TradePickerSheet", () => {
     await user.keyboard("{Escape}");
     expect(onClose).toHaveBeenCalled();
   });
+
+  it("allows writing in on top of an existing pick", async () => {
+    const user = userEvent.setup();
+    const onSelect = vi.fn();
+    const onClose = vi.fn();
+    render(<TradePickerSheet isOpen selectedId="plumber" onClose={onClose} onSelect={onSelect} />);
+
+    await user.type(
+      screen.getByRole("textbox", { name: "Write in on top of your pick" }),
+      "Geyser & borehole",
+    );
+    await user.click(screen.getByRole("button", { name: "Done — Plumber — Geyser & borehole" }));
+
+    expect(onSelect).toHaveBeenCalledWith({
+      id: "plumber",
+      label: "Plumber — Geyser & borehole",
+      trade: "PLUMBING",
+    });
+    expect(onClose).toHaveBeenCalled();
+  });
 });
