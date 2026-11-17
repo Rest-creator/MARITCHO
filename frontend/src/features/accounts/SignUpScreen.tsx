@@ -232,6 +232,15 @@ export function SignUpScreen({ initialRole, isLogin, isExpired }: Props) {
           </p>
         )}
 
+        {isLogin && (
+          <p className="meta" style={{ marginTop: 18, textAlign: "center" }}>
+            New here?{" "}
+            <Link href={`/signup?role=${isWorker ? "worker" : "buyer"}`} style={{ fontWeight: 600 }}>
+              Create an account
+            </Link>
+          </p>
+        )}
+
         <div className="spacer" style={{ minHeight: 32 }} />
 
         <button type="submit" className="btn btn--primary btn--cta" disabled={isSigningIn}>
