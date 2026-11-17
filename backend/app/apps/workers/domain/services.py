@@ -403,7 +403,7 @@ class VouchForWorkerUseCase:
             raise ValidationConflictError("Cannot vouch for yourself")
 
         target = await self._persons.get_by_id(target_worker_id)
-        if target is None or target.role != RoleEnum.WORKER:
+        if target is None or not target.acts_as(RoleEnum.WORKER):
             raise ValidationConflictError("worker_id does not refer to a registered worker")
 
         voucher_standing = await self._standings.get(voucher_id)

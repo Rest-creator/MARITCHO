@@ -8,7 +8,11 @@ from sqlalchemy import desc, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.apps.accounts.infrastructure.models import PersonModel
+from app.apps.accounts.infrastructure.models import (
+    PersonModel,
+    model_can_act_as,
+    person_can_act_as,
+)
 from app.apps.jobs.infrastructure.models import JobModel, RecordEntryModel
 from app.apps.jobs.infrastructure.review_models import ReviewModel
 from app.apps.workers.domain.entities import (
@@ -284,11 +288,12 @@ class SqlAlchemyWorkerDirectoryRepository(WorkerDirectoryRepository):
             if not candidate_ids:
                 return []
             persons_stmt = select(PersonModel).where(
-                PersonModel.role == RoleEnum.WORKER,
+                person_can_act_as(RoleEnum.WORKER),
                 PersonModel.id.in_(candidate_ids),
             )
         else:
-            persons_stmt = select(PersonModel).where(PersonModel.role == RoleEnum.WORKER)
+            # Includes people who also hire: one account, both sides.
+            persons_stmt = select(PersonModel).where(person_can_act_as(RoleEnum.WORKER))
 
         persons_result = await self._db.execute(persons_stmt)
         persons = list(persons_result.scalars().all())
@@ -407,7 +412,7 @@ class SqlAlchemyWorkerDirectoryRepository(WorkerDirectoryRepository):
         self, worker_id: uuid.UUID
     ) -> tuple[WorkerPublicProfile, list[tuple[str, str | None]]] | None:
         person = await self._db.get(PersonModel, worker_id)
-        if person is None or person.role != RoleEnum.WORKER:
+        if person is None or not model_can_act_as(person, RoleEnum.WORKER):
             return None
 
         skills_result = await self._db.execute(

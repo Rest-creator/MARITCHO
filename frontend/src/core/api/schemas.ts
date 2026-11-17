@@ -76,7 +76,9 @@ export const tokenSchema = z.object({
   token_type: z.string(),
 });
 
+/** Every side the account can use; `role` is the one it's in right now. */
 export const userSchema = z.object({
+  roles: z.array(roleSchema).optional(),
   id: uuid,
   phone: z.string(),
   role: roleSchema,

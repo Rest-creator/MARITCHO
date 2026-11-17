@@ -28,6 +28,7 @@ import { useMediaUploads } from "@/core/media/use-media-uploads";
 import { useUpload } from "@/core/media/use-upload";
 import { queryKeys } from "@/core/query/keys";
 import { updateProfile, useLocalProfile } from "@/core/session/profile-store";
+import { hasBothSides } from "@/core/session/roles";
 import { homeFor, useSession, type SignInRole } from "@/core/session/SessionProvider";
 import { activeJobs, finishedJobs } from "@/features/jobs/job-helpers";
 import { useAssignedJobs, useMyJobs, useMyOffers } from "@/features/jobs/hooks";
@@ -489,6 +490,11 @@ export function AccountScreen({ tabBar }: Props) {
             </span>
             {isSwitchingRole && <span className="meta">Switching…</span>}
           </div>
+          <p className="meta" style={{ lineHeight: 1.45 }}>
+            {hasBothSides(user)
+              ? "This account hires and finds work. Switching keeps both profiles, jobs and messages."
+              : "One account can do both. Switching sets up the other side and keeps everything you have now."}
+          </p>
           <div className="segmented segmented--choice" role="group" aria-label="Account mode">
             <button
               type="button"

@@ -576,7 +576,8 @@ class BookJobUseCase:
             raise ConflictError("Job must be MATCHED before it can be booked")
 
         worker = await self._persons.get_by_id(worker_id)
-        if worker is None or worker.role != RoleEnum.WORKER:
+        # Capability, not mode: someone who also hires can still be booked.
+        if worker is None or not worker.acts_as(RoleEnum.WORKER):
             raise ValidationConflictError("worker_id does not refer to a registered worker")
 
         skills = await self._worker_profiles.get_skills_for_worker(worker_id)

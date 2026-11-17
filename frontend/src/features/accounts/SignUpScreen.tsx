@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -11,6 +12,8 @@ import { formatLocalPhone, toInternationalPhone } from "@/core/format/format";
 import { mergeSuburbs } from "@/core/format/suburbs";
 import { TRAVEL_MEANS_OPTIONS } from "@/core/format/travel";
 import { updateProfile, useLocalProfile } from "@/core/session/profile-store";
+import { queryKeys } from "@/core/query/keys";
+import { canActAs } from "@/core/session/roles";
 import { homeFor, useSession, type SignInRole } from "@/core/session/SessionProvider";
 import { RoleMismatchNotice } from "@/features/accounts/RoleMismatchNotice";
 import { useSuburbs, useUpdateUserProfile } from "@/features/workers/hooks";
@@ -73,6 +76,7 @@ export function validateSignUpDetails(details: SignUpDetails): string | null {
 /** Design 2 · Log in, or create an account with a few details about you. */
 export function SignUpScreen({ initialRole, isLogin, isExpired }: Props) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const profile = useLocalProfile();
   const { signUp, signIn, signOut, isSigningIn, signInError } = useSession();
   const updateServerProfile = useUpdateUserProfile();
@@ -113,6 +117,13 @@ export function SignUpScreen({ initialRole, isLogin, isExpired }: Props) {
         : await signUp({ phone: international, password, name: trimmedName, role });
       updateProfile({ phone: international, ...(trimmedName === "" ? {} : { name: trimmedName }) });
       if ((user.role === "BUYER" || user.role === "WORKER") && user.role !== role) {
+        if (isLogin && canActAs(user, role)) {
+          // Same account, other side already set up: switch into it.
+          const switched = await updateServerProfile.mutateAsync({ role });
+          queryClient.setQueryData(queryKeys.session, switched);
+          router.replace(homeFor(role));
+          return;
+        }
         setRegisteredAs(user.role);
         return;
       }
