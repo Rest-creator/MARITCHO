@@ -19,9 +19,12 @@ export const E2E_PASSWORD = "Passw0rd!";
 export async function signUp(page: Page, side: Side, name: string, phone: string): Promise<void> {
   await page.goto(`/signup?role=${side}`);
   await expect(page.getByRole("heading", { name: "Let's get you set up" })).toBeVisible();
-  await page.getByLabel("Your name").fill(name);
+  await page.getByLabel("Your full name").fill(name);
   await page.getByLabel("Phone number").fill(phone);
   await page.getByLabel("Password").fill(E2E_PASSWORD);
-  await page.getByRole("button", { name: "Continue" }).click();
+  const suburbLabel =
+    side === "worker" ? "Where are you based?" : "Where do you usually need work done?";
+  await page.getByLabel(suburbLabel).selectOption({ label: "Hillside" });
+  await page.getByRole("button", { name: "Create account" }).click();
   await expect(page).toHaveURL(side === "worker" ? /\/worker\/skills$/ : /\/employer$/);
 }

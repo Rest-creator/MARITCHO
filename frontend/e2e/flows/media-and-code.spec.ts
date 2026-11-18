@@ -53,11 +53,14 @@ test.describe("sign-up (WEB-005)", () => {
   test("signs up with name, phone, and password in one step", async ({ page }) => {
     const unexpected = await stubWorld(page, null, { "POST session": { json: BUYER } });
     await page.goto("/signup?role=buyer");
-    await page.getByLabel("Your name").fill("Rudo Ncube");
+    await page.getByLabel("Your full name").fill("Rudo Ncube");
     await page.getByLabel("Phone number").fill("77 412 3089");
     await page.getByLabel("Password").fill("Passw0rd!");
+    await page
+      .getByLabel("Where do you usually need work done?")
+      .selectOption({ label: "Hillside" });
     const signUp = page.waitForRequest((request) => request.url().endsWith("/api/session"));
-    await page.getByRole("button", { name: "Continue" }).click();
+    await page.getByRole("button", { name: "Create account" }).click();
 
     expect((await signUp).postDataJSON()).toEqual({
       mode: "signup",

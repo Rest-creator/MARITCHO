@@ -1,6 +1,7 @@
 import type { Page, Route } from "@playwright/test";
 
 import type {
+  ConversationUnread,
   MatchCandidate,
   Message,
   MyJob,
@@ -289,6 +290,7 @@ function responsesFor(who: Who): Record<string, Reply> {
     "GET screens/worker-home": ok({ skills: SKILLS, open_jobs: OPEN_JOBS, offers: MY_OFFERS }),
     // The world as designed: uploads exist (POST-only route → 405 on GET).
     "GET media": { status: 405, json: { detail: "Method Not Allowed" } },
+    "GET messages/unread": ok([] as ConversationUnread[]),
   };
 }
 
