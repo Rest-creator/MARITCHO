@@ -65,7 +65,7 @@ async def send_message(
     return await use_case.execute(
         job_id=job_id,
         sender_id=current_user.id,
-        sender_role=current_user.role,
+        sender_capabilities=current_user.capabilities,
         message_type=payload.message_type,
         body=payload.body,
         media_url=payload.media_url,
@@ -85,7 +85,7 @@ async def list_messages(
     return await use_case.execute(
         job_id,
         current_user.id,
-        current_user.role,
+        current_user.capabilities,
         limit=pagination.limit,
         offset=pagination.offset,
     )
@@ -111,7 +111,7 @@ async def mark_messages_read(
     current_user: Person = Depends(get_current_user),
     use_case: MarkMessagesReadUseCase = Depends(get_mark_messages_read_use_case),
 ) -> None:
-    await use_case.execute(job_id, current_user.id, current_user.role)
+    await use_case.execute(job_id, current_user.id, current_user.capabilities)
 
 
 async def _socket_close_code(job_id: uuid.UUID, token: str) -> int | None:
@@ -143,14 +143,16 @@ async def _socket_close_code(job_id: uuid.UUID, token: str) -> int | None:
         is_party = user.id in (job.buyer_id, job.worker_id)
         # Same rule as messaging's _require_job_party: an offer only makes a
         # worker a party while the job is still open for offers, so losing
-        # bidders can't keep listening once someone else is booked.
+        # bidders can't keep listening once someone else is booked. Checked
+        # against capabilities, not active mode, so switching mode never
+        # drops access to a conversation the account is still a party to.
         if (
             not is_party
-            and user.role == RoleEnum.WORKER
+            and user.acts_as(RoleEnum.WORKER)
             and job.status in (JobStatusEnum.REQUESTED, JobStatusEnum.MATCHED)
         ):
             is_party = user.id in await offers.get_for_job(job_id)
-        if not is_party and user.role != RoleEnum.OPS:
+        if not is_party and not user.acts_as(RoleEnum.OPS):
             return _WS_FORBIDDEN
     return None
 

@@ -9,7 +9,7 @@ from app.apps.accounts.infrastructure.models import PersonModel
 from app.shared_kernel.enums import RoleEnum
 
 
-def _to_entity(model: PersonModel) -> Person:
+def person_from_model(model: PersonModel) -> Person:
     return Person(
         id=model.id,
         phone=model.phone,
@@ -41,12 +41,12 @@ class SqlAlchemyPersonRepository(PersonRepository):
 
     async def get_by_id(self, person_id: uuid.UUID) -> Person | None:
         model = await self._db.get(PersonModel, person_id)
-        return _to_entity(model) if model else None
+        return person_from_model(model) if model else None
 
     async def get_by_phone(self, phone: str) -> Person | None:
         result = await self._db.execute(select(PersonModel).where(PersonModel.phone == phone))
         model = result.scalars().first()
-        return _to_entity(model) if model else None
+        return person_from_model(model) if model else None
 
     async def update(self, person: Person) -> None:
         model = await self._db.get(PersonModel, person.id)
@@ -78,4 +78,4 @@ class SqlAlchemyPersonRepository(PersonRepository):
         )
         self._db.add(model)
         await self._db.flush()
-        return _to_entity(model)
+        return person_from_model(model)

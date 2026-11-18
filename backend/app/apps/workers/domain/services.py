@@ -1,6 +1,5 @@
 import uuid
 from collections.abc import Sequence
-from datetime import datetime
 from decimal import ROUND_HALF_UP, Decimal
 
 from app.apps.accounts.domain.repositories import PersonRepository
@@ -30,6 +29,7 @@ from app.core.exceptions import (
     NotFoundError,
     ValidationConflictError,
 )
+from app.shared_kernel.clock import utcnow
 from app.shared_kernel.embeddings import (
     RELEVANCE_THRESHOLD,
     cosine_similarity,
@@ -339,7 +339,7 @@ class SubmitIdPhotoUseCase:
         self._view = view
 
     async def execute(self, worker_id: uuid.UUID, id_photo_url: str) -> WorkerVettingView:
-        await self._vetting.upsert_id_photo(worker_id, id_photo_url, datetime.utcnow())
+        await self._vetting.upsert_id_photo(worker_id, id_photo_url, utcnow())
         await self._standings.ensure(worker_id)
         await self._recompute_grade.execute(worker_id)
         await self._uow.commit()

@@ -42,7 +42,3 @@ class PersonModel(Base):
 def person_can_act_as(role: RoleEnum) -> ColumnElement[bool]:
     """SQL filter: the person has `role` as a capability (any active mode)."""
     return or_(PersonModel.role == role, PersonModel.roles.any(role.value))
-
-
-def model_can_act_as(model: PersonModel, role: RoleEnum) -> bool:
-    return model.role == role or role.value in (model.roles or [])

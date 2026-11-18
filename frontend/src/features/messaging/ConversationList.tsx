@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import Link from "next/link";
 
 import { Icon } from "@/components/ui/Icon";
@@ -31,14 +32,21 @@ type Props = {
  */
 export function ConversationList({ jobs, isPending, error, onRetry, emptyHint }: Props) {
   const unread = useUnreadMessages();
-  const byJob = new Map<string, ConversationUnread>(
-    (unread.data ?? []).map((item) => [item.job_id, item]),
+  const byJob = useMemo(
+    () => new Map<string, ConversationUnread>((unread.data ?? []).map((item) => [item.job_id, item])),
+    [unread.data],
   );
-  const lastActivity = (job: ConversationJob): string =>
-    byJob.get(job.id)?.last_message_at ?? job.updated_at;
-  const withChat = (jobs ?? [])
-    .filter((job) => job.worker_id !== null || (job.offer_count ?? 0) > 0 || job.has_offer === true)
-    .sort((a, b) => lastActivity(b).localeCompare(lastActivity(a)));
+  function lastActivity(job: ConversationJob): string {
+    return byJob.get(job.id)?.last_message_at ?? job.updated_at;
+  }
+  const withChat = useMemo(() => {
+    function activityOf(job: ConversationJob): string {
+      return byJob.get(job.id)?.last_message_at ?? job.updated_at;
+    }
+    return (jobs ?? [])
+      .filter((job) => job.worker_id !== null || (job.offer_count ?? 0) > 0 || job.has_offer === true)
+      .sort((a, b) => activityOf(b).localeCompare(activityOf(a)));
+  }, [jobs, byJob]);
 
   if (isPending) return <Skeleton height={72} count={3} />;
   if (error && !jobs) return <ErrorState message={error.message} onRetry={onRetry} />;

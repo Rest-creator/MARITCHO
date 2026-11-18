@@ -39,6 +39,7 @@ from app.core.exceptions import (
     NotFoundError,
     ValidationConflictError,
 )
+from app.shared_kernel.clock import utcnow
 from app.shared_kernel.embeddings import (
     RELEVANCE_THRESHOLD,
     cosine_similarity,
@@ -123,17 +124,20 @@ class GetJobUseCase:
         self._offers = offers
 
     async def execute(
-        self, job_id: uuid.UUID, current_user_id: uuid.UUID, current_user_role: RoleEnum
+        self,
+        job_id: uuid.UUID,
+        current_user_id: uuid.UUID,
+        current_user_capabilities: frozenset[RoleEnum],
     ) -> Job:
         job = await self._jobs.get(job_id)
         if job is None:
             raise NotFoundError("Job not found")
         is_direct_party = current_user_id in (job.buyer_id, job.worker_id)
-        if not is_direct_party and current_user_role != RoleEnum.OPS:
+        if not is_direct_party and RoleEnum.OPS not in current_user_capabilities:
             has_offer = False
             if (
                 self._offers is not None
-                and current_user_role == RoleEnum.WORKER
+                and RoleEnum.WORKER in current_user_capabilities
                 and job.status in _OFFER_GRANTS_PARTY_STATUSES
             ):
                 job_offers = await self._offers.get_for_job(job_id)
@@ -721,7 +725,7 @@ class CompleteJobUseCase:
             client_words=client_words,
             before_photo_url=before_photo_url,
             after_photo_url=after_photo_url,
-            signed_off_at=datetime.utcnow(),
+            signed_off_at=utcnow(),
         )
         assert job.currency is not None, "IN_PROGRESS implies a currency was set"
         assert job.quote_amount is not None, "IN_PROGRESS implies a quote was submitted"
@@ -810,7 +814,7 @@ class RespondToDisputeUseCase:
         dispute.before_photo_url = before_photo_url
         dispute.after_photo_url = after_photo_url
         dispute.status = DisputeStatusEnum.RESOLVED_RETURN_VISIT
-        dispute.responded_at = datetime.utcnow()
+        dispute.responded_at = utcnow()
         await self._disputes.save(dispute)
 
         job.status = JobStatusEnum.IN_PROGRESS

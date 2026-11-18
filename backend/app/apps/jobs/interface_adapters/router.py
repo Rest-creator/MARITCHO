@@ -1,7 +1,6 @@
 import uuid
 from collections.abc import Sequence
 from dataclasses import asdict
-from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.concurrency import run_in_threadpool
@@ -88,6 +87,7 @@ from app.apps.jobs.interface_adapters.schemas import (
 from app.core.database import get_db_session
 from app.core.pagination import Pagination, pagination_params
 from app.core.telemetry import logger
+from app.shared_kernel.clock import utcnow
 from app.shared_kernel.embeddings import SkillSemanticMatch, rank_skills_by_query
 from app.shared_kernel.enums import RoleEnum, TradeEnum
 
@@ -172,8 +172,9 @@ async def search_open_jobs(
         span.set_attribute("search.query_length", len(q.strip()))
         if trade is not None:
             span.set_attribute("search.trade", trade.value)
-        # Workers only ever see jobs that match their skills.
-        is_worker = current_user.role == RoleEnum.WORKER
+        # Workers only ever see jobs that match their skills, regardless of
+        # which mode (buyer/worker) the dual-role account is currently in.
+        is_worker = current_user.acts_as(RoleEnum.WORKER)
         span.set_attribute("search.restricted_to_skills", is_worker)
         results = await use_case.execute(
             q,
@@ -253,7 +254,7 @@ async def get_job(
     current_user: Person = Depends(get_current_user),
     use_case: GetJobUseCase = Depends(get_get_job_use_case),
 ) -> Job:
-    job = await use_case.execute(job_id, current_user.id, current_user.role)
+    job = await use_case.execute(job_id, current_user.id, current_user.capabilities)
     return job
 
 
@@ -387,7 +388,7 @@ async def review_completed_job(
         rating=payload.rating,
         tags=payload.tags,
         comment=payload.comment,
-        created_at=datetime.utcnow(),
+        created_at=utcnow(),
     )
     db.add(review)
     await db.commit()

@@ -37,14 +37,6 @@ class WorkerMatchingProfileAdapter(WorkerMatchingProfilePort):
         )
         return set(result.scalars().all())
 
-    async def has_skill(self, worker_id: uuid.UUID, trade: TradeEnum) -> bool:
-        result = await self._db.execute(
-            select(SkillModel.id)
-            .where(SkillModel.worker_id == worker_id, SkillModel.trade == trade)
-            .limit(1)
-        )
-        return result.first() is not None
-
     async def get_skills_for_worker(self, worker_id: uuid.UUID) -> set[TradeEnum]:
         result = await self._db.execute(
             select(SkillModel.trade).where(SkillModel.worker_id == worker_id)
