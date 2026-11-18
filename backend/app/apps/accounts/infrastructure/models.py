@@ -1,7 +1,17 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, ColumnElement, DateTime, Enum, ForeignKey, Integer, String, or_
+from sqlalchemy import (
+    Boolean,
+    ColumnElement,
+    DateTime,
+    Enum,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    or_,
+)
 from sqlalchemy.dialects.postgresql import ARRAY, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -11,6 +21,7 @@ from app.shared_kernel.enums import RoleEnum
 
 class PersonModel(Base):
     __tablename__ = "persons"
+    __table_args__ = (Index("ix_persons_roles", "roles", postgresql_using="gin"),)
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     phone: Mapped[str] = mapped_column(String(20), unique=True, nullable=False)
     # Active mode: drives navigation and which side shared screens act as.
