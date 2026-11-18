@@ -62,8 +62,8 @@ export function RoleGate({ role, children }: Props) {
         {user !== null && (
           <Sheet title="Switch mode?" isOpen={canSwitch} onClose={declineSwitch}>
             <p>
-              This page is for {ROLE_LABEL[role]}. Switch your account into {ROLE_LABEL[role]}{" "}
-              mode now? This changes it everywhere you&apos;re signed in.
+              This page is for {ROLE_LABEL[role]}. Switch your account into {ROLE_LABEL[role]} mode
+              now? This changes it everywhere you&apos;re signed in.
             </p>
             <div className="row" style={{ gap: 8, marginTop: 14 }}>
               <button type="button" className="btn btn--soft" onClick={declineSwitch}>

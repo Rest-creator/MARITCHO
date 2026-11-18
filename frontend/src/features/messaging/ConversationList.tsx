@@ -33,7 +33,8 @@ type Props = {
 export function ConversationList({ jobs, isPending, error, onRetry, emptyHint }: Props) {
   const unread = useUnreadMessages();
   const byJob = useMemo(
-    () => new Map<string, ConversationUnread>((unread.data ?? []).map((item) => [item.job_id, item])),
+    () =>
+      new Map<string, ConversationUnread>((unread.data ?? []).map((item) => [item.job_id, item])),
     [unread.data],
   );
   function lastActivity(job: ConversationJob): string {
@@ -44,7 +45,9 @@ export function ConversationList({ jobs, isPending, error, onRetry, emptyHint }:
       return byJob.get(job.id)?.last_message_at ?? job.updated_at;
     }
     return (jobs ?? [])
-      .filter((job) => job.worker_id !== null || (job.offer_count ?? 0) > 0 || job.has_offer === true)
+      .filter(
+        (job) => job.worker_id !== null || (job.offer_count ?? 0) > 0 || job.has_offer === true,
+      )
       .sort((a, b) => activityOf(b).localeCompare(activityOf(a)));
   }, [jobs, byJob]);
 
