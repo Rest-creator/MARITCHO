@@ -3,9 +3,9 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
-: "${MARICHO_VPS:?Set MARICHO_VPS, for example deployer@example-vps}"
-: "${MARICHO_DOMAIN:?Set MARICHO_DOMAIN to the public frontend hostname}"
-: "${MARICHO_WS_URL:?Set MARICHO_WS_URL to the public websocket URL}"
+MARICHO_VPS="${MARICHO_VPS:-restk-vps}"
+MARICHO_DOMAIN="${MARICHO_DOMAIN:-maricho.restk.tech}"
+MARICHO_WS_URL="${MARICHO_WS_URL:-wss://maricho.restk.tech}"
 MARICHO_REMOTE_DIR="${MARICHO_REMOTE_DIR:-apps/maricho}"
 MARICHO_GIT_URL="${MARICHO_GIT_URL:-$(git -C "$ROOT_DIR" remote get-url origin)}"
 MARICHO_GIT_REF="${MARICHO_GIT_REF:-$(git -C "$ROOT_DIR" rev-parse HEAD)}"
