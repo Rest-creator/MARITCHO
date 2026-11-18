@@ -7,7 +7,7 @@ import '../../data/repositories/jobs_repository.dart';
 import '../cubit/employer_home_cubit.dart';
 import '../cubit/employer_home_state.dart';
 
-/// Ports EmployerHome.dc.html's "What needs doing?" search card, popular
+/// Ports EmployerHome.dc.html's "What needs to be done?" search card, popular
 /// trades grid (unselected — trade preselection is a follow-up), and
 /// "Your jobs" list (offer-count badge, tap routes to Applicants or Job
 /// Tracking depending on status).
@@ -39,7 +39,7 @@ class _EmployerHomeView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Maricho')),
+      appBar: AppBar(title: const Text('Maritcho')),
       body: RefreshIndicator(
         onRefresh: () => context.read<EmployerHomeCubit>().loadJobs(),
         child: ListView(
@@ -52,7 +52,7 @@ class _EmployerHomeView extends StatelessWidget {
                   color: AppTheme.primaryBlueGray,
                 ),
                 title: const Text(
-                  'What needs doing?',
+                  'What needs to be done?',
                   style: TextStyle(fontWeight: FontWeight.bold),
                 ),
                 subtitle: const Text('A leaking tap, a cut lawn, a driver…'),

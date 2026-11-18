@@ -168,7 +168,7 @@ class SyncService {
         final int? status = error.response?.statusCode;
         if (status == 404 || status == 405 || status == 501) {
           return const RetryLater(
-            "Photos can't be sent yet. It will go once Maricho accepts them.",
+            "Photos can't be sent yet. It will go once Maritcho accepts them.",
             after: waitForMissingEndpoint,
           );
         }
@@ -218,13 +218,13 @@ class SyncService {
       );
     }
     if (status == 429) {
-      return const RetryLater('Maricho is busy.', after: Duration(minutes: 5));
+      return const RetryLater('Maritcho is busy.', after: Duration(minutes: 5));
     }
     if (status >= 500) {
-      return const RetryLater('Maricho is having trouble. Trying again soon.');
+      return const RetryLater('Maritcho is having trouble. Trying again soon.');
     }
     return Rejected(
-      _detailOf(error) ?? 'Maricho could not accept this (error $status).',
+      _detailOf(error) ?? 'Maritcho could not accept this (error $status).',
     );
   }
 

@@ -4,6 +4,7 @@ from decimal import Decimal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from app.apps.jobs.domain.eligibility import MatchBasis
 from app.apps.jobs.domain.entities import DisputeStatusEnum, JobStatusEnum
 from app.shared_kernel.enums import (
     CurrencyEnum,
@@ -222,6 +223,17 @@ class RecordEntryOut(BaseModel):
     before_photo_url: str | None
     after_photo_url: str | None
     signed_off_at: datetime
+
+
+class JobEligibilityOut(BaseModel):
+    """Whether the calling worker may see/offer on a job, with a reason
+    written for them (shown as-is in the app)."""
+
+    is_eligible: bool
+    required_trade: TradeEnum
+    matched_by: MatchBasis | None
+    similarity_score: float | None
+    reason: str
 
 
 class MatchCandidateOut(BaseModel):

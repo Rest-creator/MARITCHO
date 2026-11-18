@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.shared_kernel.enums import RoleEnum
 from app.shared_kernel.text import strip_tags
@@ -15,13 +15,21 @@ class TokenOut(BaseModel):
 class UserOut(BaseModel):
     id: uuid.UUID
     phone: str
+    # Active mode (navigation, home screen).
     role: RoleEnum
+    # Every side this account can use (always includes `role`).
+    roles: list[RoleEnum] = Field(default_factory=list)
     display_name: str | None = None
     is_available: bool = True
     travel_km: int = 50
     home_suburb: str | None = None
     next_of_kin_phone: str | None = None
     created_at: datetime | None = None
+
+    @model_validator(mode="after")
+    def include_active_role(self) -> "UserOut":
+        self.roles = sorted({*self.roles, self.role}, key=lambda role: role.value)
+        return self
 
 
 class UserProfilePatch(BaseModel):

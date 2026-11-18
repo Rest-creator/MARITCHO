@@ -1,7 +1,7 @@
 # Accounts App
 
 ## Overview
-The Accounts app is responsible for managing user identities, authentication, authorization, and role management within the Maricho platform.
+The Accounts app is responsible for managing user identities, authentication, authorization, and role management within the Maritcho platform.
 
 ## Responsibilities
 - **User Management**: Creating, updating, and managing user profiles.

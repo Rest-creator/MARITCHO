@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { Avatar } from "@/components/ui/Avatar";
+import { Celebration } from "@/components/ui/Celebration";
 import { Icon } from "@/components/ui/Icon";
 import { PhotoPicker } from "@/components/ui/PhotoPicker";
 import { Screen } from "@/components/ui/Screen";
@@ -27,6 +28,7 @@ import { useMediaUploads } from "@/core/media/use-media-uploads";
 import { useUpload } from "@/core/media/use-upload";
 import { queryKeys } from "@/core/query/keys";
 import { updateProfile, useLocalProfile } from "@/core/session/profile-store";
+import { hasBothSides } from "@/core/session/roles";
 import { homeFor, useSession, type SignInRole } from "@/core/session/SessionProvider";
 import { activeJobs, finishedJobs } from "@/features/jobs/job-helpers";
 import { useAssignedJobs, useMyJobs, useMyOffers } from "@/features/jobs/hooks";
@@ -44,16 +46,14 @@ import {
   useVouchForWorker,
   useWorkerVetting,
 } from "@/features/workers/hooks";
+import {
+  MAX_TRAVEL_KM,
+  MIN_TRAVEL_KM,
+  TRAVEL_MEANS_OPTIONS,
+  clampTravelKm,
+} from "@/core/format/travel";
 
 type Props = { tabBar: ReactNode };
-
-const TRAVEL_MEANS_OPTIONS = [
-  "Walking",
-  "Kombi / bus",
-  "Bicycle",
-  "Motorbike",
-  "Own vehicle",
-] as const;
 
 const GRADE_TIERS: readonly {
   grade: Grade;
@@ -126,7 +126,8 @@ export function AccountScreen({ tabBar }: Props) {
   const [suburbOverride, setSuburbOverride] = useState<string | null>(null);
   const suburbDraft = suburbOverride ?? initialSuburb;
   const [isSuburbOpen, setIsSuburbOpen] = useState(false);
-  const [travelKm, setTravelKm] = useState(user?.travel_km ?? profile.travelKm);
+  const [travelDraft, setTravelDraft] = useState<number | null>(null);
+  const travelKm: number = clampTravelKm(travelDraft ?? user?.travel_km ?? profile.travelKm);
   const [travelMeans, setTravelMeans] = useState(
     serviceAreas.data?.[0]?.travel_means || profile.travelMeans || "Kombi / bus",
   );
@@ -184,6 +185,11 @@ export function AccountScreen({ tabBar }: Props) {
   const vouchCount = vetting.data?.vouch_count ?? 0;
   const hasIdVerified = Boolean(vetting.data?.id_photo_url) || currentGradeRank >= 1;
   const canVouchForPeers = currentGrade === "JOURNEYMAN" || currentGrade === "EXPERT";
+  // Only once the server has confirmed the tier, and only for a tier this phone hasn't celebrated.
+  const gradeToCelebrate: Grade | null =
+    isWorker && vetting.isSuccess && currentGradeRank > GRADE_ORDER[profile.celebratedGrade]
+      ? currentGrade
+      : null;
 
   // Employer computed metrics
   const employerActiveList = useMemo(
@@ -484,6 +490,11 @@ export function AccountScreen({ tabBar }: Props) {
             </span>
             {isSwitchingRole && <span className="meta">Switching…</span>}
           </div>
+          <p className="meta" style={{ lineHeight: 1.45 }}>
+            {hasBothSides(user)
+              ? "This account hires and finds work. Switching keeps both profiles, jobs and messages."
+              : "One account can do both. Switching sets up the other side and keeps everything you have now."}
+          </p>
           <div className="segmented segmented--choice" role="group" aria-label="Account mode">
             <button
               type="button"
@@ -628,11 +639,12 @@ export function AccountScreen({ tabBar }: Props) {
                 id="acc-travel-km"
                 className="range"
                 type="range"
-                min={1}
-                max={50}
+                min={MIN_TRAVEL_KM}
+                max={MAX_TRAVEL_KM}
                 value={travelKm}
+                aria-valuetext={`${travelKm} kilometres`}
                 onChange={(event) => {
-                  setTravelKm(Number(event.target.value));
+                  setTravelDraft(clampTravelKm(Number(event.target.value)));
                   setLocationFeedback(null);
                 }}
               />
@@ -995,7 +1007,7 @@ export function AccountScreen({ tabBar }: Props) {
               </Link>
               <Link href="/employer/workers" className="btn btn--soft">
                 <Icon name="users" size={16} />
-                Browse nearby workers
+                Find workers
               </Link>
             </div>
           </section>
@@ -1200,6 +1212,14 @@ export function AccountScreen({ tabBar }: Props) {
           Sign out
         </button>
       </section>
+
+      {gradeToCelebrate !== null && (
+        <Celebration
+          title={`You're now ${gradeLabel(gradeToCelebrate)}`}
+          detail="Clients nearby see your new badge, and higher tiers are shown first."
+          onDone={() => updateProfile({ celebratedGrade: gradeToCelebrate })}
+        />
+      )}
 
       {tabBar}
     </Screen>

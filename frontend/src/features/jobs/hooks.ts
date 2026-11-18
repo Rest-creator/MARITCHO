@@ -5,6 +5,7 @@ import {
   fetchAssignedJobs,
   fetchDisputes,
   fetchJob,
+  fetchJobEligibility,
   fetchMatches,
   fetchMyJobs,
   fetchMyOffers,
@@ -24,6 +25,7 @@ import {
 import type {
   Dispute,
   Job,
+  JobEligibility,
   JobOffer,
   JobSearchResult,
   MatchCandidate,
@@ -101,6 +103,20 @@ export function useDisputes(jobId: string, isEnabled: boolean): UseQueryResult<D
     queryKey: queryKeys.disputes(jobId),
     queryFn: () => fetchDisputes(jobId),
     enabled: isEnabled,
+  });
+}
+
+/** Why a job isn't on this worker's list (skills mismatch vs. already filled). */
+export function useJobEligibility(
+  jobId: string,
+  isEnabled: boolean,
+): UseQueryResult<JobEligibility> {
+  return useQuery({
+    queryKey: queryKeys.jobEligibility(jobId),
+    queryFn: () => fetchJobEligibility(jobId),
+    enabled: isEnabled,
+    staleTime: 60_000,
+    retry: false,
   });
 }
 

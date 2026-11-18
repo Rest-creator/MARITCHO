@@ -44,9 +44,14 @@ class JSONLogFormatter(logging.Formatter):
             "trace_id": getattr(record, "otelTraceID", "0" * 32),
             "span_id": getattr(record, "otelSpanID", "0" * 16),
         }
+        # Structured audit fields (e.g. job eligibility denials) travel as
+        # `logger.warning(msg, extra={"audit": {...}})` and stay queryable.
+        audit = getattr(record, "audit", None)
+        if isinstance(audit, dict):
+            payload["audit"] = audit
         if record.exc_info:
             payload["exception"] = self.formatException(record.exc_info)
-        return json.dumps(payload)
+        return json.dumps(payload, default=str)
 
 
 _handler = logging.StreamHandler()
@@ -55,13 +60,16 @@ _handler.addFilter(TraceIDFilter())
 logging.basicConfig(level=logging.INFO, handlers=[_handler], force=True)
 logger = logging.getLogger("maricho-api")
 
+
 def setup_telemetry(app: FastAPI, service_name: str) -> None:
     # Build Resource definitions conforming to OTel semantic conventions
-    resource = Resource.create(attributes={
-        "service.name": service_name,
-        "service.version": os.getenv("APP_VERSION", "1.0.0"),
-        "deployment.environment": os.getenv("APP_ENV", "production")
-    })
+    resource = Resource.create(
+        attributes={
+            "service.name": service_name,
+            "service.version": os.getenv("APP_VERSION", "1.0.0"),
+            "deployment.environment": os.getenv("APP_ENV", "production"),
+        }
+    )
 
     # Configure Tracer Provider
     provider = TracerProvider(resource=resource)
@@ -76,8 +84,6 @@ def setup_telemetry(app: FastAPI, service_name: str) -> None:
 
     # Auto-instrument FastAPI
     FastAPIInstrumentor.instrument_app(
-        app,
-        tracer_provider=provider,
-        excluded_urls="health/live,health/ready,metrics"
+        app, tracer_provider=provider, excluded_urls="health/live,health/ready,metrics"
     )
     logger.info("OpenTelemetry trace instrumentation initialized.")

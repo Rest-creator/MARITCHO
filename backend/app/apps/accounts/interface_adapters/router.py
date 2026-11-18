@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from opentelemetry import trace
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.apps.accounts.domain.entities import Person
+from app.apps.accounts.domain.entities import SELF_SERVICE_ROLES, Person
 from app.apps.accounts.domain.repositories import PersonRepository
 from app.apps.accounts.domain.services import SignInUseCase, SignUpUseCase
 from app.apps.accounts.interface_adapters.dependencies import (
@@ -26,7 +26,6 @@ from app.shared_kernel.enums import RoleEnum
 
 router = APIRouter(tags=["accounts"])
 tracer = trace.get_tracer(__name__)
-_SELF_SWITCHABLE_ROLES = {RoleEnum.BUYER, RoleEnum.WORKER}
 
 
 @router.post("/auth/signup", response_model=TokenOut)
@@ -71,14 +70,18 @@ async def update_users_me(
         if "role" in values and values["role"] is not None:
             target_role = values["role"]
             if (
-                target_role not in _SELF_SWITCHABLE_ROLES
-                or current_user.role not in _SELF_SWITCHABLE_ROLES
+                target_role not in SELF_SERVICE_ROLES
+                or current_user.role not in SELF_SERVICE_ROLES
             ):
                 raise HTTPException(
                     status_code=422,
                     detail="Can only switch between BUYER and WORKER roles",
                 )
+            # Switching mode unlocks the new side and keeps the old one: one
+            # account hires and finds work, with both profiles intact.
+            current_user.roles = current_user.capabilities | {target_role}
             current_user.role = target_role
+            span.set_attribute("user.roles", sorted(r.value for r in current_user.roles))
 
         if "display_name" in values:
             current_user.display_name = values["display_name"]
@@ -90,7 +93,7 @@ async def update_users_me(
 
         for key in ("is_available", "travel_km"):
             if key in values and values[key] is not None:
-                if current_user.role != RoleEnum.WORKER:
+                if not current_user.acts_as(RoleEnum.WORKER):
                     continue
                 setattr(current_user, key, values[key])
 

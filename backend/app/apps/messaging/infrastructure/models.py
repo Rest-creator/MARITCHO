@@ -8,6 +8,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.apps.messaging.domain.entities import MessageTypeEnum
 from app.core.database import Base
+from app.shared_kernel.clock import utcnow
 
 
 class MessageModel(Base):
@@ -28,7 +29,7 @@ class MessageModel(Base):
     duration_seconds: Mapped[int | None] = mapped_column(Integer)
     latitude: Mapped[Decimal | None] = mapped_column(Numeric(9, 6))
     longitude: Mapped[Decimal | None] = mapped_column(Numeric(9, 6))
-    created_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), default=datetime.utcnow
-    )
+    # Aware UTC: a naive utcnow() went straight into the POST response and the
+    # WebSocket payload without an offset, and browsers showed it 2h early.
+    created_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=utcnow)
     read_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

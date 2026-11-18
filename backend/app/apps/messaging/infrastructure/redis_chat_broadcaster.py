@@ -1,10 +1,12 @@
 import json
 import uuid
+from datetime import datetime
 
 import redis.asyncio as aioredis
 
 from app.apps.messaging.domain.entities import Message
 from app.apps.messaging.domain.repositories import ChatBroadcaster
+from app.shared_kernel.clock import as_utc
 
 
 def channel_name(job_id: uuid.UUID) -> str:
@@ -25,10 +27,16 @@ def _message_to_json(message: Message) -> str:
             "duration_seconds": message.duration_seconds,
             "latitude": str(message.latitude) if message.latitude is not None else None,
             "longitude": str(message.longitude) if message.longitude is not None else None,
-            "created_at": message.created_at.isoformat() if message.created_at else None,
-            "read_at": message.read_at.isoformat() if message.read_at else None,
+            "created_at": _iso_utc(message.created_at),
+            "read_at": _iso_utc(message.read_at),
         }
     )
+
+
+def _iso_utc(value: datetime | None) -> str | None:
+    """Always with an offset, so browsers don't read UTC as local time."""
+    normalized = as_utc(value)
+    return normalized.isoformat() if normalized is not None else None
 
 
 class RedisChatBroadcaster(ChatBroadcaster):

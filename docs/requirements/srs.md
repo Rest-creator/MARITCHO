@@ -1,7 +1,7 @@
-# Maricho Software Requirements Specification (SRS)
+# Maritcho Software Requirements Specification (SRS)
 
 ## 1. System Architecture Constraints
-Maricho is built to operate under severe physical constraints: inexpensive Android phones, tiny data bundles, and frequent power/signal losses.
+Maritcho is built to operate under severe physical constraints: inexpensive Android phones, tiny data bundles, and frequent power/signal losses.
 
 - **Offline-First Architecture:** The client applications (PWA and native) must queue state mutations (check-ins, photo uploads, quotes) locally when offline.
 - **Data Conservation (Light Mode):** The UI must default to text-first. Images are only downloaded on explicit request. All uploaded photographs must be aggressively compressed on the client device before transmission.

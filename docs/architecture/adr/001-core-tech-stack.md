@@ -4,11 +4,11 @@
 Accepted
 
 ## Context
-Maricho operates in Bulawayo, Zimbabwe, where users face intermittent power, expensive cellular data, and utilize low-end Android devices. The system requires an offline-first architecture, highly concurrent backend processing for job matching, and strict relational data integrity for ledger management. We must also align with our SDLC and Engineering Standards (ISO 12207 / NIST SSDF).
+Maritcho operates in Bulawayo, Zimbabwe, where users face intermittent power, expensive cellular data, and utilize low-end Android devices. The system requires an offline-first architecture, highly concurrent backend processing for job matching, and strict relational data integrity for ledger management. We must also align with our SDLC and Engineering Standards (ISO 12207 / NIST SSDF).
 
 ## Decision
 1. **Backend:** We will use **FastAPI (Python)**. It provides native async support, out-of-the-box OpenAPI v3 generation, and excellent Pydantic validation to protect against malformed data inputs.
-2. **Database:** We will use **PostgreSQL**. The immutable nature of Maricho's "Record Entry" and "Ledger Entry" requires ACID compliance and strong relational constraints.
+2. **Database:** We will use **PostgreSQL**. The immutable nature of Maritcho's "Record Entry" and "Ledger Entry" requires ACID compliance and strong relational constraints.
 3. **Database Pooling:** We will enforce async connection pooling (`pool_size=10`, `max_overflow=5`, `pool_pre_ping=True`) to prevent connection starvation during network reconnection spikes. Sized per instance against a connection budget (`replica_count × pool ≤ Postgres max_connections`) — see `docs/engineering_standards.md` §3.
 4. **Mobile Client:** We will use **Flutter**. This allows us to build robust offline-first synchronization using local SQLite/SharedPreferences, providing high performance on low-end devices and consistent rendering across platforms.
 5. **Background Jobs:** We will use **Redis + Celery (or ARQ)**. Heavy tasks like image compression, WhatsApp webhook processing, and dispute notification routing must not block the synchronous HTTP threads.

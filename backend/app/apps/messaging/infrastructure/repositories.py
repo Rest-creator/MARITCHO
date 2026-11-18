@@ -1,6 +1,5 @@
 import uuid
 from collections.abc import Sequence
-from datetime import datetime
 from decimal import Decimal
 
 from sqlalchemy import select, update
@@ -9,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.apps.messaging.domain.entities import Message, MessageTypeEnum
 from app.apps.messaging.domain.repositories import MessageRepository
 from app.apps.messaging.infrastructure.models import MessageModel
+from app.shared_kernel.clock import as_utc, utcnow
 
 
 def _message_to_entity(model: MessageModel) -> Message:
@@ -22,8 +22,8 @@ def _message_to_entity(model: MessageModel) -> Message:
         duration_seconds=model.duration_seconds,
         latitude=model.latitude,
         longitude=model.longitude,
-        created_at=model.created_at,
-        read_at=model.read_at,
+        created_at=as_utc(model.created_at),
+        read_at=as_utc(model.read_at),
     )
 
 
@@ -57,17 +57,24 @@ class SqlAlchemyMessageRepository(MessageRepository):
         await self._db.flush()
         return _message_to_entity(model)
 
-    async def list_by_job(
-        self, job_id: uuid.UUID, *, limit: int, offset: int
-    ) -> Sequence[Message]:
-        result = await self._db.execute(
+    async def list_by_job(self, job_id: uuid.UUID, *, limit: int, offset: int) -> Sequence[Message]:
+        """The *latest* `limit` messages (skipping the newest `offset`),
+        returned oldest-first for display.
+
+        Previously this returned the oldest page: once a conversation passed
+        one page, new messages never came back from GET, and the client's
+        periodic refetch wiped them from the screen."""
+        newest_first = (
             select(MessageModel)
             .where(MessageModel.job_id == job_id)
-            .order_by(MessageModel.created_at)
+            .order_by(MessageModel.created_at.desc(), MessageModel.id.desc())
             .limit(limit)
             .offset(offset)
         )
-        return [_message_to_entity(model) for model in result.scalars().all()]
+        result = await self._db.execute(newest_first)
+        page = list(result.scalars().all())
+        page.reverse()
+        return [_message_to_entity(model) for model in page]
 
     async def mark_read(self, job_id: uuid.UUID, reader_id: uuid.UUID) -> None:
         await self._db.execute(
@@ -77,6 +84,6 @@ class SqlAlchemyMessageRepository(MessageRepository):
                 MessageModel.sender_id != reader_id,
                 MessageModel.read_at.is_(None),
             )
-            .values(read_at=datetime.utcnow())
+            .values(read_at=utcnow())
         )
         await self._db.flush()

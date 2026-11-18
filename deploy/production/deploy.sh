@@ -101,6 +101,17 @@ done
 test "\$db_ready" = true
 echo "db is ready"
 
+# Photo/voice uploads: the media volume was first created root-owned (before
+# the image shipped the directory), while the API runs as the unprivileged
+# "app" user, so every upload failed with PermissionError (HTTP 500). Re-own it
+# on every deploy (idempotent, cheap) and prove "app" can write before rolling.
+# (No backticks in this heredoc: it is unquoted, so they would run locally.)
+echo "Ensuring the media volume is writable by the api user"
+"\${COMPOSE[@]}" run --rm --no-deps --user 0 --entrypoint sh api -c \\
+    'mkdir -p /var/lib/maricho/media && chown -R app:app /var/lib/maricho/media' < /dev/null
+"\${COMPOSE[@]}" run --rm --no-deps --entrypoint sh api -c \\
+    'probe=/var/lib/maricho/media/.write-probe && touch "\$probe" && rm -f "\$probe"' < /dev/null
+
 echo "=================================================="
 echo "Rolling out api/frontend"
 echo "=================================================="

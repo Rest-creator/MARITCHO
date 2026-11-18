@@ -22,6 +22,14 @@ class MessageCreate(BaseModel):
         return strip_tags(value) if value is not None else value
 
 
+class ConversationUnreadOut(BaseModel):
+    job_id: uuid.UUID
+    unread_count: int
+    last_message_at: datetime | None
+    last_message_preview: str | None
+    last_sender_id: uuid.UUID | None
+
+
 class MessageOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

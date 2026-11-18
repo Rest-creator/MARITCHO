@@ -1,5 +1,5 @@
 /*
- * Maricho service worker — keeps the app shell usable on patchy signal.
+ * Maritcho service worker — keeps the app shell usable on patchy signal.
  *
  *  - /_next/static, icons, fonts: cache-first (content-hashed, immutable).
  *  - Page navigations: network-first, falling back to the last cached copy

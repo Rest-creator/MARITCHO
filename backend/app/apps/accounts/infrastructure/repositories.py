@@ -9,7 +9,7 @@ from app.apps.accounts.infrastructure.models import PersonModel
 from app.shared_kernel.enums import RoleEnum
 
 
-def _to_entity(model: PersonModel) -> Person:
+def person_from_model(model: PersonModel) -> Person:
     return Person(
         id=model.id,
         phone=model.phone,
@@ -22,7 +22,17 @@ def _to_entity(model: PersonModel) -> Person:
         travel_km=model.travel_km,
         home_suburb=model.home_suburb,
         password_hash=model.password_hash,
+        roles=_roles_from_storage(model.roles),
     )
+
+
+def _roles_from_storage(values: list[str] | None) -> frozenset[RoleEnum]:
+    known = {role.value for role in RoleEnum}
+    return frozenset(RoleEnum(value) for value in (values or []) if value in known)
+
+
+def _roles_for_storage(person: Person) -> list[str]:
+    return sorted(role.value for role in person.capabilities)
 
 
 class SqlAlchemyPersonRepository(PersonRepository):
@@ -31,18 +41,19 @@ class SqlAlchemyPersonRepository(PersonRepository):
 
     async def get_by_id(self, person_id: uuid.UUID) -> Person | None:
         model = await self._db.get(PersonModel, person_id)
-        return _to_entity(model) if model else None
+        return person_from_model(model) if model else None
 
     async def get_by_phone(self, phone: str) -> Person | None:
         result = await self._db.execute(select(PersonModel).where(PersonModel.phone == phone))
         model = result.scalars().first()
-        return _to_entity(model) if model else None
+        return person_from_model(model) if model else None
 
     async def update(self, person: Person) -> None:
         model = await self._db.get(PersonModel, person.id)
         if model is None:
             return
         model.role = person.role
+        model.roles = _roles_for_storage(person)
         model.display_name = person.display_name
         model.is_available = person.is_available
         model.travel_km = person.travel_km
@@ -59,8 +70,12 @@ class SqlAlchemyPersonRepository(PersonRepository):
         display_name: str | None = None,
     ) -> Person:
         model = PersonModel(
-            phone=phone, role=role, password_hash=password_hash, display_name=display_name
+            phone=phone,
+            role=role,
+            roles=[role.value],
+            password_hash=password_hash,
+            display_name=display_name,
         )
         self._db.add(model)
         await self._db.flush()
-        return _to_entity(model)
+        return person_from_model(model)

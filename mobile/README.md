@@ -1,4 +1,4 @@
-# Maricho mobile (Flutter)
+# Maritcho mobile (Flutter)
 
 The worker-first Android app: find jobs, offer, get hired, and do the work on site — with or
 without signal. Architecture rules live in [`AGENTS.md`](../AGENTS.md) (feature-first folders,

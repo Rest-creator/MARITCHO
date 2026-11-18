@@ -1,8 +1,18 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Integer, String
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import (
+    Boolean,
+    ColumnElement,
+    DateTime,
+    Enum,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    or_,
+)
+from sqlalchemy.dialects.postgresql import ARRAY, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
@@ -11,9 +21,16 @@ from app.shared_kernel.enums import RoleEnum
 
 class PersonModel(Base):
     __tablename__ = "persons"
+    __table_args__ = (Index("ix_persons_roles", "roles", postgresql_using="gin"),)
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     phone: Mapped[str] = mapped_column(String(20), unique=True, nullable=False)
+    # Active mode: drives navigation and which side shared screens act as.
     role: Mapped[RoleEnum] = mapped_column(Enum(RoleEnum), nullable=False)
+    # Capabilities this account has unlocked (role values). One account can
+    # hire and find work; switching modes never removes the other side.
+    roles: Mapped[list[str]] = mapped_column(
+        ARRAY(String(16)), nullable=False, default=list, server_default="{}"
+    )
     # See docs/architecture/database_schema_design.md §2.8: this asymmetry
     # (guarantor_id is a proper FK, next_of_kin_phone is a bare string) is
     # intentional — a guarantor is expected to be a registered person, a
@@ -31,3 +48,11 @@ class PersonModel(Base):
     travel_km: Mapped[int] = mapped_column(Integer, nullable=False, default=50)
     home_suburb: Mapped[str | None] = mapped_column(String(100), ForeignKey("suburbs.name"))
     password_hash: Mapped[str | None] = mapped_column(String(255))
+
+
+def person_can_act_as(role: RoleEnum) -> ColumnElement[bool]:
+    """SQL filter: the person has `role` as a capability (any active mode)."""
+    return or_(
+        PersonModel.role == role,
+        PersonModel.roles.any(role.value),  # type: ignore[arg-type]  # ARRAY.any() takes a scalar; mypy's PropComparator stub doesn't know that overload
+    )

@@ -1,6 +1,6 @@
-# Maricho frontend (PWA)
+# Maritcho frontend (PWA)
 
-The web client for Maricho, built to the approved app UI in [`/wireframes`](../wireframes).
+The web client for Maritcho, built to the approved app UI in [`/wireframes`](../wireframes).
 Next.js 16 (App Router) · React 19 · TypeScript (strict) · TanStack Query · zod.
 Conventions follow the ECC React / TypeScript / web rules.
 

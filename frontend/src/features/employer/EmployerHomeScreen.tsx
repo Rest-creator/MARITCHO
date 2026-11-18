@@ -62,7 +62,7 @@ export function EmployerHomeScreen() {
           <Icon name="search" size={22} />
         </span>
         <div className="grow">
-          <div style={{ fontSize: 17, fontWeight: 700 }}>What needs doing?</div>
+          <div style={{ fontSize: 17, fontWeight: 700 }}>What needs to be done?</div>
           <div className="meta meta--secondary" style={{ marginTop: 2, fontSize: 13 }}>
             A leaking tap, a broken gate, a solar fault…
           </div>
@@ -106,7 +106,7 @@ export function EmployerHomeScreen() {
           )}
           {jobs.data && active.length === 0 && recentDone.length === 0 && (
             <EmptyState title="No jobs yet" icon="briefcase">
-              Post what needs doing — checked workers nearby will offer to help.
+              Post what needs to be done, and checked workers nearby will offer to help.
             </EmptyState>
           )}
           {active.slice(0, 3).map((job) => (

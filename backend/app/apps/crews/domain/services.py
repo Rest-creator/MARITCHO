@@ -98,7 +98,7 @@ class AddCrewMemberUseCase:
             raise NotFoundError("No crew registered")
 
         worker = await self._persons.get_by_id(worker_id)
-        if worker is None or worker.role != RoleEnum.WORKER:
+        if worker is None or not worker.acts_as(RoleEnum.WORKER):
             raise ValidationConflictError("worker_id does not refer to a registered worker")
 
         try:

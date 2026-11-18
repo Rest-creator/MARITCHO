@@ -11,7 +11,7 @@ import { Screen } from "@/components/ui/Screen";
 import { EmptyState, ErrorState, Skeleton } from "@/components/ui/States";
 import { distanceBandLabel, formatKm, formatMoney, formatRelativeTime } from "@/core/format/format";
 import { tradeLabel } from "@/core/format/trades";
-import { useMyOffers, useOpenJobs, useSubmitOffer } from "@/features/jobs/hooks";
+import { useJobEligibility, useMyOffers, useOpenJobs, useSubmitOffer } from "@/features/jobs/hooks";
 import { splitTiming } from "@/features/jobs/job-helpers";
 import { parseOfferAmount } from "@/features/worker/money-input";
 
@@ -28,6 +28,9 @@ export function JobDetailScreen({ jobId }: Props) {
   const submitOffer = useSubmitOffer();
   const job = openJobs.data?.find((item) => item.job_id === jobId);
   const existing = offers.data?.find((offer) => offer.job_id === jobId);
+  // Only asked when the job isn't on the worker's (skill-filtered) list.
+  const eligibility = useJobEligibility(jobId, openJobs.isSuccess && job === undefined);
+  const isSkillMismatch: boolean = eligibility.data?.is_eligible === false;
 
   const [price, setPrice] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
@@ -52,6 +55,19 @@ export function JobDetailScreen({ jobId }: Props) {
         </div>
         {openJobs.isError ? (
           <ErrorState message={openJobs.error.message} onRetry={() => void openJobs.refetch()} />
+        ) : eligibility.isPending && eligibility.fetchStatus !== "idle" ? (
+          <Skeleton height={160} />
+        ) : isSkillMismatch && eligibility.data ? (
+          <EmptyState title="This job isn't a match for your skills" icon="briefcase">
+            <span style={{ display: "block" }}>{eligibility.data.reason}</span>
+            <Link
+              href="/worker/skills"
+              className="btn btn--soft btn--sm"
+              style={{ marginTop: 12, display: "inline-flex" }}
+            >
+              Add a skill
+            </Link>
+          </EmptyState>
         ) : (
           <EmptyState title="This job has been filled" icon="briefcase">
             The client may already have hired someone. There are more jobs on your list.

@@ -17,7 +17,20 @@ const decimal = z.union([z.string(), z.number()]).transform((value, ctx) => {
 });
 const nullableDecimal = decimal.nullable();
 const uuid = z.string().min(1);
-const isoDate = z.string().min(1);
+const HAS_OFFSET = /(?:[zZ]|[+-]\d{2}(?::?\d{2})?)$/;
+const IS_DATE_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/;
+
+/**
+ * The API writes times in UTC, but some responses (a just-sent message, the
+ * live chat socket, offline-cached data) arrived without an offset, e.g.
+ * "2026-11-17T10:00:00". `new Date()` reads that as *local* time, so messages
+ * showed 2 hours early in Zimbabwe. Date-times without an offset are UTC.
+ */
+export function normalizeIsoDate(value: string): string {
+  return IS_DATE_TIME.test(value) && !HAS_OFFSET.test(value) ? `${value}Z` : value;
+}
+
+const isoDate = z.string().min(1).transform(normalizeIsoDate);
 
 export const roleSchema = z.enum(["BUYER", "WORKER", "OPS", "AGGREGATOR"]);
 export const tradeSchema = z.enum([
@@ -63,7 +76,9 @@ export const tokenSchema = z.object({
   token_type: z.string(),
 });
 
+/** Every side the account can use; `role` is the one it's in right now. */
 export const userSchema = z.object({
+  roles: z.array(roleSchema).optional(),
   id: uuid,
   phone: z.string(),
   role: roleSchema,
@@ -200,6 +215,22 @@ export const recordEntrySchema = z.object({
   before_photo_url: z.string().nullable(),
   after_photo_url: z.string().nullable(),
   signed_off_at: isoDate,
+});
+
+export const jobEligibilitySchema = z.object({
+  is_eligible: z.boolean(),
+  required_trade: tradeSchema,
+  matched_by: z.enum(["TRADE", "SIMILARITY"]).nullable(),
+  similarity_score: z.number().nullable(),
+  reason: z.string(),
+});
+
+export const conversationUnreadSchema = z.object({
+  job_id: uuid,
+  unread_count: z.number().int().nonnegative(),
+  last_message_at: isoDate.nullable(),
+  last_message_preview: z.string().nullable(),
+  last_sender_id: uuid.nullable(),
 });
 
 export const messageSchema = z.object({
@@ -343,6 +374,8 @@ export type MatchCandidate = z.infer<typeof matchCandidateSchema>;
 export type Dispute = z.infer<typeof disputeSchema>;
 export type RecordEntry = z.infer<typeof recordEntrySchema>;
 export type Message = z.infer<typeof messageSchema>;
+export type ConversationUnread = z.infer<typeof conversationUnreadSchema>;
+export type JobEligibility = z.infer<typeof jobEligibilitySchema>;
 export type Skill = z.infer<typeof skillSchema>;
 export type ServiceArea = z.infer<typeof serviceAreaSchema>;
 export type Standing = z.infer<typeof standingSchema>;

@@ -102,7 +102,7 @@ class _PostJobPageState extends State<PostJobPage> {
                       DropdownButtonFormField<String>(
                         initialValue: _trade,
                         decoration: const InputDecoration(
-                          labelText: 'What needs doing?',
+                          labelText: 'What needs to be done?',
                         ),
                         items: [
                           for (final (label, value) in _trades)
