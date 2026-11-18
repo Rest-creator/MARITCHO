@@ -35,7 +35,7 @@ async def _require_job_party(
     jobs: JobRepository,
     job_id: uuid.UUID,
     user_id: uuid.UUID,
-    user_role: RoleEnum,
+    user_capabilities: frozenset[RoleEnum],
     offers: JobOfferRepository | None = None,
 ) -> None:
     job = await jobs.get(job_id)
@@ -45,12 +45,12 @@ async def _require_job_party(
     if (
         not is_party
         and offers is not None
-        and user_role == RoleEnum.WORKER
+        and RoleEnum.WORKER in user_capabilities
         and job.status in _OFFER_GRANTS_PARTY_STATUSES
     ):
         job_offers = await offers.get_for_job(job_id)
         is_party = user_id in job_offers
-    if not is_party and user_role != RoleEnum.OPS:
+    if not is_party and RoleEnum.OPS not in user_capabilities:
         raise ForbiddenError("Not permitted to view this job's messages")
 
 
@@ -78,7 +78,7 @@ class SendMessageUseCase:
         *,
         job_id: uuid.UUID,
         sender_id: uuid.UUID,
-        sender_role: RoleEnum,
+        sender_capabilities: frozenset[RoleEnum],
         message_type: MessageTypeEnum,
         body: str | None,
         media_url: str | None,
@@ -86,7 +86,7 @@ class SendMessageUseCase:
         latitude: Decimal | None,
         longitude: Decimal | None,
     ) -> Message:
-        await _require_job_party(self._jobs, job_id, sender_id, sender_role, self._offers)
+        await _require_job_party(self._jobs, job_id, sender_id, sender_capabilities, self._offers)
         _validate_message_payload(message_type, body, media_url, latitude, longitude)
 
         message = await self._messages.add(
@@ -120,13 +120,13 @@ class ListMessagesUseCase:
         self,
         job_id: uuid.UUID,
         current_user_id: uuid.UUID,
-        current_user_role: RoleEnum,
+        current_user_capabilities: frozenset[RoleEnum],
         *,
         limit: int,
         offset: int,
     ) -> Sequence[Message]:
         await _require_job_party(
-            self._jobs, job_id, current_user_id, current_user_role, self._offers
+            self._jobs, job_id, current_user_id, current_user_capabilities, self._offers
         )
         return await self._messages.list_by_job(job_id, limit=limit, offset=offset)
 
@@ -145,8 +145,8 @@ class MarkMessagesReadUseCase:
         self._offers = offers
 
     async def execute(
-        self, job_id: uuid.UUID, reader_id: uuid.UUID, reader_role: RoleEnum
+        self, job_id: uuid.UUID, reader_id: uuid.UUID, reader_capabilities: frozenset[RoleEnum]
     ) -> None:
-        await _require_job_party(self._jobs, job_id, reader_id, reader_role, self._offers)
+        await _require_job_party(self._jobs, job_id, reader_id, reader_capabilities, self._offers)
         await self._messages.mark_read(job_id, reader_id)
         await self._uow.commit()

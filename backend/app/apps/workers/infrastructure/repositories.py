@@ -8,11 +8,8 @@ from sqlalchemy import desc, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.apps.accounts.infrastructure.models import (
-    PersonModel,
-    model_can_act_as,
-    person_can_act_as,
-)
+from app.apps.accounts.infrastructure.models import PersonModel, person_can_act_as
+from app.apps.accounts.infrastructure.repositories import person_from_model
 from app.apps.jobs.infrastructure.models import JobModel, RecordEntryModel
 from app.apps.jobs.infrastructure.review_models import ReviewModel
 from app.apps.workers.domain.entities import (
@@ -411,8 +408,8 @@ class SqlAlchemyWorkerDirectoryRepository(WorkerDirectoryRepository):
     async def get_public_profile(
         self, worker_id: uuid.UUID
     ) -> tuple[WorkerPublicProfile, list[tuple[str, str | None]]] | None:
-        person = await self._db.get(PersonModel, worker_id)
-        if person is None or not model_can_act_as(person, RoleEnum.WORKER):
+        person_model = await self._db.get(PersonModel, worker_id)
+        if person_model is None or not person_from_model(person_model).acts_as(RoleEnum.WORKER):
             return None
 
         skills_result = await self._db.execute(
@@ -436,8 +433,8 @@ class SqlAlchemyWorkerDirectoryRepository(WorkerDirectoryRepository):
         areas: list[tuple[str, str | None]] = [
             (area.suburb, area.travel_means) for area in areas_result.scalars().all()
         ]
-        if not areas and person.home_suburb:
-            areas.append((person.home_suburb, None))
+        if not areas and person_model.home_suburb:
+            areas.append((person_model.home_suburb, None))
 
         standing = await self._db.get(StandingModel, worker_id)
         rating_row = (
@@ -476,13 +473,13 @@ class SqlAlchemyWorkerDirectoryRepository(WorkerDirectoryRepository):
             for rec in records_result.scalars().all()
         ]
 
-        primary_suburb = areas[0][0] if areas else person.home_suburb
+        primary_suburb = areas[0][0] if areas else person_model.home_suburb
         primary_means = areas[0][1] if areas else None
         service_area_names = list(dict.fromkeys(suburb for suburb, _ in areas))
 
         profile = WorkerPublicProfile(
-            worker_id=person.id,
-            display_name=person.display_name,
+            worker_id=person_model.id,
+            display_name=person_model.display_name,
             suburb=primary_suburb,
             trades=trades,
             proof_urls=proof_urls,
@@ -509,8 +506,8 @@ class SqlAlchemyWorkerDirectoryRepository(WorkerDirectoryRepository):
             ),
             rating_average=rating_avg,
             rating_count=rating_cnt,
-            is_available=person.is_available,
-            travel_km=person.travel_km,
+            is_available=person_model.is_available,
+            travel_km=person_model.travel_km,
             travel_means=primary_means,
             service_areas=service_area_names,
             reference_count=int(ref_count),
