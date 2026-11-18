@@ -297,7 +297,7 @@ class ListOpenJobsForWorkerUseCase:
             for job in candidate_jobs
             if evaluate_job_eligibility(
                 job_trade=job.trade,
-                problem_description=job.problem_description,
+                problem_description=job.problem_description or "",
                 worker_skills=skills,
             ).is_eligible
         ]
@@ -327,7 +327,7 @@ class ListOpenJobsForWorkerUseCase:
                 trade=job.trade,
                 suburb=job.suburb,
                 budget_amount=job.budget_amount,
-                problem_description=job.problem_description,
+                problem_description=job.problem_description or "",
                 created_at=job.created_at,
                 distance_band=band,
                 distance_km=round(km, 1),
@@ -405,7 +405,7 @@ class SearchOpenJobsUseCase:
                 worker_skills is not None
                 and not evaluate_job_eligibility(
                     job_trade=job.trade,
-                    problem_description=job.problem_description,
+                    problem_description=job.problem_description or "",
                     worker_skills=worker_skills,
                 ).is_eligible
             ):
@@ -429,7 +429,7 @@ class SearchOpenJobsUseCase:
                     trade=job.trade,
                     suburb=job.suburb,
                     budget_amount=job.budget_amount,
-                    problem_description=job.problem_description,
+                    problem_description=job.problem_description or "",
                     created_at=job.created_at,
                     needed_by=job.needed_by,
                     similarity_score=final_score,
@@ -461,7 +461,7 @@ class CheckJobEligibilityUseCase:
         skills = await self._worker_profiles.get_skills_for_worker(worker_id)
         eligibility = evaluate_job_eligibility(
             job_trade=job.trade,
-            problem_description=job.problem_description,
+            problem_description=job.problem_description or "",
             worker_skills=skills,
         )
         if not eligibility.is_eligible:
@@ -510,7 +510,7 @@ class SubmitJobOfferUseCase:
         skills = await self._worker_profiles.get_skills_for_worker(worker_id)
         eligibility = evaluate_job_eligibility(
             job_trade=job.trade,
-            problem_description=job.problem_description,
+            problem_description=job.problem_description or "",
             worker_skills=skills,
         )
         if not eligibility.is_eligible:
@@ -587,7 +587,7 @@ class BookJobUseCase:
         skills = await self._worker_profiles.get_skills_for_worker(worker_id)
         eligibility = evaluate_job_eligibility(
             job_trade=job.trade,
-            problem_description=job.problem_description,
+            problem_description=job.problem_description or "",
             worker_skills=skills,
         )
         if not eligibility.is_eligible:

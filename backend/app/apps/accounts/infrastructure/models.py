@@ -41,4 +41,7 @@ class PersonModel(Base):
 
 def person_can_act_as(role: RoleEnum) -> ColumnElement[bool]:
     """SQL filter: the person has `role` as a capability (any active mode)."""
-    return or_(PersonModel.role == role, PersonModel.roles.any(role.value))
+    return or_(
+        PersonModel.role == role,
+        PersonModel.roles.any(role.value),  # type: ignore[arg-type]  # ARRAY.any() takes a scalar; mypy's PropComparator stub doesn't know that overload
+    )

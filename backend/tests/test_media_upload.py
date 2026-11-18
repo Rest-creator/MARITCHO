@@ -9,7 +9,7 @@ JPEG_BYTES = b"\xff\xd8\xff\xe0" + b"\x00" * 64 + b"\xff\xd9"
 
 
 @pytest.fixture
-def media_root(tmp_path, monkeypatch) -> Path:
+def media_root(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     """Each test writes to its own temp dir instead of the repo's storage/."""
     root = tmp_path / "media"
     monkeypatch.setattr(media_router, "MEDIA_ROOT", root)

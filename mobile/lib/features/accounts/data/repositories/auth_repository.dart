@@ -78,7 +78,8 @@ class AuthRepository {
     final Object? data = error.response?.data;
     final Object? detail = data is Map ? data['detail'] : null;
     return NetworkFailure(
-      message: detail?.toString() ?? error.message ?? 'Could not reach Maritcho',
+      message:
+          detail?.toString() ?? error.message ?? 'Could not reach Maritcho',
       exception: error,
     );
   }

@@ -6,14 +6,14 @@ from tests.conftest import auth_headers
 from tests.test_messaging import _create_booked_job
 
 
-async def _send(client, job_id: str, sender, body: str) -> dict:
+async def _send(client, job_id: str, sender, body: str) -> dict[str, object]:
     response = await client.post(
         f"/jobs/{job_id}/messages",
         json={"message_type": "TEXT", "body": body},
         headers=auth_headers(sender),
     )
     assert response.status_code == 201, response.text
-    return response.json()
+    return dict(response.json())
 
 
 async def test_sent_message_time_carries_a_utc_offset(client, buyer, worker_factory):
@@ -21,9 +21,10 @@ async def test_sent_message_time_carries_a_utc_offset(client, buyer, worker_fact
     sent = await _send(client, job["id"], buyer, "On my way")
 
     # Without an offset, browsers read UTC as local time (2 hours early in CAT).
-    created = datetime.fromisoformat(sent["created_at"].replace("Z", "+00:00"))
-    assert created.utcoffset() is not None
-    assert created.utcoffset().total_seconds() == 0
+    created = datetime.fromisoformat(str(sent["created_at"]).replace("Z", "+00:00"))
+    offset = created.utcoffset()
+    assert offset is not None
+    assert offset.total_seconds() == 0
 
 
 async def test_history_returns_the_newest_page_oldest_first(client, buyer, worker_factory):

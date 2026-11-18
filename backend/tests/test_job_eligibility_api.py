@@ -18,7 +18,7 @@ PLUMBING_JOB = {
 async def _post_job(client, buyer, payload: dict[str, str]) -> str:
     response = await client.post("/jobs/request", headers=auth_headers(buyer), json=payload)
     assert response.status_code == 201, response.text
-    return response.json()["id"]
+    return str(response.json()["id"])
 
 
 async def test_solar_worker_cannot_offer_on_plumbing_and_the_denial_is_audited(
