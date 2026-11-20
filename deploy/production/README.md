@@ -53,9 +53,18 @@ set up for that URL).
 From the repository root:
 
 ```bash
+deploy/production/deploy.sh
+```
+
+Defaults to the production VPS (`MARICHO_VPS=restk-vps`, `MARICHO_DOMAIN=maricho.restk.tech`,
+`MARICHO_WS_URL=wss://maricho.restk.tech`). `restk-vps` is an SSH config alias
+(`~/.ssh/config`); add it there before deploying from a new machine. Override
+any of the three for a different target:
+
+```bash
 export MARICHO_VPS=deployer@example-vps
-export MARICHO_DOMAIN=maricho.restk.tech
-export MARICHO_WS_URL=wss://maricho.restk.tech
+export MARICHO_DOMAIN=example.com
+export MARICHO_WS_URL=wss://example.com
 deploy/production/deploy.sh
 ```
 

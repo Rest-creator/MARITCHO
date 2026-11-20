@@ -12,10 +12,10 @@ async def _signup(client, phone: str, role: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {response.json()['access_token']}"}
 
 
-async def _me(client, headers: dict[str, str]) -> dict:
+async def _me(client, headers: dict[str, str]) -> dict[str, object]:
     response = await client.get("/users/me", headers=headers)
     assert response.status_code == 200
-    return response.json()
+    return dict(response.json())
 
 
 async def test_switching_mode_keeps_both_sides(client):
