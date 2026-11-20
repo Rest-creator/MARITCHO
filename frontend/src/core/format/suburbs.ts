@@ -9,6 +9,75 @@ export const DEFAULT_SUBURBS: readonly string[] = [
   "Nkulumane",
 ];
 
+export const DEFAULT_SUBURB_COORDS: readonly Suburb[] = [
+  { name: "Entumbane", latitude: -20.22, longitude: 28.55 },
+  { name: "Hillside", latitude: -20.185, longitude: 28.63 },
+  { name: "Kumalo", latitude: -20.175, longitude: 28.645 },
+  { name: "Luveve", latitude: -20.155, longitude: 28.53 },
+  { name: "Njube", latitude: -20.197, longitude: 28.542 },
+  { name: "Nkulumane", latitude: -20.205, longitude: 28.53 },
+];
+
+/**
+ * Combines backend suburb coordinates with the seeded pilot centroids so
+ * GPS nearest-suburb detection works even offline or before the list loads.
+ */
+export function mergeSuburbCoords(serverSuburbs: readonly Suburb[] | undefined): Suburb[] {
+  const seen = new Map<string, Suburb>();
+  for (const item of DEFAULT_SUBURB_COORDS) {
+    seen.set(item.name.toLowerCase(), item);
+  }
+  for (const item of serverSuburbs ?? []) {
+    const trimmed = item.name.trim();
+    if (trimmed !== "" && Number.isFinite(item.latitude) && Number.isFinite(item.longitude)) {
+      seen.set(trimmed.toLowerCase(), {
+        name: trimmed,
+        latitude: item.latitude,
+        longitude: item.longitude,
+      });
+    }
+  }
+  return [...seen.values()].sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/** Great-circle distance in kilometres between two WGS84 coordinates. */
+export function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const toRad = (deg: number): number => (deg * Math.PI) / 180;
+  const r = 6371;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return 2 * r * Math.asin(Math.min(1, Math.sqrt(a)));
+}
+
+/**
+ * Finds the closest suburb centroid to a device GPS reading (`latitude`, `longitude`).
+ */
+export function findNearestSuburb(
+  latitude: number,
+  longitude: number,
+  serverSuburbs?: readonly Suburb[],
+): { suburb: string; distanceKm: number } {
+  const candidates = mergeSuburbCoords(serverSuburbs);
+  let bestSuburb = candidates[0]?.name ?? "Hillside";
+  let bestKm = Number.POSITIVE_INFINITY;
+
+  for (const item of candidates) {
+    const km = haversineKm(latitude, longitude, item.latitude, item.longitude);
+    if (km < bestKm) {
+      bestKm = km;
+      bestSuburb = item.name;
+    }
+  }
+
+  return {
+    suburb: bestSuburb,
+    distanceKm: Number.isFinite(bestKm) ? Math.round(bestKm * 10) / 10 : 0,
+  };
+}
+
 /**
  * Combines backend suburbs with the seeded pilot list so the dropdown works
  * immediately even before the network finishes or while offline.

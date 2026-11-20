@@ -165,6 +165,12 @@ export function PostJobScreen({ initialTrade, initialSkillId, shouldOpenPicker }
       suburb: resolvedLocation.suburb,
       address: resolvedLocation.address,
       ...(location.landmark === "" ? {} : { landmark_narrative: location.landmark }),
+      ...(typeof location.latitude === "number" &&
+      Number.isFinite(location.latitude) &&
+      typeof location.longitude === "number" &&
+      Number.isFinite(location.longitude)
+        ? { latitude: location.latitude, longitude: location.longitude }
+        : {}),
       problem_description: withTiming(
         describeWithSkill(effectiveSkill, description),
         timingLabel(),

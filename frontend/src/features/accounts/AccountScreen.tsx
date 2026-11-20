@@ -21,7 +21,7 @@ import {
   isVerifiedGrade,
   toInternationalPhone,
 } from "@/core/format/format";
-import { matchSuburbs, mergeSuburbs } from "@/core/format/suburbs";
+import { findNearestSuburb, matchSuburbs, mergeSuburbs } from "@/core/format/suburbs";
 import { tradeIcon, tradeLabel } from "@/core/format/trades";
 import { isUploadUnavailable } from "@/core/media/upload";
 import { useMediaUploads } from "@/core/media/use-media-uploads";
@@ -126,6 +126,7 @@ export function AccountScreen({ tabBar }: Props) {
   const [suburbOverride, setSuburbOverride] = useState<string | null>(null);
   const suburbDraft = suburbOverride ?? initialSuburb;
   const [isSuburbOpen, setIsSuburbOpen] = useState(false);
+  const [isLocatingSuburb, setIsLocatingSuburb] = useState(false);
   const [travelDraft, setTravelDraft] = useState<number | null>(null);
   const travelKm: number = clampTravelKm(travelDraft ?? user?.travel_km ?? profile.travelKm);
   const [travelMeans, setTravelMeans] = useState(
@@ -380,39 +381,120 @@ export function AccountScreen({ tabBar }: Props) {
     setTimeout(() => setCopiedWorkerId(false), 2500);
   }
 
+  function handleUseCurrentLocation(): void {
+    if (typeof navigator === "undefined" || !("geolocation" in navigator)) {
+      setLocationFeedback("Location isn't available on this device. Type or pick your suburb.");
+      return;
+    }
+    setIsLocatingSuburb(true);
+    setLocationFeedback(null);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const nearest = findNearestSuburb(
+          position.coords.latitude,
+          position.coords.longitude,
+          suburbsQuery.data,
+        );
+        setSuburbOverride(nearest.suburb);
+        setIsSuburbOpen(false);
+        setIsLocatingSuburb(false);
+        setLocationFeedback(
+          `Detected nearest suburb: ${nearest.suburb} (${nearest.distanceKm} km).`,
+        );
+      },
+      () => {
+        setIsLocatingSuburb(false);
+        setLocationFeedback(
+          "Could not get your location. Check location permission or type your suburb.",
+        );
+      },
+      { enableHighAccuracy: true, timeout: 10_000, maximumAge: 60_000 },
+    );
+  }
+
   const normalisedDraft = suburbDraft.trim().toLowerCase();
-  const suburbMenu: ReactNode =
-    predictedSuburbs.length > 0 ? (
-      <ul
-        id={suburbListboxId}
-        role="listbox"
-        aria-label="Matching suburbs"
-        className="combobox__menu"
-      >
-        {predictedSuburbs.map((option) => {
-          const isSelected = option.toLowerCase() === normalisedDraft;
-          return (
-            <li key={option} role="option" aria-selected={isSelected}>
-              <button
-                type="button"
-                className={
-                  isSelected ? "combobox__option combobox__option--active" : "combobox__option"
-                }
-                onMouseDown={(event) => event.preventDefault()}
-                onClick={() => {
-                  setSuburbOverride(option);
-                  setIsSuburbOpen(false);
-                  setLocationFeedback(null);
-                }}
-              >
-                <span>{option}</span>
-                {isSelected && <span className="combobox__badge">Selected</span>}
-              </button>
-            </li>
-          );
-        })}
-      </ul>
-    ) : null;
+  const hasExactSuburb = availableSuburbs.some((item) => item.toLowerCase() === normalisedDraft);
+  const suburbMenu: ReactNode = (
+    <ul
+      id={suburbListboxId}
+      role="listbox"
+      aria-label="Matching suburbs"
+      className="combobox__menu"
+    >
+      <li role="option" aria-selected={false}>
+        <button
+          type="button"
+          className="combobox__option"
+          disabled={isLocatingSuburb}
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={handleUseCurrentLocation}
+        >
+          <span className="row row--tight">
+            <Icon name="pin" size={16} />
+            <span>
+              {isLocatingSuburb ? "Finding your current location…" : "Use my current location"}
+            </span>
+          </span>
+          <span className="combobox__badge">GPS</span>
+        </button>
+      </li>
+      {predictedSuburbs.map((option) => {
+        const isSelected = option.toLowerCase() === normalisedDraft;
+        return (
+          <li key={option} role="option" aria-selected={isSelected}>
+            <button
+              type="button"
+              className={
+                isSelected ? "combobox__option combobox__option--active" : "combobox__option"
+              }
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => {
+                setSuburbOverride(option);
+                setIsSuburbOpen(false);
+                setLocationFeedback(null);
+              }}
+            >
+              <span>{option}</span>
+              {isSelected && <span className="combobox__badge">Selected</span>}
+            </button>
+          </li>
+        );
+      })}
+      {suburbDraft.trim() !== "" && !hasExactSuburb ? (
+        <li role="option" aria-selected={predictedSuburbs.length === 0}>
+          <button
+            type="button"
+            className="combobox__option"
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={() => {
+              setSuburbOverride(suburbDraft.trim());
+              setIsSuburbOpen(false);
+              setLocationFeedback(null);
+            }}
+          >
+            <span>Use “{suburbDraft.trim()}”</span>
+            <span className="combobox__badge">Write-in</span>
+          </button>
+        </li>
+      ) : (
+        <li role="option" aria-selected={false}>
+          <button
+            type="button"
+            className="combobox__option"
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={() => {
+              setSuburbOverride("");
+              setIsSuburbOpen(true);
+              setLocationFeedback(null);
+            }}
+          >
+            <span>Type another suburb…</span>
+            <span className="combobox__badge">Write-in</span>
+          </button>
+        </li>
+      )}
+    </ul>
+  );
 
   const isPersonalUnchanged =
     name.trim() === (profile.name || user?.display_name || "") &&
@@ -651,9 +733,21 @@ export function AccountScreen({ tabBar }: Props) {
             </div>
 
             <div className="field">
-              <label htmlFor="acc-suburb-input" className="field__label">
-                Home suburb (type or pick)
-              </label>
+              <div className="row row--between row--baseline">
+                <label htmlFor="acc-suburb-input" className="field__label">
+                  Home suburb (type or pick)
+                </label>
+                <button
+                  type="button"
+                  className="text-link row row--tight"
+                  style={{ fontSize: 13 }}
+                  disabled={isLocatingSuburb}
+                  onClick={handleUseCurrentLocation}
+                >
+                  <Icon name="pin" size={14} />
+                  {isLocatingSuburb ? "Finding location…" : "Use my location"}
+                </button>
+              </div>
               <div className="combobox">
                 <input
                   id="acc-suburb-input"
@@ -1028,9 +1122,21 @@ export function AccountScreen({ tabBar }: Props) {
             </div>
 
             <div className="field">
-              <label htmlFor="acc-employer-suburb" className="field__label">
-                Default suburb (type or pick)
-              </label>
+              <div className="row row--between row--baseline">
+                <label htmlFor="acc-employer-suburb" className="field__label">
+                  Default suburb (type or pick)
+                </label>
+                <button
+                  type="button"
+                  className="text-link row row--tight"
+                  style={{ fontSize: 13 }}
+                  disabled={isLocatingSuburb}
+                  onClick={handleUseCurrentLocation}
+                >
+                  <Icon name="pin" size={14} />
+                  {isLocatingSuburb ? "Finding location…" : "Use my location"}
+                </button>
+              </div>
               <div className="combobox">
                 <input
                   id="acc-employer-suburb"
