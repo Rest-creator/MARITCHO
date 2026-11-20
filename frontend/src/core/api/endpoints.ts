@@ -66,6 +66,8 @@ export interface CreateJobInput {
   address: string;
   problem_description: string;
   landmark_narrative?: string;
+  latitude?: number;
+  longitude?: number;
   budget_amount?: number;
   problem_photo_url?: string;
   needed_by?: NeededBy;

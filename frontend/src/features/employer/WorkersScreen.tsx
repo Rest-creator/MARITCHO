@@ -15,7 +15,12 @@ import {
   gradeLabel,
   isVerifiedGrade,
 } from "@/core/format/format";
-import { matchSuburbs, mergeSuburbs, predictSuburb } from "@/core/format/suburbs";
+import {
+  findNearestSuburb,
+  matchSuburbs,
+  mergeSuburbs,
+  predictSuburb,
+} from "@/core/format/suburbs";
 import { tradeIcon, tradeLabel, TRADES } from "@/core/format/trades";
 import { useDebouncedValue } from "@/core/hooks/useDebouncedValue";
 import { updateProfile, useLocalProfile } from "@/core/session/profile-store";
@@ -39,6 +44,7 @@ export function WorkersScreen() {
   const [isSuburbMenuOpen, setIsSuburbMenuOpen] = useState(false);
   const [isFilteringSuburb, setIsFilteringSuburb] = useState(false);
   const [activeSuburbIndex, setActiveSuburbIndex] = useState(0);
+  const [isLocatingSuburb, setIsLocatingSuburb] = useState(false);
   const [selectedTrade, setSelectedTrade] = useState<Trade | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -58,6 +64,9 @@ export function WorkersScreen() {
   const suburbMatches = matchSuburbs(isFilteringSuburb ? suburbInput : "", allSuburbs);
   const suburbPrediction =
     suburbInput.trim() !== "" ? predictSuburb(suburbInput, allSuburbs) : null;
+  const hasExactSuburbMatch = allSuburbs.some(
+    (item) => item.toLowerCase() === suburbInput.trim().toLowerCase(),
+  );
 
   function pickSuburb(name: string): void {
     setSuburbInput(name);
@@ -65,6 +74,26 @@ export function WorkersScreen() {
     setIsFilteringSuburb(false);
     setIsSuburbMenuOpen(false);
     setActiveSuburbIndex(0);
+  }
+
+  function handleUseCurrentLocation(): void {
+    if (typeof navigator === "undefined" || !("geolocation" in navigator)) return;
+    setIsLocatingSuburb(true);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const nearest = findNearestSuburb(
+          position.coords.latitude,
+          position.coords.longitude,
+          suburbs.data,
+        );
+        pickSuburb(nearest.suburb);
+        setIsLocatingSuburb(false);
+      },
+      () => {
+        setIsLocatingSuburb(false);
+      },
+      { enableHighAccuracy: true, timeout: 10_000, maximumAge: 60_000 },
+    );
   }
 
   function handleSuburbKeyDown(event: KeyboardEvent<HTMLInputElement>): void {
@@ -116,9 +145,21 @@ export function WorkersScreen() {
 
       <section className="card card--compact stack" style={{ gap: 10 }} aria-label="Filter workers">
         <div className="field" style={{ gap: 6 }}>
-          <label htmlFor="wk-suburb" className="field__label">
-            Close to which suburb?
-          </label>
+          <div className="row row--between row--baseline">
+            <label htmlFor="wk-suburb" className="field__label">
+              Close to which suburb?
+            </label>
+            <button
+              type="button"
+              className="text-link row row--tight"
+              style={{ fontSize: 13 }}
+              disabled={isLocatingSuburb}
+              onClick={handleUseCurrentLocation}
+            >
+              <Icon name="pin" size={14} />
+              {isLocatingSuburb ? "Finding location…" : "Use my location"}
+            </button>
+          </div>
           <div className="combobox">
             <div className="combobox__control">
               <input
@@ -145,15 +186,32 @@ export function WorkersScreen() {
                 onKeyDown={handleSuburbKeyDown}
               />
               {suburbPrediction !== null &&
-                suburbPrediction.toLowerCase() !== suburbInput.trim().toLowerCase() && (
+              suburbPrediction.toLowerCase() !== suburbInput.trim().toLowerCase() ? (
+                <button
+                  type="button"
+                  className="combobox__autofill"
+                  onClick={() => pickSuburb(suburbPrediction)}
+                >
+                  {suburbPrediction}
+                </button>
+              ) : (
+                suburbInput !== "" && (
                   <button
                     type="button"
-                    className="combobox__autofill"
-                    onClick={() => pickSuburb(suburbPrediction)}
+                    className="combobox__toggle"
+                    style={{ right: 44 }}
+                    aria-label="Clear suburb to type another"
+                    onClick={() => {
+                      setSuburbInput("");
+                      setIsFilteringSuburb(true);
+                      setIsSuburbMenuOpen(true);
+                      setActiveSuburbIndex(0);
+                    }}
                   >
-                    {suburbPrediction}
+                    <Icon name="close" size={15} />
                   </button>
-                )}
+                )
+              )}
               <button
                 type="button"
                 className="combobox__toggle"
@@ -166,13 +224,31 @@ export function WorkersScreen() {
                 <Icon name="chevronDown" size={18} />
               </button>
             </div>
-            {isSuburbMenuOpen && suburbMatches.length > 0 && (
+            {isSuburbMenuOpen && (
               <ul
                 id="wk-suburb-listbox"
                 role="listbox"
                 aria-label="Suburb options"
                 className="combobox__menu"
               >
+                <li role="option" aria-selected={false}>
+                  <button
+                    type="button"
+                    className="combobox__option"
+                    disabled={isLocatingSuburb}
+                    onClick={handleUseCurrentLocation}
+                  >
+                    <span className="row row--tight">
+                      <Icon name="pin" size={16} />
+                      <span>
+                        {isLocatingSuburb
+                          ? "Finding your current location…"
+                          : "Use my current location"}
+                      </span>
+                    </span>
+                    <span className="combobox__badge">GPS</span>
+                  </button>
+                </li>
                 {suburbMatches.map((name, index) => {
                   const isSelected = name.toLowerCase() === suburbInput.trim().toLowerCase();
                   const isClosest =
@@ -198,6 +274,34 @@ export function WorkersScreen() {
                     </li>
                   );
                 })}
+                {suburbInput.trim() !== "" && !hasExactSuburbMatch ? (
+                  <li role="option" aria-selected={suburbMatches.length === 0}>
+                    <button
+                      type="button"
+                      className="combobox__option"
+                      onClick={() => pickSuburb(suburbInput.trim())}
+                    >
+                      <span>Use “{suburbInput.trim()}”</span>
+                      <span className="combobox__badge">Write-in</span>
+                    </button>
+                  </li>
+                ) : (
+                  <li role="option" aria-selected={false}>
+                    <button
+                      type="button"
+                      className="combobox__option"
+                      onClick={() => {
+                        setSuburbInput("");
+                        setIsFilteringSuburb(true);
+                        setIsSuburbMenuOpen(true);
+                        setActiveSuburbIndex(0);
+                      }}
+                    >
+                      <span>Type another suburb…</span>
+                      <span className="combobox__badge">Write-in</span>
+                    </button>
+                  </li>
+                )}
               </ul>
             )}
           </div>

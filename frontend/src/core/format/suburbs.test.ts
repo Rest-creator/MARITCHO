@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   DEFAULT_SUBURBS,
+  findNearestSuburb,
   matchSuburbs,
   mergeSuburbs,
   predictSuburb,
@@ -44,5 +45,14 @@ describe("suburb matching & autofill prediction", () => {
     const custom = resolveSuburbForJob("Burnside", "14 Harrow Rd");
     expect(DEFAULT_SUBURBS).toContain(custom.suburb);
     expect(custom.address).toBe("14 Harrow Rd, Burnside");
+  });
+
+  it("finds the nearest suburb from GPS coordinates", () => {
+    const nearHillside = findNearestSuburb(-20.184, 28.629);
+    expect(nearHillside.suburb).toBe("Hillside");
+    expect(nearHillside.distanceKm).toBeLessThan(1);
+
+    const nearNkulumane = findNearestSuburb(-20.206, 28.531);
+    expect(nearNkulumane.suburb).toBe("Nkulumane");
   });
 });

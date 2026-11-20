@@ -86,4 +86,87 @@ describe("LocationSheet", () => {
       landmark: "",
     });
   });
+
+  it("clears a pre-selected suburb when tapping 'Type another suburb…' in the options list", async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn();
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    client.setQueryData(queryKeys.suburbs, [
+      { name: "Hillside", latitude: -20.185, longitude: 28.63 },
+      { name: "Kumalo", latitude: -20.175, longitude: 28.645 },
+    ]);
+
+    render(
+      <QueryClientProvider client={client}>
+        <LocationSheet
+          isOpen
+          value={{ suburb: "Hillside", address: "14 Harrow Rd", landmark: "" }}
+          onClose={vi.fn()}
+          onSave={onSave}
+        />
+      </QueryClientProvider>,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Show the list" }));
+    const listbox = screen.getByRole("listbox", { name: "Suburb options" });
+    await user.click(within(listbox).getByRole("button", { name: /Type another suburb/ }));
+
+    const input = screen.getByLabelText("Suburb");
+    expect(input).toHaveValue("");
+    await user.type(input, "Bradfield");
+    await user.click(screen.getByRole("button", { name: "Use this place" }));
+
+    expect(onSave).toHaveBeenCalledWith({
+      suburb: "Bradfield",
+      address: "14 Harrow Rd",
+      landmark: "",
+    });
+  });
+
+  it("detects nearest suburb and attaches GPS coordinates when choosing 'Use my current location'", async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn();
+    const getCurrentPosition = vi.fn((success: PositionCallback) => {
+      success({
+        coords: {
+          latitude: -20.1748,
+          longitude: 28.6449,
+          accuracy: 15,
+          altitude: null,
+          altitudeAccuracy: null,
+          heading: null,
+          speed: null,
+          toJSON: () => ({}),
+        },
+        timestamp: Date.now(),
+        toJSON: () => ({}),
+      });
+    });
+    Object.defineProperty(globalThis.navigator, "geolocation", {
+      value: { getCurrentPosition },
+      configurable: true,
+    });
+
+    renderSheet(onSave);
+
+    await user.click(screen.getByRole("button", { name: "Show the list" }));
+    const listbox = screen.getByRole("listbox", { name: "Suburb options" });
+    await user.click(within(listbox).getByRole("button", { name: /Use my current location/ }));
+
+    expect(getCurrentPosition).toHaveBeenCalledOnce();
+    expect(screen.getByLabelText("Suburb")).toHaveValue("Kumalo");
+    expect(screen.getByRole("status")).toHaveTextContent(/Nearest suburb: Kumalo/);
+
+    await user.click(screen.getByRole("button", { name: "Use this place" }));
+
+    expect(onSave).toHaveBeenCalledWith({
+      suburb: "Kumalo",
+      address: "Pinned location (Kumalo)",
+      landmark: "",
+      latitude: -20.1748,
+      longitude: 28.6449,
+    });
+  });
 });
