@@ -33,9 +33,12 @@ const profileSchema = z.object({
   bio: z.string().max(240).default(""),
   /** Highest worker tier this phone has already celebrated, so each unlock plays once. */
   celebratedGrade: gradeSchema.default("REGISTERED"),
+  /** UI colour theme: "dark" (default Royal Indigo) or "light" (White & Blue). */
+  theme: z.enum(["dark", "light"]).default("dark"),
 });
 
 export type LocalProfile = z.infer<typeof profileSchema>;
+export type AppTheme = LocalProfile["theme"];
 
 export const EMPTY_PROFILE: LocalProfile = profileSchema.parse({});
 

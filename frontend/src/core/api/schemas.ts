@@ -61,6 +61,7 @@ export const jobStatusSchema = z.enum([
 ]);
 export const messageTypeSchema = z.enum(["TEXT", "VOICE_NOTE", "PHOTO", "LOCATION"]);
 export const neededBySchema = z.enum(["TODAY", "THIS_WEEK", "FLEXIBLE"]);
+export const pricingModeSchema = z.enum(["FIXED", "NEGOTIABLE", "AFTER_VISIT"]);
 export const reviewTagSchema = z.enum([
   "CLEAN",
   "ON_TIME",
@@ -111,6 +112,7 @@ export const jobSchema = z.object({
   created_at: isoDate,
   updated_at: isoDate,
   needed_by: neededBySchema.optional(),
+  pricing_mode: pricingModeSchema.optional(),
   worker_display_name: z.string().nullable().optional(),
 });
 
@@ -126,6 +128,7 @@ export const openJobSchema = z.object({
   distance_band: distanceBandSchema,
   distance_km: z.number(),
   needed_by: neededBySchema.optional(),
+  pricing_mode: pricingModeSchema.optional(),
   similarity_score: z.number().nullable().optional(),
 });
 
@@ -137,6 +140,7 @@ export const jobSearchResultSchema = z.object({
   problem_description: z.string().nullable(),
   created_at: isoDate.nullable(),
   needed_by: neededBySchema.optional(),
+  pricing_mode: pricingModeSchema.optional(),
   similarity_score: z.number(),
   matched_trade: tradeSchema.nullable().optional(),
 });
@@ -191,6 +195,7 @@ export const matchCandidateSchema = z.object({
   display_name: z.string().nullable().optional(),
   rating_average: nullableDecimal.optional(),
   rating_count: z.number().int().optional(),
+  has_police_clearance: z.boolean().optional(),
 });
 
 export const disputeSchema = z.object({
@@ -289,6 +294,8 @@ export const workerVettingSchema = z.object({
   reference_count: z.number().int(),
   vouch_count: z.number().int(),
   grade: gradeSchema,
+  police_clearance_url: z.string().nullable().optional(),
+  police_clearance_submitted_at: isoDate.nullable().optional(),
 });
 
 export const vouchSchema = z.object({
@@ -332,6 +339,7 @@ export const workerSummarySchema = z.object({
   distance_band: distanceBandSchema.nullable().optional(),
   distance_km: z.number().nullable().optional(),
   similarity_score: z.number().nullable().optional(),
+  has_police_clearance: z.boolean().optional(),
 });
 
 export const workerProfileSchema = workerSummarySchema.extend({
@@ -361,6 +369,7 @@ export type DistanceBand = z.infer<typeof distanceBandSchema>;
 export type JobStatus = z.infer<typeof jobStatusSchema>;
 export type MessageType = z.infer<typeof messageTypeSchema>;
 export type NeededBy = z.infer<typeof neededBySchema>;
+export type PricingMode = z.infer<typeof pricingModeSchema>;
 export type ReviewTag = z.infer<typeof reviewTagSchema>;
 export type User = z.infer<typeof userSchema>;
 export type Job = z.infer<typeof jobSchema>;

@@ -40,6 +40,7 @@ import {
   type MyOffer,
   type NeededBy,
   type OpenJob,
+  type PricingMode,
   type RecordEntry,
   type Reference,
   type ReviewTag,
@@ -71,6 +72,22 @@ export interface CreateJobInput {
   budget_amount?: number;
   problem_photo_url?: string;
   needed_by?: NeededBy;
+  pricing_mode?: PricingMode;
+}
+
+export interface UpdateJobInput {
+  jobId: string;
+  trade?: Trade;
+  suburb?: string;
+  address?: string;
+  problem_description?: string;
+  landmark_narrative?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  budget_amount?: number | null;
+  problem_photo_url?: string | null;
+  needed_by?: NeededBy;
+  pricing_mode?: PricingMode;
 }
 
 export interface SubmitOfferInput {
@@ -143,6 +160,10 @@ export interface UpdateUserProfileInput {
 
 export interface SubmitIdPhotoInput {
   id_photo_url: string;
+}
+
+export interface SubmitPoliceClearanceInput {
+  police_clearance_url: string;
 }
 
 export interface AddReferenceInput {
@@ -222,6 +243,14 @@ export function fetchMyOffers(): Promise<MyOffer[]> {
 
 export function createJob(input: CreateJobInput): Promise<Job> {
   return apiRequest("/jobs/request", { method: "POST", body: input, schema: jobSchema });
+}
+
+export function updateJob({ jobId, ...body }: UpdateJobInput): Promise<Job> {
+  return apiRequest(`/jobs/${encodeURIComponent(jobId)}`, {
+    method: "PATCH",
+    body,
+    schema: jobSchema,
+  });
 }
 
 export function submitOffer({ jobId, ...body }: SubmitOfferInput): Promise<JobOffer> {
@@ -365,6 +394,14 @@ export function fetchWorkerVetting(): Promise<WorkerVetting> {
 
 export function submitIdPhoto(input: SubmitIdPhotoInput): Promise<WorkerVetting> {
   return apiRequest("/workers/me/vetting/id-photo", {
+    method: "POST",
+    body: input,
+    schema: workerVettingSchema,
+  });
+}
+
+export function submitPoliceClearance(input: SubmitPoliceClearanceInput): Promise<WorkerVetting> {
+  return apiRequest("/workers/me/vetting/police-clearance", {
     method: "POST",
     body: input,
     schema: workerVettingSchema,

@@ -39,6 +39,7 @@ from app.apps.jobs.domain.services import (
     SearchOpenJobsUseCase,
     SubmitJobOfferUseCase,
     SubmitQuoteUseCase,
+    UpdateJobRequestUseCase,
 )
 from app.apps.jobs.infrastructure.models import JobModel
 from app.apps.jobs.infrastructure.review_models import ReviewModel
@@ -61,6 +62,7 @@ from app.apps.jobs.interface_adapters.dependencies import (
     get_search_open_jobs_use_case,
     get_submit_job_offer_use_case,
     get_submit_quote_use_case,
+    get_update_job_request_use_case,
 )
 from app.apps.jobs.interface_adapters.schemas import (
     BookingCreate,
@@ -73,6 +75,7 @@ from app.apps.jobs.interface_adapters.schemas import (
     JobOfferOut,
     JobOut,
     JobRequestCreate,
+    JobRequestUpdate,
     JobSearchResultOut,
     LedgerEntryOut,
     MatchCandidateOut,
@@ -114,6 +117,7 @@ async def create_job_request(
         problem_photo_url=payload.problem_photo_url,
         budget_amount=payload.budget_amount,
         needed_by=payload.needed_by,
+        pricing_mode=payload.pricing_mode,
     )
 
 
@@ -256,6 +260,40 @@ async def get_job(
 ) -> Job:
     job = await use_case.execute(job_id, current_user.id, current_user.capabilities)
     return job
+
+
+@router.patch("/{job_id}", response_model=JobOut)
+async def update_job_request(
+    job_id: uuid.UUID,
+    payload: JobRequestUpdate,
+    current_user: Person = Depends(RequireRole([RoleEnum.BUYER])),
+    use_case: UpdateJobRequestUseCase = Depends(get_update_job_request_use_case),
+) -> Job:
+    """Edit an open job posting (before a worker has been booked)."""
+    with tracer.start_as_current_span("jobs.update_job_request") as span:
+        span.set_attribute("job.id", str(job_id))
+        span.set_attribute("job.updated_fields_count", len(payload.model_fields_set))
+        job = await use_case.execute(
+            job_id=job_id,
+            buyer_id=current_user.id,
+            fields_set=set(payload.model_fields_set),
+            trade=payload.trade,
+            suburb=payload.suburb,
+            address=payload.address,
+            landmark_narrative=payload.landmark_narrative,
+            latitude=payload.latitude,
+            longitude=payload.longitude,
+            problem_description=payload.problem_description,
+            problem_photo_url=payload.problem_photo_url,
+            budget_amount=payload.budget_amount,
+            needed_by=payload.needed_by,
+            pricing_mode=payload.pricing_mode,
+        )
+        logger.info(
+            f"Job request updated job_id={job_id} buyer_id={current_user.id} "
+            f"pricing_mode={job.pricing_mode.value}"
+        )
+        return job
 
 
 @router.get("/{job_id}/eligibility", response_model=JobEligibilityOut)

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { BackButton } from "@/components/ui/BackButton";
@@ -8,13 +9,13 @@ import { Icon } from "@/components/ui/Icon";
 import { Screen } from "@/components/ui/Screen";
 import { EmptyState, ErrorState, Skeleton } from "@/components/ui/States";
 import type { MatchCandidate } from "@/core/api/schemas";
-import { formatMoney } from "@/core/format/format";
 import { tradeLabel } from "@/core/format/trades";
 import { CandidateCard } from "@/features/jobs/CandidateCard";
 import { HireSheet } from "@/features/jobs/HireSheet";
 import { useJob, useMatches } from "@/features/jobs/hooks";
 import {
   isOpenStatus,
+  pricingModeLabel,
   splitResponders,
   splitTiming,
   type CandidateSort,
@@ -54,7 +55,7 @@ export function ApplicantsScreen({ jobId }: Props) {
         tradeLabel(job.data.trade),
         job.data.suburb,
         timing,
-        job.data.budget_amount === null ? null : `US${formatMoney(job.data.budget_amount)}`,
+        pricingModeLabel(job.data.pricing_mode, job.data.budget_amount),
       ]
         .filter(Boolean)
         .join(" · ")
@@ -71,6 +72,16 @@ export function ApplicantsScreen({ jobId }: Props) {
           <h1 className="title truncate">{heading}</h1>
           <div className="meta truncate">{subtitle}</div>
         </div>
+        {isOpen && (
+          <Link
+            href={`/employer/jobs/${jobId}/edit`}
+            className="btn btn--sm btn--soft"
+            aria-label="Edit job posting"
+          >
+            <Icon name="edit" size={14} />
+            Edit job
+          </Link>
+        )}
       </div>
 
       {job.isError && !job.data && (

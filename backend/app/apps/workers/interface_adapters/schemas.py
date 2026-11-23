@@ -53,6 +53,10 @@ class IdPhotoSubmit(BaseModel):
     id_photo_url: str = Field(min_length=1, max_length=255)
 
 
+class PoliceClearanceSubmit(BaseModel):
+    police_clearance_url: str = Field(min_length=1, max_length=255)
+
+
 class ReferenceCreate(BaseModel):
     name: str = Field(min_length=1, max_length=100)
     phone: str = Field(min_length=1, max_length=20)
@@ -96,6 +100,8 @@ class WorkerVettingOut(BaseModel):
     reference_count: int
     vouch_count: int
     grade: GradeEnum
+    police_clearance_url: str | None = None
+    police_clearance_submitted_at: datetime | None = None
 
 
 class WorkerWorkRecordOut(BaseModel):
@@ -130,6 +136,7 @@ class WorkerSummaryOut(BaseModel):
     distance_band: DistanceBandEnum | None = None
     distance_km: float | None = None
     similarity_score: float | None = None
+    has_police_clearance: bool = False
 
 
 class WorkerProfileOut(WorkerSummaryOut):

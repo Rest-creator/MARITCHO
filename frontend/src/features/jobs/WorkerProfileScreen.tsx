@@ -122,6 +122,12 @@ export function WorkerProfileScreen({ jobId, workerId }: Props) {
               )}
               {gradeLabel(candidate.grade)} · {tradeLabel(job.data.trade)}
             </span>
+            {candidate.has_police_clearance && (
+              <span className="tag tag--verified">
+                <Icon name="shieldCheck" size={12} strokeWidth={2.4} />
+                Police clearance verified
+              </span>
+            )}
             {hasHistory && (
               <span className="tag">{formatPercent(candidate.dispute_rate)} of jobs disputed</span>
             )}

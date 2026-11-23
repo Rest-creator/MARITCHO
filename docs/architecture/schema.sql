@@ -73,7 +73,9 @@ CREATE TABLE standings (
 CREATE TABLE worker_vetting (
     worker_id UUID PRIMARY KEY REFERENCES persons(id) ON DELETE CASCADE,
     id_photo_url VARCHAR(255),
-    id_submitted_at TIMESTAMP WITH TIME ZONE
+    id_submitted_at TIMESTAMP WITH TIME ZONE,
+    police_clearance_url VARCHAR(255),
+    police_clearance_submitted_at TIMESTAMP WITH TIME ZONE
 );
 
 CREATE TABLE worker_references (
@@ -121,6 +123,7 @@ CREATE TABLE jobs (
     -- Buyer's optional stated budget at request time (see §2.12) — informational
     -- only, never enforced against the eventual deposit/quote amounts.
     budget_amount DECIMAL(10,2),
+    pricing_mode VARCHAR(20) NOT NULL DEFAULT 'NEGOTIABLE', -- FIXED, NEGOTIABLE, AFTER_VISIT
     -- Set once at booking (ADR-002, see database_schema_design.md §10).
     -- Every ledger entry written afterward reuses this value.
     currency currencyenum,

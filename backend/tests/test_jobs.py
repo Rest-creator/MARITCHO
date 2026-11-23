@@ -167,3 +167,76 @@ async def test_fetch_nonexistent_job_returns_404(client, buyer):
     response = await client.get(f"/jobs/{missing_id}", headers=auth_headers(buyer))
 
     assert response.status_code == 404
+
+
+async def test_buyer_can_create_job_with_pricing_modes(client, buyer):
+    fixed = await client.post(
+        "/jobs/request",
+        json={**VALID_PAYLOAD, "pricing_mode": "FIXED", "budget_amount": "45.00"},
+        headers=auth_headers(buyer),
+    )
+    assert fixed.status_code == 201
+    assert fixed.json()["pricing_mode"] == "FIXED"
+    assert fixed.json()["budget_amount"] == "45.00"
+
+    after_visit = await client.post(
+        "/jobs/request",
+        json={**VALID_PAYLOAD, "pricing_mode": "AFTER_VISIT"},
+        headers=auth_headers(buyer),
+    )
+    assert after_visit.status_code == 201
+    assert after_visit.json()["pricing_mode"] == "AFTER_VISIT"
+    assert after_visit.json()["budget_amount"] is None
+
+
+async def test_fixed_pricing_mode_requires_budget_amount(client, buyer):
+    response = await client.post(
+        "/jobs/request",
+        json={**VALID_PAYLOAD, "pricing_mode": "FIXED"},
+        headers=auth_headers(buyer),
+    )
+    assert response.status_code == 422
+
+
+async def test_buyer_can_edit_open_job_posting(client, buyer, other_buyer):
+    created = await client.post(
+        "/jobs/request",
+        json={**VALID_PAYLOAD, "pricing_mode": "FIXED", "budget_amount": "30.00"},
+        headers=auth_headers(buyer),
+    )
+    assert created.status_code == 201
+    job_id = created.json()["id"]
+
+    # Another buyer cannot edit this job
+    forbidden = await client.patch(
+        f"/jobs/{job_id}",
+        json={"problem_description": "Unauthorized edit"},
+        headers=auth_headers(other_buyer),
+    )
+    assert forbidden.status_code == 403
+
+    # Owner can edit description, pricing mode, and budget
+    updated = await client.patch(
+        f"/jobs/{job_id}",
+        json={
+            "problem_description": "Updated: burst pipe in kitchen",
+            "pricing_mode": "NEGOTIABLE",
+            "budget_amount": "50.00",
+        },
+        headers=auth_headers(buyer),
+    )
+    assert updated.status_code == 200
+    body = updated.json()
+    assert body["problem_description"] == "Updated: burst pipe in kitchen"
+    assert body["pricing_mode"] == "NEGOTIABLE"
+    assert body["budget_amount"] == "50.00"
+
+    # Switching to AFTER_VISIT clears budget_amount when not supplied
+    after_visit = await client.patch(
+        f"/jobs/{job_id}",
+        json={"pricing_mode": "AFTER_VISIT"},
+        headers=auth_headers(buyer),
+    )
+    assert after_visit.status_code == 200
+    assert after_visit.json()["pricing_mode"] == "AFTER_VISIT"
+    assert after_visit.json()["budget_amount"] is None

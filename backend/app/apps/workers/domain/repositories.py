@@ -67,6 +67,12 @@ class WorkerVettingRepository(ABC):
     ) -> WorkerVetting:
         """Stages only — does not commit."""
 
+    @abstractmethod
+    async def upsert_police_clearance(
+        self, worker_id: uuid.UUID, police_clearance_url: str, submitted_at: datetime
+    ) -> WorkerVetting:
+        """Stages only — does not commit."""
+
 
 class WorkerReferenceRepository(ABC):
     @abstractmethod

@@ -57,6 +57,8 @@ class WorkerVetting:
     worker_id: uuid.UUID
     id_photo_url: str | None = None
     id_submitted_at: datetime | None = None
+    police_clearance_url: str | None = None
+    police_clearance_submitted_at: datetime | None = None
 
 
 @dataclass
@@ -87,6 +89,8 @@ class WorkerVettingView:
     reference_count: int
     vouch_count: int
     grade: GradeEnum
+    police_clearance_url: str | None = None
+    police_clearance_submitted_at: datetime | None = None
 
 
 @dataclass
@@ -119,6 +123,7 @@ class WorkerDirectoryItem:
     distance_band: DistanceBandEnum | None = None
     distance_km: float | None = None
     similarity_score: float | None = None
+    has_police_clearance: bool = False
 
 
 @dataclass

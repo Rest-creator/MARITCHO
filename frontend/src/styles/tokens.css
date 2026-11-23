@@ -141,3 +141,75 @@
     --gutter: 40px;
   }
 }
+
+/*
+ * Light theme ("White & Blue") — Crisp White background (#ffffff / #f4f8fd)
+ * paired with Maritcho Royal & Sky Blue accents.
+ */
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  --brand-indigo-deep: #f0f7ff;
+  --brand-navy: #ffffff;
+  --brand-royal: #e0f2fe;
+  --brand-blue: #0284c7;
+  --brand-cyan: #00abe3;
+  --brand-gradient: linear-gradient(135deg, #1e3a8a 0%, #0369a1 52%, #00abe3 100%);
+
+  --color-bg: #f4f8fd;
+  --color-bg-raised: #ffffff;
+  --color-sheet: #ffffff;
+  --color-scrim: rgba(15, 23, 42, 0.42);
+  --color-bar: rgba(255, 255, 255, 0.94);
+  --color-nav: rgba(255, 255, 255, 0.96);
+
+  --glass-faint: rgba(2, 132, 199, 0.04);
+  --glass-subtle: #f8fbff;
+  --glass: #ffffff;
+  --glass-strong: #ffffff;
+  --glass-bold: #eef6ff;
+  --glass-selected: rgba(2, 132, 199, 0.16);
+  --line-faint: rgba(30, 58, 138, 0.09);
+  --line-subtle: rgba(30, 58, 138, 0.14);
+  --line: rgba(30, 58, 138, 0.18);
+  --line-strong: rgba(2, 132, 199, 0.26);
+  --line-bold: rgba(2, 132, 199, 0.4);
+  --line-dashed: rgba(2, 132, 199, 0.45);
+
+  --text: #0f172a;
+  --text-soft: #1e3a8a;
+  --text-secondary: #334155;
+  --text-muted: #475569;
+  --text-dim: #64748b;
+
+  --amber: #0284c7;
+  --amber-light: #0369a1;
+  --amber-lighter: #0284c7;
+  --amber-pale: #075985;
+  --amber-ink: #ffffff;
+  --amber-tint: rgba(2, 132, 199, 0.12);
+  --amber-tint-soft: rgba(2, 132, 199, 0.08);
+  --amber-edge: rgba(2, 132, 199, 0.38);
+  --amber-glow: #38bdf8;
+
+  --emerald: #0284c7;
+  --emerald-light: #0369a1;
+  --emerald-lighter: #0369a1;
+  --emerald-pale: #075985;
+  --emerald-mist: #0c4a6e;
+  --emerald-ink: #ffffff;
+  --emerald-tint: rgba(2, 132, 199, 0.12);
+  --emerald-tint-soft: rgba(2, 132, 199, 0.08);
+  --emerald-edge: rgba(2, 132, 199, 0.36);
+  --moss-glow: #7dd3fc;
+  --slate-glow: #bae6fd;
+
+  --danger: #dc2626;
+  --danger-tint: rgba(220, 38, 38, 0.1);
+  --danger-edge: rgba(220, 38, 38, 0.36);
+
+  --avatar-slate: #1e40af;
+  --avatar-stone: #0284c7;
+  --avatar-moss: #1d4ed8;
+  --avatar-warm: #0369a1;
+}

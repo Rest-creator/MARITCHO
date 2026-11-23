@@ -148,6 +148,32 @@ const PATHS = {
     </>
   ),
   stop: <rect x="7" y="7" width="10" height="10" rx="2" />,
+  eye: (
+    <>
+      <path d="M2 12s3.8-7 10-7 10 7 10 7-3.8 7-10 7-10-7-10-7z" />
+      <circle cx="12" cy="12" r="3" />
+    </>
+  ),
+  eyeOff: (
+    <>
+      <path d="M9.9 4.2A10.7 10.7 0 0 1 12 4c6.2 0 10 8 10 8a18.5 18.5 0 0 1-2.2 3.2M6.7 6.7C4.1 8.4 2 12 2 12s3.8 8 10 8a10.6 10.6 0 0 0 5.3-1.4" />
+      <path d="M14.1 14.1a3 3 0 0 1-4.2-4.2" />
+      <path d="M3 3l18 18" />
+    </>
+  ),
+  moon: <path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z" />,
+  edit: (
+    <>
+      <path d="M12 20h9" />
+      <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" />
+    </>
+  ),
+  fileText: (
+    <>
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+      <path d="M14 2v6h6M16 13H8M16 17H8M10 9H8" />
+    </>
+  ),
 } satisfies Record<string, ReactNode>;
 
 export type IconName = keyof typeof PATHS;

@@ -7,12 +7,14 @@ import { useRouter } from "next/navigation";
 import { BrandLogo } from "@/components/ui/BrandLogo";
 import { Icon } from "@/components/ui/Icon";
 import { Screen } from "@/components/ui/Screen";
+import { updateProfile, useLocalProfile } from "@/core/session/profile-store";
 import { homeFor, useSession } from "@/core/session/SessionProvider";
 import { HowItWorks } from "@/features/onboarding/HowItWorks";
 
 /** Design 1 · Welcome – choose your path. */
 export function WelcomeScreen() {
   const { user } = useSession();
+  const profile = useLocalProfile();
   const router = useRouter();
 
   useEffect(() => {
@@ -21,7 +23,22 @@ export function WelcomeScreen() {
 
   return (
     <Screen bodyClassName="screen__body--welcome">
-      <BrandLogo />
+      <div className="row row--between">
+        <BrandLogo />
+        <button
+          type="button"
+          className="icon-btn"
+          aria-label={
+            profile.theme === "light"
+              ? "Switch to dark theme"
+              : "Switch to White & Blue light theme"
+          }
+          title={profile.theme === "light" ? "Dark (Default)" : "White & Blue"}
+          onClick={() => updateProfile({ theme: profile.theme === "light" ? "dark" : "light" })}
+        >
+          <Icon name={profile.theme === "light" ? "moon" : "sun"} size={18} />
+        </button>
+      </div>
 
       <div style={{ marginTop: 64 }}>
         <h1 className="title title--hero">Your skills are your CV.</h1>
@@ -86,6 +103,18 @@ export function WelcomeScreen() {
         Don&apos;t have an account?{" "}
         <Link href="/signup" style={{ fontWeight: 600 }}>
           Create account
+        </Link>
+      </p>
+      <p className="meta" style={{ marginTop: 10, textAlign: "center", fontSize: 12 }}>
+        <Link href="/terms" style={{ color: "var(--text-secondary)", textDecoration: "underline" }}>
+          Terms and Conditions
+        </Link>{" "}
+        ·{" "}
+        <Link
+          href="/privacy"
+          style={{ color: "var(--text-secondary)", textDecoration: "underline" }}
+        >
+          Privacy Policy
         </Link>
       </p>
     </Screen>

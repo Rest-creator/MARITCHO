@@ -14,6 +14,7 @@ import {
   type RegisterServiceAreaInput,
   type RegisterSkillInput,
   type SubmitIdPhotoInput,
+  type SubmitPoliceClearanceInput,
   type UpdateUserProfileInput,
   type VouchForWorkerInput,
 } from "@/core/api/endpoints";
@@ -79,6 +80,12 @@ export function useUpdateUserProfile() {
 export function useSubmitIdPhoto() {
   return useMutation<WorkerVetting, Error, SubmitIdPhotoInput>({
     mutationKey: mutationKeys.submitIdPhoto,
+  });
+}
+
+export function useSubmitPoliceClearance() {
+  return useMutation<WorkerVetting, Error, SubmitPoliceClearanceInput>({
+    mutationKey: mutationKeys.submitPoliceClearance,
   });
 }
 

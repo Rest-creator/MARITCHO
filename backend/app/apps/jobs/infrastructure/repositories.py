@@ -31,7 +31,13 @@ from app.apps.jobs.infrastructure.models import (
     RecordEntryModel,
 )
 from app.shared_kernel.embeddings import embed_text
-from app.shared_kernel.enums import CurrencyEnum, LedgerEntryTypeEnum, NeededByEnum, TradeEnum
+from app.shared_kernel.enums import (
+    CurrencyEnum,
+    LedgerEntryTypeEnum,
+    NeededByEnum,
+    PricingModeEnum,
+    TradeEnum,
+)
 from app.shared_kernel.ports import WorkerAvailabilityPort
 
 
@@ -55,6 +61,7 @@ def _job_to_entity(model: JobModel) -> Job:
         materials_amount=model.materials_amount,
         quote_amount=model.quote_amount,
         needed_by=model.needed_by,
+        pricing_mode=model.pricing_mode or PricingModeEnum.NEGOTIABLE,
         created_at=model.created_at,
         updated_at=model.updated_at,
     )
@@ -133,6 +140,7 @@ class SqlAlchemyJobRepository(JobRepository, WorkerAvailabilityPort):
         problem_photo_url: str | None,
         budget_amount: Decimal | None,
         needed_by: NeededByEnum = NeededByEnum.FLEXIBLE,
+        pricing_mode: PricingModeEnum = PricingModeEnum.NEGOTIABLE,
     ) -> Job:
         embedding = embed_text(problem_description, trade=trade, suburb=suburb)
         model = JobModel(
@@ -149,6 +157,7 @@ class SqlAlchemyJobRepository(JobRepository, WorkerAvailabilityPort):
             problem_photo_url=problem_photo_url,
             budget_amount=budget_amount,
             needed_by=needed_by,
+            pricing_mode=pricing_mode,
         )
         self._db.add(model)
         await self._db.flush()
@@ -163,8 +172,28 @@ class SqlAlchemyJobRepository(JobRepository, WorkerAvailabilityPort):
         model = await self._db.get(JobModel, job.id)
         if model is None:
             return
+        description_or_trade_changed = (
+            model.problem_description != job.problem_description
+            or model.trade != job.trade
+            or model.suburb != job.suburb
+        )
         model.worker_id = job.worker_id
         model.status = job.status
+        model.trade = job.trade
+        model.suburb = job.suburb
+        model.address = job.address
+        model.landmark_narrative = job.landmark_narrative
+        model.latitude = job.latitude
+        model.longitude = job.longitude
+        model.problem_description = job.problem_description
+        model.problem_photo_url = job.problem_photo_url
+        model.budget_amount = job.budget_amount
+        model.needed_by = job.needed_by
+        model.pricing_mode = job.pricing_mode
+        if description_or_trade_changed:
+            model.problem_embedding = embed_text(
+                job.problem_description, trade=job.trade, suburb=job.suburb
+            )
         model.currency = job.currency
         model.labor_amount = job.labor_amount
         model.materials_amount = job.materials_amount

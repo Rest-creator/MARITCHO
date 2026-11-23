@@ -40,6 +40,7 @@ export const queryKeys = {
  */
 export const mutationKeys = {
   createJob: ["createJob"] as const,
+  updateJob: ["updateJob"] as const,
   submitOffer: ["submitOffer"] as const,
   bookJob: ["bookJob"] as const,
   submitQuote: ["submitQuote"] as const,
@@ -52,6 +53,7 @@ export const mutationKeys = {
   registerServiceArea: ["registerServiceArea"] as const,
   updateProfile: ["updateProfile"] as const,
   submitIdPhoto: ["submitIdPhoto"] as const,
+  submitPoliceClearance: ["submitPoliceClearance"] as const,
   addReference: ["addReference"] as const,
   vouchForWorker: ["vouchForWorker"] as const,
 };

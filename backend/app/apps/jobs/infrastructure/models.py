@@ -21,7 +21,13 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.apps.jobs.domain.entities import DisputeStatusEnum, JobStatusEnum
 from app.core.database import Base
 from app.shared_kernel.embeddings import EMBEDDING_DIM
-from app.shared_kernel.enums import CurrencyEnum, LedgerEntryTypeEnum, NeededByEnum, TradeEnum
+from app.shared_kernel.enums import (
+    CurrencyEnum,
+    LedgerEntryTypeEnum,
+    NeededByEnum,
+    PricingModeEnum,
+    TradeEnum,
+)
 
 ischema_names["vector"] = Vector
 
@@ -50,6 +56,12 @@ class JobModel(Base):
     # Buyer's optional stated budget at request time — informational only,
     # never enforced against the eventual deposit/quote amounts.
     budget_amount: Mapped[Decimal | None] = mapped_column(Numeric(10, 2))
+    pricing_mode: Mapped[PricingModeEnum] = mapped_column(
+        Enum(PricingModeEnum, native_enum=False, length=20),
+        nullable=False,
+        default=PricingModeEnum.NEGOTIABLE,
+        server_default="NEGOTIABLE",
+    )
     needed_by: Mapped[NeededByEnum] = mapped_column(
         Enum(NeededByEnum), nullable=False, default=NeededByEnum.FLEXIBLE
     )

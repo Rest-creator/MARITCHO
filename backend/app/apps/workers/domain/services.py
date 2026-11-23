@@ -270,7 +270,9 @@ class RecomputeGradeUseCase:
             return
 
         vetting = await self._vetting.get(worker_id)
-        has_id_photo = vetting is not None and vetting.id_photo_url is not None
+        has_id_photo = vetting is not None and (
+            vetting.id_photo_url is not None or vetting.police_clearance_url is not None
+        )
 
         reference_count = await self._references.count_by_worker(worker_id)
         valid_vouch_count = await self._vouches.count_valid_vouches(
@@ -317,6 +319,10 @@ class GetVettingViewUseCase:
             reference_count=reference_count,
             vouch_count=vouch_count,
             grade=(standing.grade if standing and standing.grade else GradeEnum.REGISTERED),
+            police_clearance_url=vetting.police_clearance_url if vetting else None,
+            police_clearance_submitted_at=(
+                vetting.police_clearance_submitted_at if vetting else None
+            ),
         )
 
 
@@ -340,6 +346,36 @@ class SubmitIdPhotoUseCase:
 
     async def execute(self, worker_id: uuid.UUID, id_photo_url: str) -> WorkerVettingView:
         await self._vetting.upsert_id_photo(worker_id, id_photo_url, utcnow())
+        await self._standings.ensure(worker_id)
+        await self._recompute_grade.execute(worker_id)
+        await self._uow.commit()
+        return await self._view.execute(worker_id)
+
+
+class SubmitPoliceClearanceUseCase:
+    """Submit (or replace) the worker's Police Clearance certificate photo.
+
+    Optional when joining Maritcho, but a key verification prerequisite for
+    the Police Cleared badge shown to employers. Also satisfies the
+    REGISTERED -> IDENTIFIED identity document floor when submitted.
+    """
+
+    def __init__(
+        self,
+        vetting: WorkerVettingRepository,
+        standings: StandingRepository,
+        uow: UnitOfWork,
+        recompute_grade: RecomputeGradeUseCase,
+        view: GetVettingViewUseCase,
+    ) -> None:
+        self._vetting = vetting
+        self._standings = standings
+        self._uow = uow
+        self._recompute_grade = recompute_grade
+        self._view = view
+
+    async def execute(self, worker_id: uuid.UUID, police_clearance_url: str) -> WorkerVettingView:
+        await self._vetting.upsert_police_clearance(worker_id, police_clearance_url, utcnow())
         await self._standings.ensure(worker_id)
         await self._recompute_grade.execute(worker_id)
         await self._uow.commit()

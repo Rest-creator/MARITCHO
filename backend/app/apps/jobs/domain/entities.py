@@ -10,6 +10,7 @@ from app.shared_kernel.enums import (
     GradeEnum,
     LedgerEntryTypeEnum,
     NeededByEnum,
+    PricingModeEnum,
     TradeEnum,
 )
 
@@ -60,6 +61,7 @@ class Job:
     created_at: datetime | None = None
     updated_at: datetime | None = None
     needed_by: NeededByEnum = NeededByEnum.FLEXIBLE
+    pricing_mode: PricingModeEnum = PricingModeEnum.NEGOTIABLE
 
 
 @dataclass
@@ -123,6 +125,7 @@ class MatchCandidate:
     display_name: str | None = None
     rating_average: Decimal | None = None
     rating_count: int = 0
+    has_police_clearance: bool = False
 
 
 @dataclass
@@ -143,6 +146,7 @@ class OpenJobCandidate:
     distance_km: float
     needed_by: NeededByEnum = NeededByEnum.FLEXIBLE
     similarity_score: float | None = None
+    pricing_mode: PricingModeEnum = PricingModeEnum.NEGOTIABLE
 
 
 @dataclass
@@ -158,6 +162,7 @@ class JobSearchResult:
     needed_by: NeededByEnum
     similarity_score: float
     matched_trade: TradeEnum | None = None
+    pricing_mode: PricingModeEnum = PricingModeEnum.NEGOTIABLE
 
 
 @dataclass

@@ -107,6 +107,28 @@ describe("AccountScreen", () => {
     await user.clear(kinInput);
     await user.type(kinInput, "077 888 9999");
     expect(kinInput).toHaveValue("077 888 9999");
+
+    // Police clearance verification section
+    expect(screen.getByText("Police Clearance (Verification badge)")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Upload Police Clearance/i })).toBeInTheDocument();
+
+    // Theme switcher (Dark default & White & Blue light mode)
+    const lightThemeBtn = screen.getByRole("button", { name: /White & Blue/i });
+    const darkThemeBtn = screen.getByRole("button", { name: /Dark \(Default\)/i });
+    expect(darkThemeBtn).toHaveAttribute("aria-pressed", "true");
+    await user.click(lightThemeBtn);
+    expect(lightThemeBtn).toHaveAttribute("aria-pressed", "true");
+    await user.click(darkThemeBtn);
+    expect(darkThemeBtn).toHaveAttribute("aria-pressed", "true");
+
+    expect(screen.getByRole("link", { name: "Terms and Conditions" })).toHaveAttribute(
+      "href",
+      "/terms",
+    );
+    expect(screen.getByRole("link", { name: "Privacy Policy" })).toHaveAttribute(
+      "href",
+      "/privacy",
+    );
   });
 
   it("renders employer hiring overview, saved job location defaults, and payment currency preferences", async () => {

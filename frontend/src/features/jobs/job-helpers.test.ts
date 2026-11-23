@@ -7,12 +7,15 @@ import {
   candidateTitle,
   completedSteps,
   composeReview,
+  counterOfferChips,
   depositFor,
   employerJobHref,
   finishedJobs,
   isOpenStatus,
   mapReviewTags,
   matchExplanation,
+  pricingModeLabel,
+  resolvePricingMode,
   responseLabel,
   sortCandidates,
   splitResponders,
@@ -263,5 +266,18 @@ describe("inDrive-style responses", () => {
     expect(responseLabel({ quoted_amount: 35 }, 40)).toBe("Offered $35");
     expect(responseLabel({ quoted_amount: 50 }, null)).toBe("Offered $50");
     expect(responseLabel({ quoted_amount: null }, 40)).toBeNull();
+  });
+
+  it("formats pricing modes (Fixed, Negotiable, Price after visit) and counter-offer chips", () => {
+    expect(resolvePricingMode({ pricing_mode: "FIXED", budget_amount: 40 })).toBe("FIXED");
+    expect(resolvePricingMode({ budget_amount: 40 })).toBe("NEGOTIABLE");
+    expect(resolvePricingMode({ budget_amount: null })).toBe("AFTER_VISIT");
+
+    expect(pricingModeLabel("FIXED", 40)).toBe("Fixed · $40");
+    expect(pricingModeLabel("NEGOTIABLE", 40)).toBe("$40 · Negotiable");
+    expect(pricingModeLabel("AFTER_VISIT", null)).toBe("Price after visit");
+
+    expect(counterOfferChips(40)).toEqual([35, 45, 50, 55]);
+    expect(counterOfferChips(null)).toEqual([15, 25, 40, 60]);
   });
 });

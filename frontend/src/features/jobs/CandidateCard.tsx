@@ -61,12 +61,20 @@ export function CandidateCard({ job, candidate, isTopPick, onHire }: Props) {
           </div>
         </div>
       </div>
-      {response && (
-        <div className="badge badge--emerald" style={{ marginTop: 10 }}>
-          <Icon name="check" size={12} strokeWidth={2.6} />
-          {response}
-        </div>
-      )}
+      <div className="chip-list" style={{ marginTop: 10, gap: 6 }}>
+        {response && (
+          <div className="badge badge--emerald">
+            <Icon name="check" size={12} strokeWidth={2.6} />
+            {response}
+          </div>
+        )}
+        {candidate.has_police_clearance && (
+          <div className="badge badge--emerald">
+            <Icon name="shieldCheck" size={12} strokeWidth={2.4} />
+            Police cleared
+          </div>
+        )}
+      </div>
       <div className="btn-grid btn-grid--three" style={{ marginTop: 14 }}>
         <Link
           href={`/employer/jobs/${job.id}/workers/${candidate.worker_id}`}

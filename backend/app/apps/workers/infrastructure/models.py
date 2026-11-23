@@ -61,11 +61,12 @@ class StandingModel(Base):
 
 
 class WorkerVettingModel(Base):
-    """Progressive vetting evidence (ADR-005): a photographed national ID.
+    """Progressive vetting evidence (ADR-005): a photographed national ID
+    and optional Police Clearance certificate.
 
     One row per worker. References and vouches live in their own tables
-    since they're one-to-many; this table holds the single ID-photo
-    checkpoint that gates the REGISTERED -> IDENTIFIED promotion.
+    since they're one-to-many; this table holds the identity and police
+    clearance document checkpoints.
     """
     __tablename__ = "worker_vetting"
     worker_id: Mapped[uuid.UUID] = mapped_column(
@@ -73,6 +74,8 @@ class WorkerVettingModel(Base):
     )
     id_photo_url: Mapped[str | None] = mapped_column(String(255))
     id_submitted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    police_clearance_url: Mapped[str | None] = mapped_column(String(255))
+    police_clearance_submitted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class WorkerReferenceModel(Base):

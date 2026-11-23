@@ -41,6 +41,7 @@ import {
   useSkills,
   useStanding,
   useSubmitIdPhoto,
+  useSubmitPoliceClearance,
   useSuburbs,
   useUpdateUserProfile,
   useVouchForWorker,
@@ -102,6 +103,7 @@ export function AccountScreen({ tabBar }: Props) {
   // Worker mutations
   const registerServiceArea = useRegisterServiceArea();
   const submitIdPhoto = useSubmitIdPhoto();
+  const submitPoliceClearance = useSubmitPoliceClearance();
   const addReference = useAddReference();
   const vouchForWorker = useVouchForWorker();
   const canUpload = useMediaUploads();
@@ -141,6 +143,7 @@ export function AccountScreen({ tabBar }: Props) {
 
   // Vetting & references state (Worker)
   const [isIdPickerOpen, setIsIdPickerOpen] = useState(false);
+  const [isPoliceClearancePickerOpen, setIsPoliceClearancePickerOpen] = useState(false);
   const [refName, setRefName] = useState("");
   const [refPhone, setRefPhone] = useState("");
   const [vouchWorkerId, setVouchWorkerId] = useState("");
@@ -185,6 +188,7 @@ export function AccountScreen({ tabBar }: Props) {
   const referenceCount = Math.max(referenceList.length, vetting.data?.reference_count ?? 0);
   const vouchCount = vetting.data?.vouch_count ?? 0;
   const hasIdVerified = Boolean(vetting.data?.id_photo_url) || currentGradeRank >= 1;
+  const hasPoliceClearance = Boolean(vetting.data?.police_clearance_url);
   const canVouchForPeers = currentGrade === "JOURNEYMAN" || currentGrade === "EXPERT";
   // Only once the server has confirmed the tier, and only for a tier this phone hasn't celebrated.
   const gradeToCelebrate: Grade | null =
@@ -328,6 +332,40 @@ export function AccountScreen({ tabBar }: Props) {
     } catch (failure: unknown) {
       setVettingError(
         failure instanceof Error ? failure.message : "Could not submit ID verification.",
+      );
+    }
+  }
+
+  async function handlePoliceClearanceFiles(files: File[]): Promise<void> {
+    const file = files[0];
+    if (!file) return;
+    setVettingError(null);
+    setVettingFeedback(null);
+    if (!canUpload) {
+      setVettingError("Photo uploads are not available right now. Try again when you have signal.");
+      return;
+    }
+    let url: string;
+    try {
+      url = await upload(file, "photo");
+    } catch (failure: unknown) {
+      setVettingError(
+        isUploadUnavailable(failure)
+          ? "Photo uploads are not available right now. Try again when you have signal."
+          : failure instanceof Error
+            ? failure.message
+            : "Could not upload Police Clearance photo.",
+      );
+      return;
+    }
+    try {
+      await submitPoliceClearance.mutateAsync({ police_clearance_url: url });
+      setVettingFeedback(
+        "Police Clearance certificate submitted. Clients now see your Police Cleared verification badge.",
+      );
+    } catch (failure: unknown) {
+      setVettingError(
+        failure instanceof Error ? failure.message : "Could not submit Police Clearance.",
       );
     }
   }
@@ -546,6 +584,12 @@ export function AccountScreen({ tabBar }: Props) {
               >
                 {isWorker ? gradeLabel(currentGrade) : "Verified Employer"}
               </span>
+              {isWorker && hasPoliceClearance && (
+                <span className="tag tag--verified">
+                  <Icon name="shieldCheck" size={12} />
+                  Police Cleared
+                </span>
+              )}
               {suburbDraft.trim() !== "" && (
                 <span className="tag">
                   <Icon name="pin" size={12} />
@@ -869,6 +913,44 @@ export function AccountScreen({ tabBar }: Props) {
               </div>
             </div>
 
+            {/* Step 1b: Police Clearance Certificate (Optional to join, prerequisite for Police Cleared verification) */}
+            <div
+              className="card card--compact stack"
+              style={{ gap: 8, background: "var(--bg-subtle)" }}
+            >
+              <div className="row row--between">
+                <div className="row row--tight">
+                  <Icon
+                    name={hasPoliceClearance ? "shieldCheck" : "fileText"}
+                    size={16}
+                    className={hasPoliceClearance ? "text-emerald" : "text-muted"}
+                  />
+                  <span style={{ fontSize: 14, fontWeight: 700 }}>
+                    Police Clearance (Verification badge)
+                  </span>
+                </div>
+                <span className="meta">
+                  {hasPoliceClearance ? "Verified" : "Optional · For verification"}
+                </span>
+              </div>
+              <p className="meta meta--secondary" style={{ lineHeight: 1.45 }}>
+                {hasPoliceClearance
+                  ? "Your Police Clearance certificate image is on file. Employers see the Police Cleared badge on your profile and offers."
+                  : "Optional when you join, but a prerequisite for full Police Cleared worker verification. Upload a clear photo of your ZRP Police Clearance certificate."}
+              </p>
+              <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
+                <button
+                  type="button"
+                  className="btn btn--sm btn--soft"
+                  disabled={isUploadingMedia || submitPoliceClearance.isPending}
+                  onClick={() => setIsPoliceClearancePickerOpen(true)}
+                >
+                  <Icon name="camera" size={15} />
+                  {hasPoliceClearance ? "Replace Police Clearance" : "Upload Police Clearance"}
+                </button>
+              </div>
+            </div>
+
             {/* Step 2: Contactable References */}
             <div
               className="card card--compact stack"
@@ -1050,6 +1132,11 @@ export function AccountScreen({ tabBar }: Props) {
             isOpen={isIdPickerOpen}
             onClose={() => setIsIdPickerOpen(false)}
             onPick={(files) => void handleIdPhotoFiles(files)}
+          />
+          <PhotoPicker
+            isOpen={isPoliceClearancePickerOpen}
+            onClose={() => setIsPoliceClearancePickerOpen(false)}
+            onPick={(files) => void handlePoliceClearanceFiles(files)}
           />
         </>
       )}
@@ -1303,11 +1390,45 @@ export function AccountScreen({ tabBar }: Props) {
         )}
       </form>
 
+      {/* Appearance & Theme Switcher */}
+      <section className="card stack" style={{ gap: 10 }} aria-labelledby="acc-theme-title">
+        <div>
+          <h2 id="acc-theme-title" style={{ fontSize: 15, fontWeight: 700 }}>
+            Theme &amp; appearance
+          </h2>
+          <div className="meta meta--secondary" style={{ marginTop: 2 }}>
+            Choose between our default Royal Indigo dark theme and the White &amp; Blue light theme
+          </div>
+        </div>
+        <div className="segmented segmented--choice" role="group" aria-label="Theme">
+          <button
+            type="button"
+            className="segmented__tab row"
+            style={{ justifyContent: "center", gap: 6 }}
+            aria-pressed={profile.theme !== "light"}
+            onClick={() => updateProfile({ theme: "dark" })}
+          >
+            <Icon name="moon" size={15} />
+            Dark (Default)
+          </button>
+          <button
+            type="button"
+            className="segmented__tab row"
+            style={{ justifyContent: "center", gap: 6 }}
+            aria-pressed={profile.theme === "light"}
+            onClick={() => updateProfile({ theme: "light" })}
+          >
+            <Icon name="sun" size={15} />
+            White &amp; Blue
+          </button>
+        </div>
+      </section>
+
       {/* Legal & Sign Out */}
       <section className="card stack" style={{ gap: 8 }}>
         <div className="row row--between meta">
           <Link href="/terms" className="text-link">
-            Terms of Service
+            Terms and Conditions
           </Link>
           <Link href="/privacy" className="text-link">
             Privacy Policy

@@ -12,8 +12,10 @@ import {
   sendMessage,
   submitIdPhoto,
   submitOffer,
+  submitPoliceClearance,
   submitQuote,
   submitReview,
+  updateJob,
   updateUserProfile,
   vouchForWorker,
   type AddReferenceInput,
@@ -27,8 +29,10 @@ import {
   type SendMessageInput,
   type SubmitIdPhotoInput,
   type SubmitOfferInput,
+  type SubmitPoliceClearanceInput,
   type SubmitQuoteInput,
   type SubmitReviewInput,
+  type UpdateJobInput,
   type UpdateUserProfileInput,
   type VouchForWorkerInput,
 } from "@/core/api/endpoints";
@@ -108,6 +112,13 @@ export function createQueryClient(): QueryClient {
   registerReplayable<CreateJobInput>(client, mutationKeys.createJob, createJob, () => [
     queryKeys.myJobs,
   ]);
+  registerReplayable<UpdateJobInput>(client, mutationKeys.updateJob, updateJob, (v) => [
+    queryKeys.myJobs,
+    queryKeys.job(v.jobId),
+    queryKeys.matches(v.jobId),
+    queryKeys.openJobs,
+    queryKeys.screens,
+  ]);
   registerReplayable<SubmitOfferInput>(client, mutationKeys.submitOffer, submitOffer, () => [
     queryKeys.myOffers,
     queryKeys.openJobs,
@@ -171,6 +182,12 @@ export function createQueryClient(): QueryClient {
     queryKeys.standing,
     queryKeys.screens,
   ]);
+  registerReplayable<SubmitPoliceClearanceInput>(
+    client,
+    mutationKeys.submitPoliceClearance,
+    submitPoliceClearance,
+    () => [queryKeys.vetting, queryKeys.standing, queryKeys.screens],
+  );
   registerReplayable<AddReferenceInput>(client, mutationKeys.addReference, addReference, () => [
     queryKeys.references,
     queryKeys.vetting,

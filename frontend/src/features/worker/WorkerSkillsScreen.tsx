@@ -10,6 +10,7 @@ import { PhotoStrip } from "@/components/ui/PhotoStrip";
 import { Screen } from "@/components/ui/Screen";
 import { ErrorState } from "@/components/ui/States";
 import type { Trade } from "@/core/api/schemas";
+import { findNearestSuburb } from "@/core/format/suburbs";
 import { isUploadUnavailable } from "@/core/media/upload";
 import { useMediaUploads } from "@/core/media/use-media-uploads";
 import { useUpload } from "@/core/media/use-upload";
@@ -50,6 +51,8 @@ export function WorkerSkillsScreen() {
   const [travelDraft, setTravelDraft] = useState<number | null>(null);
   const travelKm: number = clampTravelKm(travelDraft ?? user?.travel_km ?? profile.travelKm);
   const [chosenSuburb, setSuburb] = useState("");
+  const [isLocatingSuburb, setIsLocatingSuburb] = useState(false);
+  const [locationNote, setLocationNote] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -57,6 +60,32 @@ export function WorkerSkillsScreen() {
   const total = registered.size + picked.length;
   const suburb = chosenSuburb || serviceAreas.data?.[0]?.suburb || profile.homeSuburb;
   const knownArea = (serviceAreas.data ?? []).some((area) => area.suburb === suburb);
+
+  function handleUseCurrentLocation(): void {
+    if (typeof navigator === "undefined" || !("geolocation" in navigator)) {
+      setLocationNote("Location isn't available on this device. Choose your suburb from the list.");
+      return;
+    }
+    setIsLocatingSuburb(true);
+    setLocationNote(null);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const nearest = findNearestSuburb(
+          position.coords.latitude,
+          position.coords.longitude,
+          suburbs.data,
+        );
+        setSuburb(nearest.suburb);
+        setIsLocatingSuburb(false);
+        setLocationNote(`Detected nearest suburb: ${nearest.suburb} (${nearest.distanceKm} km).`);
+      },
+      () => {
+        setIsLocatingSuburb(false);
+        setLocationNote("Could not get your location. Choose your suburb from the list.");
+      },
+      { enableHighAccuracy: true, timeout: 10_000, maximumAge: 60_000 },
+    );
+  }
 
   function toggle(trade: Trade): void {
     if (registered.has(trade)) return;
@@ -182,19 +211,30 @@ export function WorkerSkillsScreen() {
           onChange={(event) => setTravelDraft(clampTravelKm(Number(event.target.value)))}
           style={{ marginTop: 12 }}
         />
-        <label
-          htmlFor="ws-suburb"
-          className="field__label"
-          style={{ display: "block", marginTop: 12 }}
-        >
-          From
-        </label>
+        <div className="row row--between row--baseline" style={{ marginTop: 12 }}>
+          <label htmlFor="ws-suburb" className="field__label">
+            From
+          </label>
+          <button
+            type="button"
+            className="text-link row row--tight"
+            style={{ fontSize: 13 }}
+            disabled={isLocatingSuburb}
+            onClick={handleUseCurrentLocation}
+          >
+            <Icon name="pin" size={14} />
+            {isLocatingSuburb ? "Finding location…" : "Use my location"}
+          </button>
+        </div>
         <select
           id="ws-suburb"
           className="input"
           style={{ marginTop: 8, height: 48 }}
           value={suburb}
-          onChange={(event) => setSuburb(event.target.value)}
+          onChange={(event) => {
+            setSuburb(event.target.value);
+            setLocationNote(null);
+          }}
         >
           <option value="">{suburbs.isPending ? "Loading suburbs…" : "Choose your suburb"}</option>
           {(suburbs.data ?? []).map((item) => (
@@ -203,6 +243,11 @@ export function WorkerSkillsScreen() {
             </option>
           ))}
         </select>
+        {locationNote && (
+          <p className="meta text-emerald" style={{ marginTop: 6 }} role="status">
+            {locationNote}
+          </p>
+        )}
       </section>
 
       {error && (

@@ -21,6 +21,7 @@ import {
   type SubmitOfferInput,
   type SubmitQuoteInput,
   type SubmitReviewInput,
+  type UpdateJobInput,
 } from "@/core/api/endpoints";
 import type {
   Dispute,
@@ -192,6 +193,10 @@ export function useMyOffers(isEnabled: boolean = true): UseQueryResult<MyOffer[]
 
 export function useCreateJob() {
   return useMutation<Job, Error, CreateJobInput>({ mutationKey: mutationKeys.createJob });
+}
+
+export function useUpdateJob() {
+  return useMutation<Job, Error, UpdateJobInput>({ mutationKey: mutationKeys.updateJob });
 }
 
 export function useSubmitOffer() {

@@ -1,4 +1,11 @@
-import type { Job, JobStatus, MatchCandidate, MyJob, ReviewTag } from "@/core/api/schemas";
+import type {
+  Job,
+  JobStatus,
+  MatchCandidate,
+  MyJob,
+  PricingMode,
+  ReviewTag,
+} from "@/core/api/schemas";
 import {
   distanceBandLabel,
   formatKm,
@@ -7,6 +14,42 @@ import {
   gradeLabel,
 } from "@/core/format/format";
 import { tradeLabel } from "@/core/format/trades";
+
+/** Determine the effective pricing mode for a job. */
+export function resolvePricingMode(job: {
+  pricing_mode?: PricingMode;
+  budget_amount: number | null;
+}): PricingMode {
+  if (job.pricing_mode) return job.pricing_mode;
+  return job.budget_amount === null ? "AFTER_VISIT" : "NEGOTIABLE";
+}
+
+/** Human-readable label for a job's pricing mode and budget. */
+export function pricingModeLabel(mode: PricingMode | undefined, budget: number | null): string {
+  const effective = mode ?? (budget === null ? "AFTER_VISIT" : "NEGOTIABLE");
+  if (effective === "AFTER_VISIT") {
+    return budget !== null ? `${formatMoney(budget)} · After visit` : "Price after visit";
+  }
+  if (effective === "FIXED") {
+    return budget !== null ? `Fixed · ${formatMoney(budget)}` : "Fixed price";
+  }
+  return budget !== null ? `${formatMoney(budget)} · Negotiable` : "Negotiable";
+}
+
+/** Quick inDrive-style counter-offer amounts based on the client's suggested budget. */
+export function counterOfferChips(budget: number | null): number[] {
+  if (budget === null || budget <= 0) {
+    return [15, 25, 40, 60];
+  }
+  const step = budget < 20 ? 3 : budget < 60 ? 5 : 10;
+  const candidates = [
+    Math.max(5, Math.round(budget - step)),
+    Math.round(budget + step),
+    Math.round(budget + step * 2),
+    Math.round(budget + step * 3),
+  ];
+  return Array.from(new Set(candidates.filter((val) => val > 0 && val !== budget)));
+}
 
 /** Jobs still collecting offers — the buyer reviews applicants. */
 export function isOpenStatus(status: JobStatus): boolean {

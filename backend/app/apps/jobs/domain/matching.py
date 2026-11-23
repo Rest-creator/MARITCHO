@@ -119,6 +119,7 @@ class JobMatchingService:
                 jobs_completed=jobs_completed,
                 rating_average=standing.rating_average if standing else None,
                 rating_count=standing.rating_count if standing else 0,
+                has_police_clearance=standing.has_police_clearance if standing else False,
                 reason=reason,
                 display_name=profile.display_name if profile else None,
             )

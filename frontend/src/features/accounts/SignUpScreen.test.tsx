@@ -111,6 +111,36 @@ describe("SignUpScreen", () => {
 
     expect(screen.getByRole("alert")).toHaveTextContent(/suburb/);
   });
+
+  it("toggles password visibility when typing and shows Terms and Conditions & Privacy Policy links", async () => {
+    const user = userEvent.setup();
+    renderSignUp(true);
+
+    const passwordInput = screen.getByLabelText("Password");
+    expect(passwordInput).toHaveAttribute("type", "password");
+
+    const toggleButton = screen.getByRole("button", { name: "Show password" });
+    await user.click(toggleButton);
+    expect(passwordInput).toHaveAttribute("type", "text");
+
+    const hideButton = screen.getByRole("button", { name: "Hide password" });
+    await user.click(hideButton);
+    expect(passwordInput).toHaveAttribute("type", "password");
+
+    expect(screen.getByRole("link", { name: "Terms and Conditions" })).toHaveAttribute(
+      "href",
+      "/terms",
+    );
+    expect(screen.getByRole("link", { name: "Privacy Policy" })).toHaveAttribute(
+      "href",
+      "/privacy",
+    );
+  });
+
+  it("offers 'Use my location' on sign-up suburb selection", () => {
+    renderSignUp(false, "BUYER");
+    expect(screen.getByRole("button", { name: /Use my location/i })).toBeInTheDocument();
+  });
 });
 
 describe("validateSignUpDetails", () => {

@@ -4,7 +4,12 @@ import { Icon } from "@/components/ui/Icon";
 import type { MyJob } from "@/core/api/schemas";
 import { formatRelativeTime, formatShortDate, jobStatusLabel } from "@/core/format/format";
 import { tradeIcon, tradeLabel } from "@/core/format/trades";
-import { employerJobHref, isOpenStatus, splitTiming } from "@/features/jobs/job-helpers";
+import {
+  employerJobHref,
+  isOpenStatus,
+  pricingModeLabel,
+  splitTiming,
+} from "@/features/jobs/job-helpers";
 
 type Props = { job: MyJob };
 
@@ -60,7 +65,9 @@ export function EmployerJobCard({ job }: Props) {
         <span className={isOpen ? "badge badge--amber" : "badge badge--emerald"}>{badge}</span>
       </div>
       <div className="card__divider row row--between">
-        <span className="meta meta--secondary">{job.suburb}</span>
+        <span className="meta meta--secondary">
+          {job.suburb} · {pricingModeLabel(job.pricing_mode, job.budget_amount)}
+        </span>
         <span
           className="row row--tight text-amber"
           style={{ fontSize: 13, fontWeight: 600, gap: 4 }}

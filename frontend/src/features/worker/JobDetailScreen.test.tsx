@@ -56,4 +56,34 @@ describe("JobDetailScreen skill matching", () => {
 
     expect(screen.getByText("This job has been filled")).toBeInTheDocument();
   });
+
+  it("supports inDrive-style price negotiation and quick counter-offer chips on open jobs", () => {
+    const client = createQueryClient();
+    client.setQueryData(queryKeys.openJobs, [
+      {
+        job_id: JOB_ID,
+        trade: "PLUMBING",
+        suburb: "Hillside",
+        budget_amount: null,
+        pricing_mode: "AFTER_VISIT",
+        problem_description: "Leaking geyser valve\nNeeded: Today",
+        created_at: "2026-10-14T08:00:00Z",
+        distance_band: "SAME_SUBURB",
+        distance_km: 1.2,
+      },
+    ]);
+    client.setQueryData(queryKeys.myOffers, []);
+
+    render(
+      <QueryClientProvider client={client}>
+        <JobDetailScreen jobId={JOB_ID} />
+      </QueryClientProvider>,
+    );
+
+    expect(screen.getByText("After visit")).toBeInTheDocument();
+    expect(screen.getByText("Price after visit")).toBeInTheDocument();
+    expect(screen.getByText("The client didn't set a price. What's yours?")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "$25" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Send my price/i })).toBeInTheDocument();
+  });
 });

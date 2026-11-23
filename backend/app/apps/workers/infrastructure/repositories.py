@@ -72,8 +72,11 @@ def _standing_to_entity(model: StandingModel) -> Standing:
 
 def _vetting_to_entity(model: WorkerVettingModel) -> WorkerVetting:
     return WorkerVetting(
-        worker_id=model.worker_id, id_photo_url=model.id_photo_url,
+        worker_id=model.worker_id,
+        id_photo_url=model.id_photo_url,
         id_submitted_at=model.id_submitted_at,
+        police_clearance_url=model.police_clearance_url,
+        police_clearance_submitted_at=model.police_clearance_submitted_at,
     )
 
 
@@ -189,6 +192,18 @@ class SqlAlchemyWorkerVettingRepository(WorkerVettingRepository):
             self._db.add(model)
         model.id_photo_url = id_photo_url
         model.id_submitted_at = submitted_at
+        await self._db.flush()
+        return _vetting_to_entity(model)
+
+    async def upsert_police_clearance(
+        self, worker_id: uuid.UUID, police_clearance_url: str, submitted_at: datetime
+    ) -> WorkerVetting:
+        model = await self._db.get(WorkerVettingModel, worker_id)
+        if model is None:
+            model = WorkerVettingModel(worker_id=worker_id)
+            self._db.add(model)
+        model.police_clearance_url = police_clearance_url
+        model.police_clearance_submitted_at = submitted_at
         await self._db.flush()
         return _vetting_to_entity(model)
 
@@ -332,6 +347,13 @@ class SqlAlchemyWorkerDirectoryRepository(WorkerDirectoryRepository):
             model.worker_id: model for model in standings_result.scalars().all()
         }
 
+        vetting_result = await self._db.execute(
+            select(WorkerVettingModel).where(WorkerVettingModel.worker_id.in_(skilled_ids))
+        )
+        vetting_by_worker = {
+            model.worker_id: model for model in vetting_result.scalars().all()
+        }
+
         ratings_result = await self._db.execute(
             select(ReviewModel.worker_id, func.avg(ReviewModel.rating), func.count())
             .where(ReviewModel.worker_id.in_(skilled_ids))
@@ -367,6 +389,7 @@ class SqlAlchemyWorkerDirectoryRepository(WorkerDirectoryRepository):
             primary_suburb = areas[0][0] if areas else person.home_suburb
             primary_means = areas[0][1] if areas else None
             standing = standings_by_worker.get(person.id)
+            vetting = vetting_by_worker.get(person.id)
             rating_avg, rating_cnt = ratings_by_worker.get(person.id, (None, 0))
             item = WorkerDirectoryItem(
                 worker_id=person.id,
@@ -401,6 +424,7 @@ class SqlAlchemyWorkerDirectoryRepository(WorkerDirectoryRepository):
                 travel_km=person.travel_km,
                 travel_means=primary_means,
                 similarity_score=vector_sim_by_worker.get(person.id),
+                has_police_clearance=bool(vetting and vetting.police_clearance_url),
             )
             output.append((item, areas))
         return output
@@ -437,6 +461,7 @@ class SqlAlchemyWorkerDirectoryRepository(WorkerDirectoryRepository):
             areas.append((person_model.home_suburb, None))
 
         standing = await self._db.get(StandingModel, worker_id)
+        vetting = await self._db.get(WorkerVettingModel, worker_id)
         rating_row = (
             await self._db.execute(
                 select(func.avg(ReviewModel.rating), func.count()).where(
@@ -512,6 +537,7 @@ class SqlAlchemyWorkerDirectoryRepository(WorkerDirectoryRepository):
             service_areas=service_area_names,
             reference_count=int(ref_count),
             recent_work=recent_work,
+            has_police_clearance=bool(vetting and vetting.police_clearance_url),
         )
         return profile, areas
 

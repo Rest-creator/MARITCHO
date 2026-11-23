@@ -52,6 +52,7 @@ from app.shared_kernel.enums import (
     DistanceBandEnum,
     LedgerEntryTypeEnum,
     NeededByEnum,
+    PricingModeEnum,
     RoleEnum,
     TradeEnum,
 )
@@ -97,9 +98,17 @@ class CreateJobRequestUseCase:
         problem_photo_url: str | None,
         budget_amount: Decimal | None = None,
         needed_by: NeededByEnum = NeededByEnum.FLEXIBLE,
+        pricing_mode: PricingModeEnum = PricingModeEnum.NEGOTIABLE,
     ) -> Job:
         if not await self._suburbs.exists(suburb):
             raise ValidationConflictError("Unknown suburb")
+        if pricing_mode == PricingModeEnum.FIXED and budget_amount is None:
+            raise ValidationConflictError("Fixed price jobs require a budget amount")
+        effective_budget = (
+            None
+            if pricing_mode == PricingModeEnum.AFTER_VISIT and budget_amount is None
+            else budget_amount
+        )
 
         job = await self._jobs.create(
             buyer_id=buyer_id,
@@ -111,9 +120,79 @@ class CreateJobRequestUseCase:
             longitude=longitude,
             problem_description=problem_description,
             problem_photo_url=problem_photo_url,
-            budget_amount=budget_amount,
+            budget_amount=effective_budget,
             needed_by=needed_by,
+            pricing_mode=pricing_mode,
         )
+        await self._uow.commit()
+        return job
+
+
+class UpdateJobRequestUseCase:
+    """Allow a buyer to edit their own job posting while it is still open (REQUESTED or MATCHED)."""
+
+    def __init__(self, jobs: JobRepository, suburbs: SuburbLookupPort, uow: UnitOfWork) -> None:
+        self._jobs = jobs
+        self._suburbs = suburbs
+        self._uow = uow
+
+    async def execute(
+        self,
+        *,
+        job_id: uuid.UUID,
+        buyer_id: uuid.UUID,
+        fields_set: set[str],
+        trade: TradeEnum | None = None,
+        suburb: str | None = None,
+        address: str | None = None,
+        landmark_narrative: str | None = None,
+        latitude: Decimal | None = None,
+        longitude: Decimal | None = None,
+        problem_description: str | None = None,
+        problem_photo_url: str | None = None,
+        budget_amount: Decimal | None = None,
+        needed_by: NeededByEnum | None = None,
+        pricing_mode: PricingModeEnum | None = None,
+    ) -> Job:
+        job = await self._jobs.get(job_id)
+        if job is None:
+            raise NotFoundError("Job not found")
+        if job.buyer_id != buyer_id:
+            raise ForbiddenError("Not permitted to edit this job")
+        if job.status not in (JobStatusEnum.REQUESTED, JobStatusEnum.MATCHED):
+            raise ConflictError("Job can no longer be edited once a worker is booked")
+
+        if "suburb" in fields_set and suburb is not None:
+            if not await self._suburbs.exists(suburb):
+                raise ValidationConflictError("Unknown suburb")
+            job.suburb = suburb
+        if "trade" in fields_set and trade is not None:
+            job.trade = trade
+        if "address" in fields_set and address is not None:
+            job.address = address
+        if "landmark_narrative" in fields_set:
+            job.landmark_narrative = landmark_narrative
+        if "latitude" in fields_set:
+            job.latitude = latitude
+        if "longitude" in fields_set:
+            job.longitude = longitude
+        if "problem_description" in fields_set and problem_description is not None:
+            job.problem_description = problem_description
+        if "problem_photo_url" in fields_set:
+            job.problem_photo_url = problem_photo_url
+        if "needed_by" in fields_set and needed_by is not None:
+            job.needed_by = needed_by
+        if "pricing_mode" in fields_set and pricing_mode is not None:
+            job.pricing_mode = pricing_mode
+        if "budget_amount" in fields_set:
+            job.budget_amount = budget_amount
+        elif job.pricing_mode == PricingModeEnum.AFTER_VISIT:
+            job.budget_amount = None
+
+        if job.pricing_mode == PricingModeEnum.FIXED and job.budget_amount is None:
+            raise ValidationConflictError("Fixed price jobs require a budget amount")
+
+        await self._jobs.save(job)
         await self._uow.commit()
         return job
 
@@ -333,6 +412,7 @@ class ListOpenJobsForWorkerUseCase:
                 distance_km=round(km, 1),
                 needed_by=job.needed_by,
                 similarity_score=sim_score,
+                pricing_mode=job.pricing_mode,
             )
             needed_value = (
                 job.needed_by.value
@@ -434,6 +514,7 @@ class SearchOpenJobsUseCase:
                     needed_by=job.needed_by,
                     similarity_score=final_score,
                     matched_trade=inferred_trade,
+                    pricing_mode=job.pricing_mode,
                 )
             )
         results.sort(

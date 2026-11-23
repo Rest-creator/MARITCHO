@@ -31,6 +31,7 @@ from app.apps.workers.domain.services import (
     RegisterServiceAreaUseCase,
     RegisterSkillUseCase,
     SubmitIdPhotoUseCase,
+    SubmitPoliceClearanceUseCase,
     VouchForWorkerUseCase,
 )
 from app.apps.workers.interface_adapters.dependencies import (
@@ -43,12 +44,14 @@ from app.apps.workers.interface_adapters.dependencies import (
     get_register_skill_use_case,
     get_standing_use_case,
     get_submit_id_photo_use_case,
+    get_submit_police_clearance_use_case,
     get_vetting_view_use_case,
     get_vouch_for_worker_use_case,
     get_worker_public_profile_use_case,
 )
 from app.apps.workers.interface_adapters.schemas import (
     IdPhotoSubmit,
+    PoliceClearanceSubmit,
     ReferenceCreate,
     ReferenceOut,
     ServiceAreaCreate,
@@ -147,6 +150,23 @@ async def submit_id_photo(
     immediately, same transaction, from all accumulated evidence.
     """
     return await use_case.execute(current_user.id, payload.id_photo_url)
+
+
+@router.post("/vetting/police-clearance", response_model=WorkerVettingOut)
+async def submit_police_clearance(
+    payload: PoliceClearanceSubmit,
+    current_user: Person = Depends(RequireRole([RoleEnum.WORKER])),
+    use_case: SubmitPoliceClearanceUseCase = Depends(get_submit_police_clearance_use_case),
+) -> WorkerVettingView:
+    """Submit (or replace) the worker's Police Clearance certificate image."""
+    with tracer.start_as_current_span("workers.submit_police_clearance") as span:
+        span.set_attribute("worker.id", str(current_user.id))
+        view = await use_case.execute(current_user.id, payload.police_clearance_url)
+        span.set_attribute("worker.grade", view.grade.value)
+        logger.info(
+            f"Police clearance submitted by worker={current_user.id} grade={view.grade.value}"
+        )
+        return view
 
 
 @router.post("/references", response_model=ReferenceOut, status_code=status.HTTP_201_CREATED)
