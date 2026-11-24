@@ -75,11 +75,22 @@ function initialSkill(trade: Trade | null, skillId: string | null): SkillOption 
   );
 }
 
+/** The skill whose label was baked into the stored description by describeWithSkill, if any. */
+function skillFromDescription(job: Job | undefined): SkillOption | null {
+  if (!job) return null;
+  const { text } = splitTiming(job.problem_description);
+  return (
+    ALL_SKILLS.find((skill) => skill.trade === job.trade && text.startsWith(`${skill.label}: `)) ??
+    null
+  );
+}
+
 function initialDescriptionFromJob(job: Job | undefined): string {
   if (!job) return "";
   const { text } = splitTiming(job.problem_description);
-  const tradePrefix = `${tradeLabel(job.trade)}: `;
-  return text.startsWith(tradePrefix) ? text.slice(tradePrefix.length) : text;
+  const matchedSkill = skillFromDescription(job);
+  const prefix = matchedSkill ? `${matchedSkill.label}: ` : `${tradeLabel(job.trade)}: `;
+  return text.startsWith(prefix) ? text.slice(prefix.length) : text;
 }
 
 function initialTimingFromJob(job: Job | undefined): Timing {
@@ -141,8 +152,10 @@ function PostJobForm({
   const canUpload = useMediaUploads();
   const { upload, isUploading } = useUpload();
 
-  const [skill, setSkill] = useState<SkillOption | null>(() =>
-    initialSkill(initialJob?.trade ?? initialTrade, initialSkillId),
+  const [skill, setSkill] = useState<SkillOption | null>(
+    () =>
+      skillFromDescription(initialJob) ??
+      initialSkill(initialJob?.trade ?? initialTrade, initialSkillId),
   );
   const [writeInSkill, setWriteInSkill] = useState("");
   const [isSkillSuggestOpen, setIsSkillSuggestOpen] = useState(false);

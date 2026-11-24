@@ -162,13 +162,17 @@ class UpdateJobRequestUseCase:
         if job.status not in (JobStatusEnum.REQUESTED, JobStatusEnum.MATCHED):
             raise ConflictError("Job can no longer be edited once a worker is booked")
 
-        if "suburb" in fields_set and suburb is not None:
+        if "suburb" in fields_set:
+            if suburb is None:
+                raise ValidationConflictError("Suburb cannot be cleared")
             if not await self._suburbs.exists(suburb):
                 raise ValidationConflictError("Unknown suburb")
             job.suburb = suburb
         if "trade" in fields_set and trade is not None:
             job.trade = trade
-        if "address" in fields_set and address is not None:
+        if "address" in fields_set:
+            if address is None:
+                raise ValidationConflictError("Address cannot be cleared")
             job.address = address
         if "landmark_narrative" in fields_set:
             job.landmark_narrative = landmark_narrative
@@ -176,17 +180,26 @@ class UpdateJobRequestUseCase:
             job.latitude = latitude
         if "longitude" in fields_set:
             job.longitude = longitude
-        if "problem_description" in fields_set and problem_description is not None:
+        if "problem_description" in fields_set:
+            if problem_description is None:
+                raise ValidationConflictError("Problem description cannot be cleared")
             job.problem_description = problem_description
         if "problem_photo_url" in fields_set:
             job.problem_photo_url = problem_photo_url
         if "needed_by" in fields_set and needed_by is not None:
             job.needed_by = needed_by
-        if "pricing_mode" in fields_set and pricing_mode is not None:
+
+        pricing_mode_changed = (
+            "pricing_mode" in fields_set
+            and pricing_mode is not None
+            and pricing_mode != job.pricing_mode
+        )
+        if pricing_mode_changed:
             job.pricing_mode = pricing_mode
+
         if "budget_amount" in fields_set:
             job.budget_amount = budget_amount
-        elif job.pricing_mode == PricingModeEnum.AFTER_VISIT:
+        elif job.pricing_mode == PricingModeEnum.AFTER_VISIT or pricing_mode_changed:
             job.budget_amount = None
 
         if job.pricing_mode == PricingModeEnum.FIXED and job.budget_amount is None:

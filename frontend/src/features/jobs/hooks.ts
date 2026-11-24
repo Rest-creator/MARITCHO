@@ -62,6 +62,7 @@ export function useJob(jobId: string): UseQueryResult<Job> {
   return useQuery({
     queryKey: queryKeys.job(jobId),
     queryFn: () => fetchJob(jobId),
+    enabled: jobId.length > 0,
     ...CHANGED_BY_OTHERS,
   });
 }
