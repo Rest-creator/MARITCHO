@@ -145,13 +145,18 @@ test("a job goes from posted to paid", async ({ browser }) => {
     await worker.goto(chatUrl);
 
     const live = "Connected · messages arrive instantly";
-    // The chat socket's first connect (fetch the socket token, then open +
-    // auth the WebSocket) queues behind the backend's synchronous password
-    // hashing for the two accounts this suite just created, on a single
-    // uvicorn worker, on a shared CI runner - confirmed the socket is
-    // eventually accepted server-side, just not within a tight timeout.
-    await expect(buyer.getByText(live)).toBeVisible({ timeout: 60_000 });
-    await expect(worker.getByText(live)).toBeVisible({ timeout: 60_000 });
+    // A concurrent navigation here occasionally hits a real connection
+    // failure against the single dev server under CI load (confirmed via
+    // the failure screenshot: the browser's own "This page couldn't load"
+    // interstitial, not a slow-to-render chat screen) - reload until the
+    // socket is up, the same way untilAfterReload recovers other
+    // refetch-on-load screens elsewhere in this suite.
+    await untilAfterReload(buyer, () =>
+      expect(buyer.getByText(live)).toBeVisible({ timeout: 5_000 }),
+    );
+    await untilAfterReload(worker, () =>
+      expect(worker.getByText(live)).toBeVisible({ timeout: 5_000 }),
+    );
 
     const hello = `Gate code is 1234 (${runId})`;
     await buyer.getByLabel("Message").fill(hello);
