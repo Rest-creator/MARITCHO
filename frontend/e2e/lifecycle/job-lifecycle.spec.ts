@@ -145,8 +145,11 @@ test("a job goes from posted to paid", async ({ browser }) => {
     await worker.goto(chatUrl);
 
     const live = "Connected · messages arrive instantly";
-    await expect(buyer.getByText(live)).toBeVisible();
-    await expect(worker.getByText(live)).toBeVisible();
+    // The chat socket's first connect races a cold, just-built production
+    // server under CI load (fetch the socket token, then open + auth the
+    // WebSocket) - the default 10s expect timeout isn't always enough there.
+    await expect(buyer.getByText(live)).toBeVisible({ timeout: 30_000 });
+    await expect(worker.getByText(live)).toBeVisible({ timeout: 30_000 });
 
     const hello = `Gate code is 1234 (${runId})`;
     await buyer.getByLabel("Message").fill(hello);
