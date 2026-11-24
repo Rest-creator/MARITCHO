@@ -176,7 +176,10 @@ test("a job goes from posted to paid", async ({ browser }) => {
     await buyer.getByRole("radio", { name: "4 stars" }).click();
     await buyer.getByRole("button", { name: "On time" }).click();
     await buyer.getByRole("button", { name: `Confirm job done & pay $${PRICE}` }).click();
-    await expect(buyer.getByText("Job signed off")).toBeVisible();
+    // Both the celebration overlay and the now-permanent status header say
+    // "Job signed off" - scope to the celebration, the thing this click
+    // actually triggers.
+    await expect(buyer.getByRole("button", { name: /^Job signed off/ })).toBeVisible();
     await expect(buyer.getByText("Confirmed through Maritcho")).toBeVisible();
   });
 
