@@ -145,11 +145,13 @@ test("a job goes from posted to paid", async ({ browser }) => {
     await worker.goto(chatUrl);
 
     const live = "Connected · messages arrive instantly";
-    // The chat socket's first connect races a cold, just-built production
-    // server under CI load (fetch the socket token, then open + auth the
-    // WebSocket) - the default 10s expect timeout isn't always enough there.
-    await expect(buyer.getByText(live)).toBeVisible({ timeout: 30_000 });
-    await expect(worker.getByText(live)).toBeVisible({ timeout: 30_000 });
+    // The chat socket's first connect (fetch the socket token, then open +
+    // auth the WebSocket) queues behind the backend's synchronous password
+    // hashing for the two accounts this suite just created, on a single
+    // uvicorn worker, on a shared CI runner - confirmed the socket is
+    // eventually accepted server-side, just not within a tight timeout.
+    await expect(buyer.getByText(live)).toBeVisible({ timeout: 60_000 });
+    await expect(worker.getByText(live)).toBeVisible({ timeout: 60_000 });
 
     const hello = `Gate code is 1234 (${runId})`;
     await buyer.getByLabel("Message").fill(hello);
