@@ -194,7 +194,7 @@ class UpdateJobRequestUseCase:
             and pricing_mode is not None
             and pricing_mode != job.pricing_mode
         )
-        if pricing_mode_changed:
+        if pricing_mode_changed and pricing_mode is not None:
             job.pricing_mode = pricing_mode
 
         if "budget_amount" in fields_set:

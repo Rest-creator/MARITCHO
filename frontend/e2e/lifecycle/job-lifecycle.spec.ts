@@ -72,7 +72,7 @@ test("a job goes from posted to paid", async ({ browser }) => {
     await buyer.getByLabel("Describe the job").fill(jobText);
     await buyer.getByRole("button", { name: /Where is the job\?/ }).click();
     const sheet = buyer.getByRole("dialog", { name: "Where is the job?" });
-    await sheet.getByLabel("Suburb").fill(SUBURB);
+    await sheet.getByLabel("Suburb", { exact: true }).fill(SUBURB);
     await sheet.getByLabel("Street address").fill("14 Harrow Rd");
     await sheet.getByRole("button", { name: "Use this place" }).click();
     await buyer.getByLabel("Your budget (optional)").fill(String(PRICE));

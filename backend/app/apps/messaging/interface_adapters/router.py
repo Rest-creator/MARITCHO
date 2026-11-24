@@ -216,4 +216,4 @@ async def chat_socket(
         disconnect_task.cancel()
         heartbeat_task.cancel()
         await pubsub.unsubscribe(channel_name(job_id))
-        await pubsub.aclose()  # type: ignore[no-untyped-call]  # redis-py stub gap on PubSub.aclose
+        await pubsub.aclose()

@@ -55,7 +55,7 @@ test.describe("sign-up (WEB-005)", () => {
     await page.goto("/signup?role=buyer");
     await page.getByLabel("Your full name").fill("Rudo Ncube");
     await page.getByLabel("Phone number").fill("77 412 3089");
-    await page.getByLabel("Password").fill("Passw0rd!");
+    await page.getByLabel("Password", { exact: true }).fill("Passw0rd!");
     await page
       .getByLabel("Where do you usually need work done?")
       .selectOption({ label: "Hillside" });
@@ -84,7 +84,7 @@ test.describe("photos (WEB-004)", () => {
     await page.getByLabel("Describe the job").fill("Kitchen sink is leaking under the basin");
     await page.getByRole("button", { name: /Where is the job\?/ }).click();
     const sheet = page.getByRole("dialog", { name: "Where is the job?" });
-    await sheet.getByLabel("Suburb").fill("Hillside");
+    await sheet.getByLabel("Suburb", { exact: true }).fill("Hillside");
     await sheet.getByLabel("Street address").fill("14 Harrow Rd");
     await sheet.getByRole("button", { name: "Use this place" }).click();
 
