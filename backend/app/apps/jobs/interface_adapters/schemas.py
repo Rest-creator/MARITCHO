@@ -12,6 +12,7 @@ from app.shared_kernel.enums import (
     GradeEnum,
     LedgerEntryTypeEnum,
     NeededByEnum,
+    PricingModeEnum,
     ReviewTagEnum,
     TradeEnum,
 )
@@ -29,10 +30,40 @@ class JobRequestCreate(BaseModel):
     problem_photo_url: str | None = Field(default=None, max_length=255)
     budget_amount: Decimal | None = Field(default=None, gt=0, max_digits=10, decimal_places=2)
     needed_by: NeededByEnum = NeededByEnum.FLEXIBLE
+    pricing_mode: PricingModeEnum = PricingModeEnum.NEGOTIABLE
 
     @field_validator("suburb", "address", "problem_description")
     @classmethod
     def sanitize_text(cls, value: str) -> str:
+        sanitized = strip_tags(value)
+        if not sanitized:
+            raise ValueError("must contain non-empty text")
+        return sanitized
+
+    @field_validator("landmark_narrative")
+    @classmethod
+    def sanitize_landmark_narrative(cls, value: str | None) -> str | None:
+        return strip_tags(value) if value is not None else value
+
+
+class JobRequestUpdate(BaseModel):
+    trade: TradeEnum | None = None
+    suburb: str | None = Field(default=None, min_length=1, max_length=100)
+    address: str | None = Field(default=None, min_length=1, max_length=500)
+    landmark_narrative: str | None = Field(default=None, max_length=500)
+    latitude: Decimal | None = Field(default=None, ge=-90, le=90)
+    longitude: Decimal | None = Field(default=None, ge=-180, le=180)
+    problem_description: str | None = Field(default=None, min_length=1, max_length=2000)
+    problem_photo_url: str | None = Field(default=None, max_length=255)
+    budget_amount: Decimal | None = Field(default=None, gt=0, max_digits=10, decimal_places=2)
+    needed_by: NeededByEnum | None = None
+    pricing_mode: PricingModeEnum | None = None
+
+    @field_validator("suburb", "address", "problem_description")
+    @classmethod
+    def sanitize_optional_text(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
         sanitized = strip_tags(value)
         if not sanitized:
             raise ValueError("must contain non-empty text")
@@ -67,6 +98,7 @@ class JobOut(BaseModel):
     created_at: datetime
     updated_at: datetime
     needed_by: NeededByEnum = NeededByEnum.FLEXIBLE
+    pricing_mode: PricingModeEnum = PricingModeEnum.NEGOTIABLE
     worker_display_name: str | None = None
 
 
@@ -96,6 +128,7 @@ class MyJobOut(BaseModel):
     created_at: datetime
     updated_at: datetime
     needed_by: NeededByEnum = NeededByEnum.FLEXIBLE
+    pricing_mode: PricingModeEnum = PricingModeEnum.NEGOTIABLE
     worker_display_name: str | None = None
     offer_count: int
 
@@ -256,6 +289,7 @@ class MatchCandidateOut(BaseModel):
     display_name: str | None = None
     rating_average: Decimal | None = None
     rating_count: int = 0
+    has_police_clearance: bool = False
 
 
 class JobOfferCreate(BaseModel):
@@ -297,6 +331,7 @@ class OpenJobOut(BaseModel):
     distance_band: DistanceBandEnum
     distance_km: float
     needed_by: NeededByEnum = NeededByEnum.FLEXIBLE
+    pricing_mode: PricingModeEnum = PricingModeEnum.NEGOTIABLE
     similarity_score: float | None = None
 
 
@@ -312,6 +347,7 @@ class JobSearchResultOut(BaseModel):
     problem_description: str | None
     created_at: datetime | None
     needed_by: NeededByEnum = NeededByEnum.FLEXIBLE
+    pricing_mode: PricingModeEnum = PricingModeEnum.NEGOTIABLE
     similarity_score: float
     matched_trade: TradeEnum | None = None
 

@@ -362,6 +362,71 @@ paths:
           description: Authenticated user is not a party to this job
         '404':
           description: Job not found
+    patch:
+      summary: Edit an open job posting
+      description: >
+        Allows the job's buyer to edit an open job posting (while in REQUESTED
+        or MATCHED status, before a worker is booked) to fix any mistakes in
+        trade, suburb, address, description, timing, photo, or pricing mode
+        (FIXED, NEGOTIABLE, AFTER_VISIT).
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: job_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                trade:
+                  $ref: '#/components/schemas/TradeEnum'
+                suburb:
+                  type: string
+                address:
+                  type: string
+                landmark_narrative:
+                  type: string
+                  nullable: true
+                latitude:
+                  type: number
+                  nullable: true
+                longitude:
+                  type: number
+                  nullable: true
+                problem_description:
+                  type: string
+                problem_photo_url:
+                  type: string
+                  nullable: true
+                budget_amount:
+                  type: string
+                  nullable: true
+                needed_by:
+                  type: string
+                  enum: [TODAY, THIS_WEEK, FLEXIBLE]
+                pricing_mode:
+                  type: string
+                  enum: [FIXED, NEGOTIABLE, AFTER_VISIT]
+      responses:
+        '200':
+          description: Job updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+        '403':
+          description: Authenticated user is not this job's buyer
+        '404':
+          description: Job not found
+        '409':
+          description: Job is no longer open for editing (already BOOKED or later)
   /jobs/{job_id}/matches:
     get:
       summary: Run the matching engine and return ranked worker candidates
@@ -1108,6 +1173,33 @@ paths:
       responses:
         '200':
           description: ID photo recorded, grade recomputed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkerVetting'
+        '403':
+          description: Authenticated user is not a WORKER
+  /workers/me/vetting/police-clearance:
+    post:
+      summary: Submit (or replace) Police Clearance certificate image
+      description: >
+        Optional when joining Maritcho, but a prerequisite for the Police
+        Cleared worker verification badge shown to employers.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [police_clearance_url]
+              properties:
+                police_clearance_url:
+                  type: string
+      responses:
+        '200':
+          description: Police clearance recorded, grade recomputed
           content:
             application/json:
               schema:

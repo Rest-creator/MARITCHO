@@ -21,7 +21,7 @@ import {
   isVerifiedGrade,
   toInternationalPhone,
 } from "@/core/format/format";
-import { matchSuburbs, mergeSuburbs } from "@/core/format/suburbs";
+import { findNearestSuburb, matchSuburbs, mergeSuburbs } from "@/core/format/suburbs";
 import { tradeIcon, tradeLabel } from "@/core/format/trades";
 import { isUploadUnavailable } from "@/core/media/upload";
 import { useMediaUploads } from "@/core/media/use-media-uploads";
@@ -41,6 +41,7 @@ import {
   useSkills,
   useStanding,
   useSubmitIdPhoto,
+  useSubmitPoliceClearance,
   useSuburbs,
   useUpdateUserProfile,
   useVouchForWorker,
@@ -102,6 +103,7 @@ export function AccountScreen({ tabBar }: Props) {
   // Worker mutations
   const registerServiceArea = useRegisterServiceArea();
   const submitIdPhoto = useSubmitIdPhoto();
+  const submitPoliceClearance = useSubmitPoliceClearance();
   const addReference = useAddReference();
   const vouchForWorker = useVouchForWorker();
   const canUpload = useMediaUploads();
@@ -126,6 +128,7 @@ export function AccountScreen({ tabBar }: Props) {
   const [suburbOverride, setSuburbOverride] = useState<string | null>(null);
   const suburbDraft = suburbOverride ?? initialSuburb;
   const [isSuburbOpen, setIsSuburbOpen] = useState(false);
+  const [isLocatingSuburb, setIsLocatingSuburb] = useState(false);
   const [travelDraft, setTravelDraft] = useState<number | null>(null);
   const travelKm: number = clampTravelKm(travelDraft ?? user?.travel_km ?? profile.travelKm);
   const [travelMeans, setTravelMeans] = useState(
@@ -140,6 +143,7 @@ export function AccountScreen({ tabBar }: Props) {
 
   // Vetting & references state (Worker)
   const [isIdPickerOpen, setIsIdPickerOpen] = useState(false);
+  const [isPoliceClearancePickerOpen, setIsPoliceClearancePickerOpen] = useState(false);
   const [refName, setRefName] = useState("");
   const [refPhone, setRefPhone] = useState("");
   const [vouchWorkerId, setVouchWorkerId] = useState("");
@@ -184,6 +188,7 @@ export function AccountScreen({ tabBar }: Props) {
   const referenceCount = Math.max(referenceList.length, vetting.data?.reference_count ?? 0);
   const vouchCount = vetting.data?.vouch_count ?? 0;
   const hasIdVerified = Boolean(vetting.data?.id_photo_url) || currentGradeRank >= 1;
+  const hasPoliceClearance = Boolean(vetting.data?.police_clearance_url);
   const canVouchForPeers = currentGrade === "JOURNEYMAN" || currentGrade === "EXPERT";
   // Only once the server has confirmed the tier, and only for a tier this phone hasn't celebrated.
   const gradeToCelebrate: Grade | null =
@@ -331,6 +336,40 @@ export function AccountScreen({ tabBar }: Props) {
     }
   }
 
+  async function handlePoliceClearanceFiles(files: File[]): Promise<void> {
+    const file = files[0];
+    if (!file) return;
+    setVettingError(null);
+    setVettingFeedback(null);
+    if (!canUpload) {
+      setVettingError("Photo uploads are not available right now. Try again when you have signal.");
+      return;
+    }
+    let url: string;
+    try {
+      url = await upload(file, "photo");
+    } catch (failure: unknown) {
+      setVettingError(
+        isUploadUnavailable(failure)
+          ? "Photo uploads are not available right now. Try again when you have signal."
+          : failure instanceof Error
+            ? failure.message
+            : "Could not upload Police Clearance photo.",
+      );
+      return;
+    }
+    try {
+      await submitPoliceClearance.mutateAsync({ police_clearance_url: url });
+      setVettingFeedback(
+        "Police Clearance certificate submitted. Clients now see your Police Cleared verification badge.",
+      );
+    } catch (failure: unknown) {
+      setVettingError(
+        failure instanceof Error ? failure.message : "Could not submit Police Clearance.",
+      );
+    }
+  }
+
   async function handleAddReference(event: React.FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     const cleanName = refName.trim();
@@ -380,39 +419,120 @@ export function AccountScreen({ tabBar }: Props) {
     setTimeout(() => setCopiedWorkerId(false), 2500);
   }
 
+  function handleUseCurrentLocation(): void {
+    if (typeof navigator === "undefined" || !("geolocation" in navigator)) {
+      setLocationFeedback("Location isn't available on this device. Type or pick your suburb.");
+      return;
+    }
+    setIsLocatingSuburb(true);
+    setLocationFeedback(null);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const nearest = findNearestSuburb(
+          position.coords.latitude,
+          position.coords.longitude,
+          suburbsQuery.data,
+        );
+        setSuburbOverride(nearest.suburb);
+        setIsSuburbOpen(false);
+        setIsLocatingSuburb(false);
+        setLocationFeedback(
+          `Detected nearest suburb: ${nearest.suburb} (${nearest.distanceKm} km).`,
+        );
+      },
+      () => {
+        setIsLocatingSuburb(false);
+        setLocationFeedback(
+          "Could not get your location. Check location permission or type your suburb.",
+        );
+      },
+      { enableHighAccuracy: true, timeout: 10_000, maximumAge: 60_000 },
+    );
+  }
+
   const normalisedDraft = suburbDraft.trim().toLowerCase();
-  const suburbMenu: ReactNode =
-    predictedSuburbs.length > 0 ? (
-      <ul
-        id={suburbListboxId}
-        role="listbox"
-        aria-label="Matching suburbs"
-        className="combobox__menu"
-      >
-        {predictedSuburbs.map((option) => {
-          const isSelected = option.toLowerCase() === normalisedDraft;
-          return (
-            <li key={option} role="option" aria-selected={isSelected}>
-              <button
-                type="button"
-                className={
-                  isSelected ? "combobox__option combobox__option--active" : "combobox__option"
-                }
-                onMouseDown={(event) => event.preventDefault()}
-                onClick={() => {
-                  setSuburbOverride(option);
-                  setIsSuburbOpen(false);
-                  setLocationFeedback(null);
-                }}
-              >
-                <span>{option}</span>
-                {isSelected && <span className="combobox__badge">Selected</span>}
-              </button>
-            </li>
-          );
-        })}
-      </ul>
-    ) : null;
+  const hasExactSuburb = availableSuburbs.some((item) => item.toLowerCase() === normalisedDraft);
+  const suburbMenu: ReactNode = (
+    <ul
+      id={suburbListboxId}
+      role="listbox"
+      aria-label="Matching suburbs"
+      className="combobox__menu"
+    >
+      <li role="option" aria-selected={false}>
+        <button
+          type="button"
+          className="combobox__option"
+          disabled={isLocatingSuburb}
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={handleUseCurrentLocation}
+        >
+          <span className="row row--tight">
+            <Icon name="pin" size={16} />
+            <span>
+              {isLocatingSuburb ? "Finding your current location…" : "Use my current location"}
+            </span>
+          </span>
+          <span className="combobox__badge">GPS</span>
+        </button>
+      </li>
+      {predictedSuburbs.map((option) => {
+        const isSelected = option.toLowerCase() === normalisedDraft;
+        return (
+          <li key={option} role="option" aria-selected={isSelected}>
+            <button
+              type="button"
+              className={
+                isSelected ? "combobox__option combobox__option--active" : "combobox__option"
+              }
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => {
+                setSuburbOverride(option);
+                setIsSuburbOpen(false);
+                setLocationFeedback(null);
+              }}
+            >
+              <span>{option}</span>
+              {isSelected && <span className="combobox__badge">Selected</span>}
+            </button>
+          </li>
+        );
+      })}
+      {suburbDraft.trim() !== "" && !hasExactSuburb ? (
+        <li role="option" aria-selected={predictedSuburbs.length === 0}>
+          <button
+            type="button"
+            className="combobox__option"
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={() => {
+              setSuburbOverride(suburbDraft.trim());
+              setIsSuburbOpen(false);
+              setLocationFeedback(null);
+            }}
+          >
+            <span>Use “{suburbDraft.trim()}”</span>
+            <span className="combobox__badge">Write-in</span>
+          </button>
+        </li>
+      ) : (
+        <li role="option" aria-selected={false}>
+          <button
+            type="button"
+            className="combobox__option"
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={() => {
+              setSuburbOverride("");
+              setIsSuburbOpen(true);
+              setLocationFeedback(null);
+            }}
+          >
+            <span>Type another suburb…</span>
+            <span className="combobox__badge">Write-in</span>
+          </button>
+        </li>
+      )}
+    </ul>
+  );
 
   const isPersonalUnchanged =
     name.trim() === (profile.name || user?.display_name || "") &&
@@ -464,6 +584,12 @@ export function AccountScreen({ tabBar }: Props) {
               >
                 {isWorker ? gradeLabel(currentGrade) : "Verified Employer"}
               </span>
+              {isWorker && hasPoliceClearance && (
+                <span className="tag tag--verified">
+                  <Icon name="shieldCheck" size={12} />
+                  Police Cleared
+                </span>
+              )}
               {suburbDraft.trim() !== "" && (
                 <span className="tag">
                   <Icon name="pin" size={12} />
@@ -651,9 +777,21 @@ export function AccountScreen({ tabBar }: Props) {
             </div>
 
             <div className="field">
-              <label htmlFor="acc-suburb-input" className="field__label">
-                Home suburb (type or pick)
-              </label>
+              <div className="row row--between row--baseline">
+                <label htmlFor="acc-suburb-input" className="field__label">
+                  Home suburb (type or pick)
+                </label>
+                <button
+                  type="button"
+                  className="text-link row row--tight"
+                  style={{ fontSize: 13 }}
+                  disabled={isLocatingSuburb}
+                  onClick={handleUseCurrentLocation}
+                >
+                  <Icon name="pin" size={14} />
+                  {isLocatingSuburb ? "Finding location…" : "Use my location"}
+                </button>
+              </div>
               <div className="combobox">
                 <input
                   id="acc-suburb-input"
@@ -771,6 +909,44 @@ export function AccountScreen({ tabBar }: Props) {
                 >
                   <Icon name="camera" size={15} />
                   {hasIdVerified ? "Replace ID photo" : "Upload ID photo"}
+                </button>
+              </div>
+            </div>
+
+            {/* Step 1b: Police Clearance Certificate (Optional to join, prerequisite for Police Cleared verification) */}
+            <div
+              className="card card--compact stack"
+              style={{ gap: 8, background: "var(--bg-subtle)" }}
+            >
+              <div className="row row--between">
+                <div className="row row--tight">
+                  <Icon
+                    name={hasPoliceClearance ? "shieldCheck" : "fileText"}
+                    size={16}
+                    className={hasPoliceClearance ? "text-emerald" : "text-muted"}
+                  />
+                  <span style={{ fontSize: 14, fontWeight: 700 }}>
+                    Police Clearance (Verification badge)
+                  </span>
+                </div>
+                <span className="meta">
+                  {hasPoliceClearance ? "Verified" : "Optional · For verification"}
+                </span>
+              </div>
+              <p className="meta meta--secondary" style={{ lineHeight: 1.45 }}>
+                {hasPoliceClearance
+                  ? "Your Police Clearance certificate image is on file. Employers see the Police Cleared badge on your profile and offers."
+                  : "Optional when you join, but a prerequisite for full Police Cleared worker verification. Upload a clear photo of your ZRP Police Clearance certificate."}
+              </p>
+              <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
+                <button
+                  type="button"
+                  className="btn btn--sm btn--soft"
+                  disabled={isUploadingMedia || submitPoliceClearance.isPending}
+                  onClick={() => setIsPoliceClearancePickerOpen(true)}
+                >
+                  <Icon name="camera" size={15} />
+                  {hasPoliceClearance ? "Replace Police Clearance" : "Upload Police Clearance"}
                 </button>
               </div>
             </div>
@@ -957,6 +1133,11 @@ export function AccountScreen({ tabBar }: Props) {
             onClose={() => setIsIdPickerOpen(false)}
             onPick={(files) => void handleIdPhotoFiles(files)}
           />
+          <PhotoPicker
+            isOpen={isPoliceClearancePickerOpen}
+            onClose={() => setIsPoliceClearancePickerOpen(false)}
+            onPick={(files) => void handlePoliceClearanceFiles(files)}
+          />
         </>
       )}
 
@@ -1028,9 +1209,21 @@ export function AccountScreen({ tabBar }: Props) {
             </div>
 
             <div className="field">
-              <label htmlFor="acc-employer-suburb" className="field__label">
-                Default suburb (type or pick)
-              </label>
+              <div className="row row--between row--baseline">
+                <label htmlFor="acc-employer-suburb" className="field__label">
+                  Default suburb (type or pick)
+                </label>
+                <button
+                  type="button"
+                  className="text-link row row--tight"
+                  style={{ fontSize: 13 }}
+                  disabled={isLocatingSuburb}
+                  onClick={handleUseCurrentLocation}
+                >
+                  <Icon name="pin" size={14} />
+                  {isLocatingSuburb ? "Finding location…" : "Use my location"}
+                </button>
+              </div>
               <div className="combobox">
                 <input
                   id="acc-employer-suburb"
@@ -1197,11 +1390,45 @@ export function AccountScreen({ tabBar }: Props) {
         )}
       </form>
 
+      {/* Appearance & Theme Switcher */}
+      <section className="card stack" style={{ gap: 10 }} aria-labelledby="acc-theme-title">
+        <div>
+          <h2 id="acc-theme-title" style={{ fontSize: 15, fontWeight: 700 }}>
+            Theme &amp; appearance
+          </h2>
+          <div className="meta meta--secondary" style={{ marginTop: 2 }}>
+            Choose between our default Royal Indigo dark theme and the White &amp; Blue light theme
+          </div>
+        </div>
+        <div className="segmented segmented--choice" role="group" aria-label="Theme">
+          <button
+            type="button"
+            className="segmented__tab row"
+            style={{ justifyContent: "center", gap: 6 }}
+            aria-pressed={profile.theme !== "light"}
+            onClick={() => updateProfile({ theme: "dark" })}
+          >
+            <Icon name="moon" size={15} />
+            Dark (Default)
+          </button>
+          <button
+            type="button"
+            className="segmented__tab row"
+            style={{ justifyContent: "center", gap: 6 }}
+            aria-pressed={profile.theme === "light"}
+            onClick={() => updateProfile({ theme: "light" })}
+          >
+            <Icon name="sun" size={15} />
+            White &amp; Blue
+          </button>
+        </div>
+      </section>
+
       {/* Legal & Sign Out */}
       <section className="card stack" style={{ gap: 8 }}>
         <div className="row row--between meta">
           <Link href="/terms" className="text-link">
-            Terms of Service
+            Terms and Conditions
           </Link>
           <Link href="/privacy" className="text-link">
             Privacy Policy

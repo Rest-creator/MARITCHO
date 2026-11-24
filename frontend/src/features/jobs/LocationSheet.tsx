@@ -1,16 +1,23 @@
 "use client";
 
-import { useState, type KeyboardEvent } from "react";
+import { useRef, useState, type KeyboardEvent } from "react";
 
 import { Icon } from "@/components/ui/Icon";
 import { Sheet } from "@/components/ui/Sheet";
-import { matchSuburbs, mergeSuburbs, predictSuburb } from "@/core/format/suburbs";
+import {
+  findNearestSuburb,
+  matchSuburbs,
+  mergeSuburbs,
+  predictSuburb,
+} from "@/core/format/suburbs";
 import { useSuburbs } from "@/features/workers/hooks";
 
 export interface JobLocation {
   suburb: string;
   address: string;
   landmark: string;
+  latitude?: number | null;
+  longitude?: number | null;
 }
 
 type Props = {
@@ -21,16 +28,20 @@ type Props = {
 };
 
 /**
- * "Where is the job?" — suburb combobox (both a dropdown pick and a write-in
- * with live close-match autofill predictions as you type), plus the street
- * address, which stays hidden from workers until one is hired.
+ * "Where is the job?" — suburb combobox (dropdown pick, free write-in typing
+ * with live close-match autofill predictions, and one-tap device GPS location),
+ * plus the street address, which stays hidden from workers until one is hired.
  */
 export function LocationSheet({ isOpen, value, onClose, onSave }: Props) {
   const suburbs = useSuburbs();
+  const suburbInputRef = useRef<HTMLInputElement | null>(null);
   const [draft, setDraft] = useState<JobLocation>(value);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isFiltering, setIsFiltering] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [isLocating, setIsLocating] = useState(false);
+  const [locationStatus, setLocationStatus] = useState<string | null>(null);
+  const [locationError, setLocationError] = useState<string | null>(null);
 
   const allSuburbs = mergeSuburbs(suburbs.data);
   const query = isFiltering ? draft.suburb : "";
@@ -39,13 +50,73 @@ export function LocationSheet({ isOpen, value, onClose, onSave }: Props) {
   const hasExactMatch = allSuburbs.some(
     (item) => item.toLowerCase() === draft.suburb.trim().toLowerCase(),
   );
-  const canSave = draft.suburb.trim() !== "" && draft.address.trim() !== "";
+  const hasGpsPin =
+    typeof draft.latitude === "number" &&
+    Number.isFinite(draft.latitude) &&
+    typeof draft.longitude === "number" &&
+    Number.isFinite(draft.longitude);
+  const canSave = draft.suburb.trim() !== "" && (draft.address.trim() !== "" || hasGpsPin);
 
   function selectSuburb(suburbName: string): void {
     setDraft((current) => ({ ...current, suburb: suburbName }));
     setIsFiltering(false);
     setIsDropdownOpen(false);
     setActiveIndex(0);
+    setLocationError(null);
+  }
+
+  function handleStartTypingSuburb(): void {
+    setDraft((current) => ({
+      ...current,
+      suburb: "",
+      latitude: null,
+      longitude: null,
+    }));
+    setIsFiltering(true);
+    setIsDropdownOpen(true);
+    setActiveIndex(0);
+    setLocationStatus(null);
+    setLocationError(null);
+    suburbInputRef.current?.focus();
+  }
+
+  function handleUseCurrentLocation(): void {
+    if (typeof navigator === "undefined" || !("geolocation" in navigator)) {
+      setLocationError(
+        "Location isn't available on this device. Type or pick your suburb instead.",
+      );
+      return;
+    }
+    setIsLocating(true);
+    setLocationError(null);
+    setLocationStatus(null);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const lat = Math.round(position.coords.latitude * 1_000_000) / 1_000_000;
+        const lon = Math.round(position.coords.longitude * 1_000_000) / 1_000_000;
+        const nearest = findNearestSuburb(lat, lon, suburbs.data);
+        setDraft((current) => ({
+          ...current,
+          suburb: nearest.suburb,
+          latitude: lat,
+          longitude: lon,
+        }));
+        setIsLocating(false);
+        setIsFiltering(false);
+        setIsDropdownOpen(false);
+        setActiveIndex(0);
+        setLocationStatus(
+          `GPS pin attached · Nearest suburb: ${nearest.suburb} (${nearest.distanceKm} km)`,
+        );
+      },
+      () => {
+        setIsLocating(false);
+        setLocationError(
+          "Could not get your location. Check location permission or type your suburb.",
+        );
+      },
+      { enableHighAccuracy: true, timeout: 10_000, maximumAge: 60_000 },
+    );
   }
 
   function handleSuburbKeyDown(event: KeyboardEvent<HTMLInputElement>): void {
@@ -83,13 +154,20 @@ export function LocationSheet({ isOpen, value, onClose, onSave }: Props) {
     const canonical =
       allSuburbs.find((item) => item.toLowerCase() === trimmedSuburb.toLowerCase()) ??
       trimmedSuburb;
+    const trimmedAddress = draft.address.trim();
+    const effectiveAddress =
+      trimmedAddress !== "" ? trimmedAddress : hasGpsPin ? `Pinned location (${canonical})` : "";
     onSave({
       suburb: canonical,
-      address: draft.address.trim(),
+      address: effectiveAddress,
       landmark: draft.landmark.trim(),
+      ...(hasGpsPin ? { latitude: draft.latitude, longitude: draft.longitude } : {}),
     });
     onClose();
   }
+
+  const showAutofill =
+    prediction !== null && prediction.toLowerCase() !== draft.suburb.trim().toLowerCase();
 
   return (
     <Sheet
@@ -109,12 +187,25 @@ export function LocationSheet({ isOpen, value, onClose, onSave }: Props) {
       }
     >
       <div className="field">
-        <label htmlFor="loc-suburb" className="field__label">
-          Suburb
-        </label>
+        <div className="row row--between row--baseline">
+          <label htmlFor="loc-suburb" className="field__label">
+            Suburb
+          </label>
+          <button
+            type="button"
+            className="text-link row row--tight"
+            style={{ fontSize: 13 }}
+            disabled={isLocating}
+            onClick={handleUseCurrentLocation}
+          >
+            <Icon name="pin" size={14} />
+            {isLocating ? "Finding location…" : "Use my location"}
+          </button>
+        </div>
         <div className="combobox">
           <div className="combobox__control">
             <input
+              ref={suburbInputRef}
               id="loc-suburb"
               type="text"
               role="combobox"
@@ -139,17 +230,29 @@ export function LocationSheet({ isOpen, value, onClose, onSave }: Props) {
               }}
               onKeyDown={handleSuburbKeyDown}
             />
-            {prediction !== null &&
-              prediction.toLowerCase() !== draft.suburb.trim().toLowerCase() && (
+            {showAutofill && prediction !== null ? (
+              <button
+                type="button"
+                className="combobox__autofill"
+                title={`Autofill ${prediction}`}
+                onClick={() => selectSuburb(prediction)}
+              >
+                {prediction}
+              </button>
+            ) : (
+              draft.suburb !== "" && (
                 <button
                   type="button"
-                  className="combobox__autofill"
-                  title={`Autofill ${prediction}`}
-                  onClick={() => selectSuburb(prediction)}
+                  className="combobox__toggle"
+                  style={{ right: 44 }}
+                  aria-label="Clear suburb to type another"
+                  title="Clear to type another suburb"
+                  onClick={handleStartTypingSuburb}
                 >
-                  {prediction}
+                  <Icon name="close" size={15} />
                 </button>
-              )}
+              )
+            )}
             <button
               type="button"
               className="combobox__toggle"
@@ -170,6 +273,22 @@ export function LocationSheet({ isOpen, value, onClose, onSave }: Props) {
               aria-label="Suburb options"
               className="combobox__menu"
             >
+              <li role="option" aria-selected={false}>
+                <button
+                  type="button"
+                  className="combobox__option"
+                  disabled={isLocating}
+                  onClick={handleUseCurrentLocation}
+                >
+                  <span className="row row--tight">
+                    <Icon name="pin" size={16} />
+                    <span>
+                      {isLocating ? "Finding your current location…" : "Use my current location"}
+                    </span>
+                  </span>
+                  <span className="combobox__badge">GPS</span>
+                </button>
+              </li>
               {matches.map((suburbName, index) => {
                 const isSelected = suburbName.toLowerCase() === draft.suburb.trim().toLowerCase();
                 const isClosest =
@@ -195,7 +314,7 @@ export function LocationSheet({ isOpen, value, onClose, onSave }: Props) {
                   </li>
                 );
               })}
-              {draft.suburb.trim() !== "" && !hasExactMatch && (
+              {draft.suburb.trim() !== "" && !hasExactMatch ? (
                 <li role="option" aria-selected={matches.length === 0}>
                   <button
                     type="button"
@@ -206,10 +325,31 @@ export function LocationSheet({ isOpen, value, onClose, onSave }: Props) {
                     <span className="combobox__badge">Write-in</span>
                   </button>
                 </li>
+              ) : (
+                <li role="option" aria-selected={false}>
+                  <button
+                    type="button"
+                    className="combobox__option"
+                    onClick={handleStartTypingSuburb}
+                  >
+                    <span>Type another suburb…</span>
+                    <span className="combobox__badge">Write-in</span>
+                  </button>
+                </li>
               )}
             </ul>
           )}
         </div>
+        {locationStatus && (
+          <p className="meta text-emerald" role="status">
+            {locationStatus}
+          </p>
+        )}
+        {locationError && (
+          <p className="field-error" role="alert">
+            {locationError}
+          </p>
+        )}
         {suburbs.isError && !suburbs.data && <p className="field-error">{suburbs.error.message}</p>}
       </div>
       <div className="field">
@@ -220,7 +360,11 @@ export function LocationSheet({ isOpen, value, onClose, onSave }: Props) {
           id="loc-address"
           className="input"
           autoComplete="street-address"
-          placeholder="e.g. 14 Harrow Rd"
+          placeholder={
+            hasGpsPin
+              ? "Optional when GPS pin is attached (e.g. 14 Harrow Rd)"
+              : "e.g. 14 Harrow Rd"
+          }
           value={draft.address}
           maxLength={500}
           onChange={(event) => setDraft({ ...draft, address: event.target.value })}

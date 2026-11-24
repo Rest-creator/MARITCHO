@@ -81,10 +81,8 @@ test("02c-role-notice", async ({ page }) => {
   await page.goto("/signup?role=buyer");
   await page.getByLabel("Your full name").fill("Rudo Ncube");
   await page.getByLabel("Phone number").fill("77 412 3089");
-  await page.getByLabel("Password").fill("Passw0rd!");
-  await page
-    .getByLabel("Where do you usually need work done?")
-    .selectOption({ label: "Hillside" });
+  await page.getByLabel("Password", { exact: true }).fill("Passw0rd!");
+  await page.getByLabel("Where do you usually need work done?").selectOption({ label: "Hillside" });
   await page.getByRole("button", { name: "Create account" }).click();
   await expect(page.getByRole("heading", { name: /registered as a worker/ })).toBeVisible();
   await page.waitForLoadState("networkidle");

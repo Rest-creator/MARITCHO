@@ -643,3 +643,10 @@ polling) and the full design.
 Migration `d8f3a1c2e5b7_add_pgvector_search.py` enables the PostgreSQL `vector` extension (`CREATE EXTENSION IF NOT EXISTS vector`), adds `problem_embedding vector(64)` (nullable) to `JOBS`, backfills existing rows, and creates an HNSW cosine-distance index (`ix_jobs_problem_embedding_hnsw` using `vector_cosine_ops`).
 
 `app/shared_kernel/embeddings.py` generates deterministic, L2-normalized 64-dimensional embeddings combining 16 multi-lingual (English / Shona / Ndebele) trade & domain concept clusters with 48 dimensions of signed feature hashing over word stems, bigrams, and character trigrams. New endpoints `GET /jobs/search`, `GET /jobs/search/skills`, and the `q` parameter on `GET /jobs/open` rank open jobs and skills by `pgvector` cosine distance (`<=>`) combined with distance band and urgency.
+
+## 17. Job Pricing Modes, Job Posting Editing & Police Clearance Vetting (`7b8c9d0e1f2a`)
+
+Migration `7b8c9d0e1f2a_add_police_clearance_and_pricing_mode.py` adds:
+- `JOBS.pricing_mode` (`VARCHAR(20) NOT NULL DEFAULT 'NEGOTIABLE'`): models the employer's chosen pricing mode (`FIXED`, `NEGOTIABLE`, or `AFTER_VISIT`).
+- `PATCH /jobs/{job_id}`: allows the buyer to edit an open (`REQUESTED` or `MATCHED`) job posting (`trade`, `suburb`, `address`, `landmark_narrative`, `latitude`, `longitude`, `problem_description`, `problem_photo_url`, `needed_by`, `pricing_mode`, `budget_amount`) before a worker is booked.
+- `WORKER_VETTING.police_clearance_url` (`VARCHAR(255)`, nullable) and `WORKER_VETTING.police_clearance_submitted_at` (`TIMESTAMP WITH TIME ZONE`, nullable) via `POST /workers/me/vetting/police-clearance`: optional when joining Maritcho, but a verification prerequisite for the `has_police_clearance` ("Police Cleared") badge surfaced on `MatchCandidate`, `WorkerDirectoryItem`, and `WorkerPublicProfile`.

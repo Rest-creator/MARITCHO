@@ -125,6 +125,12 @@ export function WorkerPublicProfileScreen({ workerId, initialSuburb }: Props) {
               {isVerifiedGrade(worker.grade) && <Icon name="check" size={12} strokeWidth={2.4} />}
               {gradeLabel(worker.grade)}
             </span>
+            {worker.has_police_clearance && (
+              <span className="tag tag--verified">
+                <Icon name="shieldCheck" size={12} strokeWidth={2.4} />
+                Police clearance verified
+              </span>
+            )}
             {worker.trades.map((trade) => (
               <span key={trade} className="tag">
                 <Icon name={tradeIcon(trade)} size={13} />

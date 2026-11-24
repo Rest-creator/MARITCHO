@@ -36,6 +36,12 @@ class NeededByEnum(str, enum.Enum):
     FLEXIBLE = "FLEXIBLE"
 
 
+class PricingModeEnum(str, enum.Enum):
+    FIXED = "FIXED"
+    NEGOTIABLE = "NEGOTIABLE"
+    AFTER_VISIT = "AFTER_VISIT"
+
+
 class ReviewTagEnum(str, enum.Enum):
     CLEAN = "CLEAN"
     ON_TIME = "ON_TIME"

@@ -5,7 +5,13 @@ from datetime import datetime
 from decimal import Decimal
 
 from app.apps.jobs.domain.entities import Dispute, Job, JobOffer, LedgerEntry, RecordEntry
-from app.shared_kernel.enums import CurrencyEnum, LedgerEntryTypeEnum, NeededByEnum, TradeEnum
+from app.shared_kernel.enums import (
+    CurrencyEnum,
+    LedgerEntryTypeEnum,
+    NeededByEnum,
+    PricingModeEnum,
+    TradeEnum,
+)
 
 
 class JobRepository(ABC):
@@ -24,6 +30,7 @@ class JobRepository(ABC):
         problem_photo_url: str | None,
         budget_amount: Decimal | None,
         needed_by: NeededByEnum = NeededByEnum.FLEXIBLE,
+        pricing_mode: PricingModeEnum = PricingModeEnum.NEGOTIABLE,
     ) -> Job:
         """Flushes (populating id/timestamps). Does not commit."""
 

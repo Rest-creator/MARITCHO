@@ -2,9 +2,9 @@ import Link from "next/link";
 
 import { Icon } from "@/components/ui/Icon";
 import type { OpenJob } from "@/core/api/schemas";
-import { formatKm, formatMoney, formatRelativeTime } from "@/core/format/format";
+import { formatKm, formatRelativeTime } from "@/core/format/format";
 import { tradeIcon, tradeLabel } from "@/core/format/trades";
-import { splitTiming } from "@/features/jobs/job-helpers";
+import { pricingModeLabel, splitTiming } from "@/features/jobs/job-helpers";
 
 type Props = {
   job: OpenJob;
@@ -42,7 +42,11 @@ export function OpenJobCard({ job, isFeatured, hasOffered, matchReason = null }:
           <div className="row row--between row--start" style={{ gap: 8 }}>
             <h3 style={{ fontSize: 16, fontWeight: 700, lineHeight: 1.3 }}>{title}</h3>
             <div style={{ fontSize: 15, fontWeight: 700, whiteSpace: "nowrap" }}>
-              {job.budget_amount === null ? "Make an offer" : formatMoney(job.budget_amount)}
+              {job.budget_amount === null
+                ? job.pricing_mode === "AFTER_VISIT"
+                  ? "After visit"
+                  : "Make an offer"
+                : pricingModeLabel(job.pricing_mode, job.budget_amount)}
             </div>
           </div>
           <div className="meta meta--secondary" style={{ marginTop: 4 }}>

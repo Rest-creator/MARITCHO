@@ -72,7 +72,7 @@ test("a job goes from posted to paid", async ({ browser }) => {
     await buyer.getByLabel("Describe the job").fill(jobText);
     await buyer.getByRole("button", { name: /Where is the job\?/ }).click();
     const sheet = buyer.getByRole("dialog", { name: "Where is the job?" });
-    await sheet.getByLabel("Suburb").fill(SUBURB);
+    await sheet.getByLabel("Suburb", { exact: true }).fill(SUBURB);
     await sheet.getByLabel("Street address").fill("14 Harrow Rd");
     await sheet.getByRole("button", { name: "Use this place" }).click();
     await buyer.getByLabel("Your budget (optional)").fill(String(PRICE));
@@ -145,8 +145,18 @@ test("a job goes from posted to paid", async ({ browser }) => {
     await worker.goto(chatUrl);
 
     const live = "Connected · messages arrive instantly";
-    await expect(buyer.getByText(live)).toBeVisible();
-    await expect(worker.getByText(live)).toBeVisible();
+    // A concurrent navigation here occasionally hits a real connection
+    // failure against the single dev server under CI load (confirmed via
+    // the failure screenshot: the browser's own "This page couldn't load"
+    // interstitial, not a slow-to-render chat screen) - reload until the
+    // socket is up, the same way untilAfterReload recovers other
+    // refetch-on-load screens elsewhere in this suite.
+    await untilAfterReload(buyer, () =>
+      expect(buyer.getByText(live)).toBeVisible({ timeout: 5_000 }),
+    );
+    await untilAfterReload(worker, () =>
+      expect(worker.getByText(live)).toBeVisible({ timeout: 5_000 }),
+    );
 
     const hello = `Gate code is 1234 (${runId})`;
     await buyer.getByLabel("Message").fill(hello);
@@ -166,7 +176,10 @@ test("a job goes from posted to paid", async ({ browser }) => {
     await buyer.getByRole("radio", { name: "4 stars" }).click();
     await buyer.getByRole("button", { name: "On time" }).click();
     await buyer.getByRole("button", { name: `Confirm job done & pay $${PRICE}` }).click();
-    await expect(buyer.getByText("Job signed off")).toBeVisible();
+    // Both the celebration overlay and the now-permanent status header say
+    // "Job signed off" - scope to the celebration, the thing this click
+    // actually triggers.
+    await expect(buyer.getByRole("button", { name: /^Job signed off/ })).toBeVisible();
     await expect(buyer.getByText("Confirmed through Maritcho")).toBeVisible();
   });
 

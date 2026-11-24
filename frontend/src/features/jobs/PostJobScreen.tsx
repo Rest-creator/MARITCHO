@@ -8,8 +8,8 @@ import { BackButton } from "@/components/ui/BackButton";
 import { Icon } from "@/components/ui/Icon";
 import { PhotoStrip } from "@/components/ui/PhotoStrip";
 import { Screen } from "@/components/ui/Screen";
-import type { Trade } from "@/core/api/schemas";
-import { mergeSuburbs, resolveSuburbForJob } from "@/core/format/suburbs";
+import type { Job, PricingMode, Trade } from "@/core/api/schemas";
+import { findNearestSuburb, mergeSuburbs, resolveSuburbForJob } from "@/core/format/suburbs";
 import {
   ALL_SKILLS,
   composeSkillWithWriteIn,
@@ -25,8 +25,8 @@ import { useDictation } from "@/core/media/use-dictation";
 import { useMediaUploads } from "@/core/media/use-media-uploads";
 import { useUpload } from "@/core/media/use-upload";
 import { updateProfile, useLocalProfile } from "@/core/session/profile-store";
-import { useCreateJob, useSearchSkills } from "@/features/jobs/hooks";
-import { withTiming } from "@/features/jobs/job-helpers";
+import { useCreateJob, useJob, useSearchSkills, useUpdateJob } from "@/features/jobs/hooks";
+import { resolvePricingMode, splitTiming, withTiming } from "@/features/jobs/job-helpers";
 import { LocationSheet, type JobLocation } from "@/features/jobs/LocationSheet";
 import { TradePickerSheet } from "@/features/jobs/TradePickerSheet";
 import { useSuburbs } from "@/features/workers/hooks";
@@ -35,10 +35,33 @@ const DESCRIPTION_LIMIT = 300;
 
 type Timing = "Today" | "This week" | "date";
 
+const PRICING_OPTIONS: readonly {
+  mode: PricingMode;
+  label: string;
+  hint: string;
+}[] = [
+  {
+    mode: "FIXED",
+    label: "Fixed price",
+    hint: "Set the exact price you want to pay. Workers can accept it in one tap.",
+  },
+  {
+    mode: "NEGOTIABLE",
+    label: "Negotiable price",
+    hint: "Suggest a price (like inDrive). Workers can accept it or offer their own price, and you choose who to hire.",
+  },
+  {
+    mode: "AFTER_VISIT",
+    label: "Price after visit",
+    hint: "Workers can inspect the job on site before confirming the final price, or suggest an estimate now.",
+  },
+];
+
 type Props = {
   initialTrade: Trade | null;
   initialSkillId: string | null;
   shouldOpenPicker: boolean;
+  editJobId?: string;
 };
 
 function initialSkill(trade: Trade | null, skillId: string | null): SkillOption | null {
@@ -52,44 +75,119 @@ function initialSkill(trade: Trade | null, skillId: string | null): SkillOption 
   );
 }
 
+/** The skill whose label was baked into the stored description by describeWithSkill, if any. */
+function skillFromDescription(job: Job | undefined): SkillOption | null {
+  if (!job) return null;
+  const { text } = splitTiming(job.problem_description);
+  return (
+    ALL_SKILLS.find((skill) => skill.trade === job.trade && text.startsWith(`${skill.label}: `)) ??
+    null
+  );
+}
+
+function initialDescriptionFromJob(job: Job | undefined): string {
+  if (!job) return "";
+  const { text } = splitTiming(job.problem_description);
+  const matchedSkill = skillFromDescription(job);
+  const prefix = matchedSkill ? `${matchedSkill.label}: ` : `${tradeLabel(job.trade)}: `;
+  return text.startsWith(prefix) ? text.slice(prefix.length) : text;
+}
+
+function initialTimingFromJob(job: Job | undefined): Timing {
+  if (!job) return "Today";
+  const { timing } = splitTiming(job.problem_description);
+  if (timing === "Today" || timing === "This week") return timing;
+  if (job.needed_by === "THIS_WEEK") return "This week";
+  if (job.needed_by === "FLEXIBLE") return "date";
+  return "Today";
+}
+
 export function validatePostJob(
   skill: SkillOption | null,
   description: string,
   location: JobLocation,
+  pricingMode: PricingMode = "NEGOTIABLE",
+  budget: string = "",
 ): string | null {
   if (skill === null || skill.trade === null) return "Pick who you need first.";
   if (description.trim().length < 5)
     return "Say a few words about the job — or tap the mic and say it.";
   if (location.suburb.trim() === "" || location.address.trim() === "")
     return "Tell us where the job is.";
+  if (pricingMode === "FIXED" && (budget.trim() === "" || Number(budget) <= 0)) {
+    return "Enter the fixed price for this job, or switch to Negotiable or Price after visit.";
+  }
   return null;
 }
 
-/** Design E2 · Post a job. */
-export function PostJobScreen({ initialTrade, initialSkillId, shouldOpenPicker }: Props) {
+/** Design E2 · Post a job (or edit an open job posting). */
+export function PostJobScreen(props: Props) {
+  const existingJob = useJob(props.editJobId ?? "");
+  return (
+    <PostJobForm
+      key={existingJob.data?.id ?? "new"}
+      {...props}
+      initialJob={props.editJobId ? existingJob.data : undefined}
+    />
+  );
+}
+
+type FormProps = Props & {
+  initialJob?: Job;
+};
+
+function PostJobForm({
+  initialTrade,
+  initialSkillId,
+  shouldOpenPicker,
+  editJobId,
+  initialJob,
+}: FormProps) {
   const router = useRouter();
   const profile = useLocalProfile();
   const createJob = useCreateJob();
+  const updateJob = useUpdateJob();
+  const isEditing = Boolean(editJobId);
   const suburbs = useSuburbs();
   const canUpload = useMediaUploads();
   const { upload, isUploading } = useUpload();
 
-  const [skill, setSkill] = useState<SkillOption | null>(() =>
-    initialSkill(initialTrade, initialSkillId),
+  const [skill, setSkill] = useState<SkillOption | null>(
+    () =>
+      skillFromDescription(initialJob) ??
+      initialSkill(initialJob?.trade ?? initialTrade, initialSkillId),
   );
   const [writeInSkill, setWriteInSkill] = useState("");
   const [isSkillSuggestOpen, setIsSkillSuggestOpen] = useState(false);
-  const [isPickerOpen, setIsPickerOpen] = useState(shouldOpenPicker || skill === null);
+  const [isPickerOpen, setIsPickerOpen] = useState(
+    !isEditing && (shouldOpenPicker || skill === null),
+  );
   const [isLocationOpen, setIsLocationOpen] = useState(false);
-  const [description, setDescription] = useState("");
-  const [location, setLocation] = useState<JobLocation>({
-    suburb: profile.lastSuburb || profile.homeSuburb,
-    address: profile.lastAddress,
-    landmark: profile.defaultLandmark,
-  });
-  const [timing, setTiming] = useState<Timing>("Today");
+  const [isLocatingDirect, setIsLocatingDirect] = useState(false);
+  const [description, setDescription] = useState(() => initialDescriptionFromJob(initialJob));
+  const [location, setLocation] = useState<JobLocation>(() =>
+    initialJob
+      ? {
+          suburb: initialJob.suburb,
+          address: initialJob.address,
+          landmark: initialJob.landmark_narrative ?? "",
+          latitude: initialJob.latitude,
+          longitude: initialJob.longitude,
+        }
+      : {
+          suburb: profile.lastSuburb || profile.homeSuburb,
+          address: profile.lastAddress,
+          landmark: profile.defaultLandmark,
+        },
+  );
+  const [timing, setTiming] = useState<Timing>(() => initialTimingFromJob(initialJob));
   const [date, setDate] = useState("");
-  const [budget, setBudget] = useState("");
+  const [pricingMode, setPricingMode] = useState<PricingMode>(() =>
+    initialJob ? resolvePricingMode(initialJob) : "NEGOTIABLE",
+  );
+  const [budget, setBudget] = useState(() =>
+    initialJob && initialJob.budget_amount !== null ? String(initialJob.budget_amount) : "",
+  );
   const [formError, setFormError] = useState<string | null>(null);
   const [photos, setPhotos] = useState<File[]>([]);
   const [hasPhotoFailed, setHasPhotoFailed] = useState(false);
@@ -142,8 +240,38 @@ export function PostJobScreen({ initialTrade, initialSkillId, shouldOpenPicker }
     }
   }
 
+  function handleDirectLocation(): void {
+    if (typeof navigator === "undefined" || !("geolocation" in navigator)) {
+      setIsLocationOpen(true);
+      return;
+    }
+    setIsLocatingDirect(true);
+    setFormError(null);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const lat = Math.round(position.coords.latitude * 1_000_000) / 1_000_000;
+        const lon = Math.round(position.coords.longitude * 1_000_000) / 1_000_000;
+        const nearest = findNearestSuburb(lat, lon, suburbs.data);
+        setLocation((current) => ({
+          ...current,
+          suburb: nearest.suburb,
+          address:
+            current.address.trim() !== "" ? current.address : `Pinned location (${nearest.suburb})`,
+          latitude: lat,
+          longitude: lon,
+        }));
+        setIsLocatingDirect(false);
+      },
+      () => {
+        setIsLocatingDirect(false);
+        setIsLocationOpen(true);
+      },
+      { enableHighAccuracy: true, timeout: 10_000, maximumAge: 60_000 },
+    );
+  }
+
   async function submit(isWithoutPhoto: boolean): Promise<void> {
-    const problem = validatePostJob(effectiveSkill, description, location);
+    const problem = validatePostJob(effectiveSkill, description, location, pricingMode, budget);
     setFormError(problem);
     if (problem !== null || effectiveSkill === null || effectiveSkill.trade === null) return;
 
@@ -152,6 +280,11 @@ export function PostJobScreen({ initialTrade, initialSkillId, shouldOpenPicker }
     setHasPhotoFailed(false);
 
     const budgetAmount = Number(budget);
+    const hasBudget =
+      pricingMode !== "AFTER_VISIT" &&
+      budget.trim() !== "" &&
+      Number.isFinite(budgetAmount) &&
+      budgetAmount > 0;
     const neededBy =
       timing === "Today"
         ? ("TODAY" as const)
@@ -160,17 +293,58 @@ export function PostJobScreen({ initialTrade, initialSkillId, shouldOpenPicker }
           : ("FLEXIBLE" as const);
     const resolvedLocation = resolveSuburbForJob(location.suburb, location.address, allSuburbs);
     updateProfile({ lastSuburb: location.suburb, lastAddress: location.address });
+    const fullDescription = withTiming(
+      describeWithSkill(effectiveSkill, description),
+      timingLabel(),
+    );
+
+    if (isEditing && editJobId) {
+      const patch = {
+        jobId: editJobId,
+        trade: effectiveSkill.trade,
+        suburb: resolvedLocation.suburb,
+        address: resolvedLocation.address,
+        landmark_narrative: location.landmark === "" ? null : location.landmark,
+        latitude:
+          typeof location.latitude === "number" && Number.isFinite(location.latitude)
+            ? location.latitude
+            : null,
+        longitude:
+          typeof location.longitude === "number" && Number.isFinite(location.longitude)
+            ? location.longitude
+            : null,
+        problem_description: fullDescription,
+        needed_by: neededBy,
+        pricing_mode: pricingMode,
+        budget_amount: hasBudget ? budgetAmount : null,
+        ...(photoUrl === undefined ? {} : { problem_photo_url: photoUrl }),
+      };
+      if (!onlineManager.isOnline()) {
+        updateJob.mutate(patch);
+        router.push(`/employer/jobs/${editJobId}`);
+        return;
+      }
+      updateJob.mutate(patch, {
+        onSuccess: (job) => router.replace(`/employer/jobs/${job.id}`),
+      });
+      return;
+    }
+
     const input = {
       trade: effectiveSkill.trade,
       suburb: resolvedLocation.suburb,
       address: resolvedLocation.address,
       ...(location.landmark === "" ? {} : { landmark_narrative: location.landmark }),
-      problem_description: withTiming(
-        describeWithSkill(effectiveSkill, description),
-        timingLabel(),
-      ),
+      ...(typeof location.latitude === "number" &&
+      Number.isFinite(location.latitude) &&
+      typeof location.longitude === "number" &&
+      Number.isFinite(location.longitude)
+        ? { latitude: location.latitude, longitude: location.longitude }
+        : {}),
+      problem_description: fullDescription,
       needed_by: neededBy,
-      ...(budget !== "" && budgetAmount > 0 ? { budget_amount: budgetAmount } : {}),
+      pricing_mode: pricingMode,
+      ...(hasBudget ? { budget_amount: budgetAmount } : {}),
       ...(photoUrl === undefined ? {} : { problem_photo_url: photoUrl }),
     };
 
@@ -197,8 +371,10 @@ export function PostJobScreen({ initialTrade, initialSkillId, shouldOpenPicker }
     <Screen bodyClassName="">
       <form onSubmit={handleSubmit} className="stack" style={{ flex: 1, gap: 12 }} noValidate>
         <div className="topbar">
-          <BackButton fallbackHref="/employer" />
-          <h1 className="title">Post a job</h1>
+          <BackButton
+            fallbackHref={isEditing && editJobId ? `/employer/jobs/${editJobId}` : "/employer"}
+          />
+          <h1 className="title">{isEditing ? "Edit job" : "Post a job"}</h1>
         </div>
 
         <div className="card card--compact stack" style={{ gap: 10 }}>
@@ -328,23 +504,50 @@ export function PostJobScreen({ initialTrade, initialSkillId, shouldOpenPicker }
           )}
         </div>
 
-        <button
-          type="button"
-          className="card card--compact row"
-          style={{ gap: 14, textAlign: "left" }}
-          onClick={() => setIsLocationOpen(true)}
-        >
-          <div className="icon-tile icon-tile--emerald" style={{ width: 42, height: 42 }}>
-            <Icon name="pin" />
-          </div>
-          <div className="grow">
-            <div className="label">Where is the job?</div>
-            <div style={{ marginTop: 2, fontSize: 15, fontWeight: 700 }} className="truncate">
-              {locationText}
+        <div className="card card--compact stack" style={{ gap: 8 }}>
+          <button
+            type="button"
+            className="row"
+            style={{
+              gap: 14,
+              textAlign: "left",
+              background: "none",
+              border: 0,
+              padding: 0,
+              color: "inherit",
+              width: "100%",
+            }}
+            onClick={() => setIsLocationOpen(true)}
+          >
+            <div className="icon-tile icon-tile--emerald" style={{ width: 42, height: 42 }}>
+              <Icon name="pin" />
             </div>
+            <div className="grow">
+              <div className="label">Where is the job?</div>
+              <div style={{ marginTop: 2, fontSize: 15, fontWeight: 700 }} className="truncate">
+                {locationText}
+              </div>
+            </div>
+            <Icon name="chevronRight" strokeWidth={2} />
+          </button>
+          <div className="row row--between" style={{ paddingLeft: 56 }}>
+            <button
+              type="button"
+              className="text-link row row--tight"
+              style={{ fontSize: 13 }}
+              disabled={isLocatingDirect}
+              onClick={handleDirectLocation}
+            >
+              <Icon name="pin" size={14} />
+              {isLocatingDirect ? "Finding your location…" : "Use my location"}
+            </button>
+            {typeof location.latitude === "number" && (
+              <span className="meta text-emerald" style={{ fontSize: 12 }}>
+                GPS pin attached
+              </span>
+            )}
           </div>
-          <Icon name="chevronRight" strokeWidth={2} />
-        </button>
+        </div>
 
         <fieldset className="card card--compact" style={{ margin: 0 }}>
           <legend className="visually-hidden">When do you need this?</legend>
@@ -386,28 +589,64 @@ export function PostJobScreen({ initialTrade, initialSkillId, shouldOpenPicker }
           )}
         </fieldset>
 
-        <div className="card card--compact row" style={{ gap: 14 }}>
-          <label htmlFor="pj-budget" className="grow">
-            <div className="label">Your budget (optional)</div>
-            <div className="meta" style={{ marginTop: 2 }}>
-              Workers can still suggest a price
-            </div>
-          </label>
-          <div className="input--affix input--money" style={{ height: 44, width: 110 }}>
-            <span className="input__prefix">US$</span>
-            <input
-              id="pj-budget"
-              inputMode="decimal"
-              value={budget}
-              placeholder="—"
-              onChange={(event) => setBudget(event.target.value.replace(/[^\d.]/g, ""))}
-            />
+        <fieldset className="card card--compact stack" style={{ margin: 0, gap: 10 }}>
+          <legend className="visually-hidden">How do you want to price this job?</legend>
+          <div className="label" aria-hidden="true">
+            How do you want to price this job?
           </div>
-        </div>
+          <div className="choice-grid">
+            {PRICING_OPTIONS.map((option) => (
+              <button
+                key={option.mode}
+                type="button"
+                className="choice"
+                aria-pressed={pricingMode === option.mode}
+                onClick={() => {
+                  setPricingMode(option.mode);
+                  if (option.mode === "AFTER_VISIT") {
+                    setBudget("");
+                  }
+                  setFormError(null);
+                }}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+          <p className="meta" style={{ lineHeight: 1.45 }}>
+            {PRICING_OPTIONS.find((item) => item.mode === pricingMode)?.hint}
+          </p>
 
-        {(formError ?? createJob.error?.message) && (
+          {pricingMode !== "AFTER_VISIT" && (
+            <div className="row" style={{ gap: 14, paddingTop: 4 }}>
+              <label htmlFor="pj-budget" className="grow">
+                <div className="label">
+                  {pricingMode === "FIXED" ? "Fixed price (required)" : "Your budget (optional)"}
+                </div>
+                <div className="meta" style={{ marginTop: 2 }}>
+                  {pricingMode === "FIXED"
+                    ? "Workers can accept this price in one tap"
+                    : "Workers can accept your price or offer theirs"}
+                </div>
+              </label>
+              <div className="input--affix input--money" style={{ height: 44, width: 110 }}>
+                <span className="input__prefix">US$</span>
+                <input
+                  id="pj-budget"
+                  aria-label="Your budget (optional)"
+                  inputMode="decimal"
+                  value={budget}
+                  placeholder="—"
+                  onChange={(event) => setBudget(event.target.value.replace(/[^\d.]/g, ""))}
+                />
+              </div>
+            </div>
+          )}
+        </fieldset>
+
+        {(formError ?? createJob.error?.message ?? updateJob.error?.message) && (
           <p className="field-error" role="alert">
-            {formError ?? createJob.error?.message}
+            {formError ?? createJob.error?.message ?? updateJob.error?.message}
           </p>
         )}
 
@@ -419,19 +658,28 @@ export function PostJobScreen({ initialTrade, initialSkillId, shouldOpenPicker }
             disabled={isUploading}
             onClick={() => void submit(true)}
           >
-            Post without the photo
+            {isEditing ? "Save without the photo" : "Post without the photo"}
           </button>
         )}
         <button
           type="submit"
           className="btn btn--primary btn--cta"
-          disabled={isUploading || (createJob.isPending && !createJob.isPaused)}
+          disabled={
+            isUploading ||
+            (createJob.isPending && !createJob.isPaused) ||
+            (updateJob.isPending && !updateJob.isPaused)
+          }
         >
           {isUploading
             ? "Sending photo…"
-            : createJob.isPending && !createJob.isPaused
-              ? "Posting…"
-              : "Find someone for this job"}
+            : (createJob.isPending && !createJob.isPaused) ||
+                (updateJob.isPending && !updateJob.isPaused)
+              ? isEditing
+                ? "Saving…"
+                : "Posting…"
+              : isEditing
+                ? "Save changes"
+                : "Find someone for this job"}
           <Icon name="arrowRight" size={18} strokeWidth={2.2} />
         </button>
       </form>

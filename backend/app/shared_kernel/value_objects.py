@@ -23,6 +23,7 @@ class WorkerStandingSnapshot:
     jobs_completed: int
     rating_average: Decimal | None = None
     rating_count: int = 0
+    has_police_clearance: bool = False
 
 
 @dataclass(frozen=True)

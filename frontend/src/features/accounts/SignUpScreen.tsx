@@ -9,7 +9,7 @@ import { BackButton } from "@/components/ui/BackButton";
 import { Icon } from "@/components/ui/Icon";
 import { Screen } from "@/components/ui/Screen";
 import { formatLocalPhone, toInternationalPhone } from "@/core/format/format";
-import { mergeSuburbs } from "@/core/format/suburbs";
+import { findNearestSuburb, mergeSuburbs } from "@/core/format/suburbs";
 import { TRAVEL_MEANS_OPTIONS } from "@/core/format/travel";
 import { updateProfile, useLocalProfile } from "@/core/session/profile-store";
 import { queryKeys } from "@/core/query/keys";
@@ -87,7 +87,10 @@ export function SignUpScreen({ initialRole, isLogin, isExpired }: Props) {
   const [name, setName] = useState(profile.name);
   const [phone, setPhone] = useState(profile.phone === "" ? "" : formatLocalPhone(profile.phone));
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [suburb, setSuburb] = useState(profile.homeSuburb);
+  const [isLocatingSuburb, setIsLocatingSuburb] = useState(false);
+  const [locationNote, setLocationNote] = useState<string | null>(null);
   const [address, setAddress] = useState(profile.lastAddress);
   const [travelMeans, setTravelMeans] = useState(profile.travelMeans);
   const [emergencyPhone, setEmergencyPhone] = useState(
@@ -154,6 +157,32 @@ export function SignUpScreen({ initialRole, isLogin, isExpired }: Props) {
       home_suburb: cleanSuburb,
       ...(emergency === "" ? {} : { next_of_kin_phone: emergency }),
     });
+  }
+
+  function handleUseCurrentLocation(): void {
+    if (typeof navigator === "undefined" || !("geolocation" in navigator)) {
+      setLocationNote("Location isn't available on this device. Choose your suburb from the list.");
+      return;
+    }
+    setIsLocatingSuburb(true);
+    setLocationNote(null);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const nearest = findNearestSuburb(
+          position.coords.latitude,
+          position.coords.longitude,
+          suburbsQuery.data,
+        );
+        setSuburb(nearest.suburb);
+        setIsLocatingSuburb(false);
+        setLocationNote(`Detected nearest suburb: ${nearest.suburb} (${nearest.distanceKm} km).`);
+      },
+      () => {
+        setIsLocatingSuburb(false);
+        setLocationNote("Could not get your location. Choose your suburb from the list.");
+      },
+      { enableHighAccuracy: true, timeout: 10_000, maximumAge: 60_000 },
+    );
   }
 
   if (registeredAs !== null) {
@@ -287,31 +316,57 @@ export function SignUpScreen({ initialRole, isLogin, isExpired }: Props) {
           <label htmlFor="su-password" className="field__label">
             Password
           </label>
-          <input
-            id="su-password"
-            className="input"
-            type="password"
-            autoComplete={isLogin ? "current-password" : "new-password"}
-            placeholder="At least 8 characters"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            aria-invalid={validationError !== null}
-            aria-describedby={error ? "su-error" : undefined}
-          />
+          <div className="password-field">
+            <input
+              id="su-password"
+              className="input"
+              type={showPassword ? "text" : "password"}
+              autoComplete={isLogin ? "current-password" : "new-password"}
+              placeholder="At least 8 characters"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              aria-invalid={validationError !== null}
+              aria-describedby={error ? "su-error" : undefined}
+            />
+            <button
+              type="button"
+              className="password-toggle"
+              aria-label={showPassword ? "Hide password" : "Show password"}
+              aria-pressed={showPassword}
+              onClick={() => setShowPassword((current) => !current)}
+            >
+              <Icon name={showPassword ? "eyeOff" : "eye"} size={18} />
+            </button>
+          </div>
         </div>
 
         {!isLogin && (
           <>
             <div className="field" style={{ marginTop: 18 }}>
-              <label htmlFor="su-suburb" className="field__label">
-                {isWorker ? "Where are you based?" : "Where do you usually need work done?"}
-              </label>
+              <div className="row row--between row--baseline">
+                <label htmlFor="su-suburb" className="field__label">
+                  {isWorker ? "Where are you based?" : "Where do you usually need work done?"}
+                </label>
+                <button
+                  type="button"
+                  className="text-link row row--tight"
+                  style={{ fontSize: 13 }}
+                  disabled={isLocatingSuburb}
+                  onClick={handleUseCurrentLocation}
+                >
+                  <Icon name="pin" size={14} />
+                  {isLocatingSuburb ? "Finding location…" : "Use my location"}
+                </button>
+              </div>
               <select
                 id="su-suburb"
                 className="input"
                 style={{ height: 48 }}
                 value={suburb}
-                onChange={(event) => setSuburb(event.target.value)}
+                onChange={(event) => {
+                  setSuburb(event.target.value);
+                  setLocationNote(null);
+                }}
               >
                 <option value="">Choose your suburb</option>
                 {suburbOptions.map((option) => (
@@ -320,10 +375,11 @@ export function SignUpScreen({ initialRole, isLogin, isExpired }: Props) {
                   </option>
                 ))}
               </select>
-              <span className="meta">
-                {isWorker
-                  ? "We show you jobs near here first."
-                  : "We show you workers near here first."}
+              <span className={locationNote ? "meta text-emerald" : "meta"}>
+                {locationNote ??
+                  (isWorker
+                    ? "We show you jobs near here first."
+                    : "We show you workers near here first.")}
               </span>
             </div>
 
@@ -427,7 +483,7 @@ export function SignUpScreen({ initialRole, isLogin, isExpired }: Props) {
             href="/terms"
             style={{ color: "var(--text-secondary)", textDecoration: "underline" }}
           >
-            Terms
+            Terms and Conditions
           </Link>{" "}
           and{" "}
           <Link

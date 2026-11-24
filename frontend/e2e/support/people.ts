@@ -21,7 +21,7 @@ export async function signUp(page: Page, side: Side, name: string, phone: string
   await expect(page.getByRole("heading", { name: "Let's get you set up" })).toBeVisible();
   await page.getByLabel("Your full name").fill(name);
   await page.getByLabel("Phone number").fill(phone);
-  await page.getByLabel("Password").fill(E2E_PASSWORD);
+  await page.getByLabel("Password", { exact: true }).fill(E2E_PASSWORD);
   const suburbLabel =
     side === "worker" ? "Where are you based?" : "Where do you usually need work done?";
   await page.getByLabel(suburbLabel).selectOption({ label: "Hillside" });

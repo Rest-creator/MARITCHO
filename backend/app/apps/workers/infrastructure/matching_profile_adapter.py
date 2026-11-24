@@ -7,7 +7,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.apps.accounts.infrastructure.models import PersonModel
 from app.apps.jobs.infrastructure.review_models import ReviewModel
-from app.apps.workers.infrastructure.models import ServiceAreaModel, SkillModel, StandingModel
+from app.apps.workers.infrastructure.models import (
+    ServiceAreaModel,
+    SkillModel,
+    StandingModel,
+    WorkerVettingModel,
+)
 from app.shared_kernel.enums import GradeEnum, TradeEnum
 from app.shared_kernel.ports import WorkerMatchingProfilePort
 from app.shared_kernel.value_objects import (
@@ -74,6 +79,14 @@ class WorkerMatchingProfileAdapter(WorkerMatchingProfilePort):
         result = await self._db.execute(
             select(StandingModel).where(StandingModel.worker_id.in_(worker_ids))
         )
+        vetting_rows = await self._db.execute(
+            select(WorkerVettingModel).where(WorkerVettingModel.worker_id.in_(worker_ids))
+        )
+        police_cleared_ids = {
+            model.worker_id
+            for model in vetting_rows.scalars().all()
+            if model.police_clearance_url
+        }
         snapshots: dict[uuid.UUID, WorkerStandingSnapshot] = {}
         for model in result.scalars().all():
             snapshots[model.worker_id] = WorkerStandingSnapshot(
@@ -86,6 +99,7 @@ class WorkerMatchingProfileAdapter(WorkerMatchingProfilePort):
                 ),
                 fill_rate=model.fill_rate if model.fill_rate is not None else _DEFAULT_FILL_RATE,
                 jobs_completed=model.jobs_completed if model.jobs_completed is not None else 0,
+                has_police_clearance=model.worker_id in police_cleared_ids,
             )
         ratings = await self._db.execute(
             select(ReviewModel.worker_id, func.avg(ReviewModel.rating), func.count())
@@ -103,6 +117,7 @@ class WorkerMatchingProfileAdapter(WorkerMatchingProfilePort):
                     jobs_completed=current.jobs_completed,
                     rating_average=average,
                     rating_count=count,
+                    has_police_clearance=current.has_police_clearance,
                 )
             else:
                 snapshots[worker_id] = WorkerStandingSnapshot(
@@ -113,6 +128,7 @@ class WorkerMatchingProfileAdapter(WorkerMatchingProfilePort):
                     jobs_completed=0,
                     rating_average=average,
                     rating_count=count,
+                    has_police_clearance=worker_id in police_cleared_ids,
                 )
         return snapshots
 

@@ -12,7 +12,7 @@ import { EmptyState, ErrorState, Skeleton } from "@/components/ui/States";
 import { distanceBandLabel, formatKm, formatMoney, formatRelativeTime } from "@/core/format/format";
 import { tradeLabel } from "@/core/format/trades";
 import { useJobEligibility, useMyOffers, useOpenJobs, useSubmitOffer } from "@/features/jobs/hooks";
-import { splitTiming } from "@/features/jobs/job-helpers";
+import { counterOfferChips, resolvePricingMode, splitTiming } from "@/features/jobs/job-helpers";
 import { parseOfferAmount } from "@/features/worker/money-input";
 
 type Props = { jobId: string };
@@ -80,6 +80,8 @@ export function JobDetailScreen({ jobId }: Props) {
   const { text, timing } = splitTiming(job.problem_description);
   const title = text.split("\n")[0] || tradeLabel(job.trade);
   const budget = job.budget_amount;
+  const pricingMode = resolvePricingMode(job);
+  const quickChips = counterOfferChips(budget);
   const isAccepted = existing !== undefined && budget !== null && existing.quoted_amount === budget;
   const showPriceField = isCountering || budget === null;
   const priceValue = price ?? String(existing?.quoted_amount ?? budget ?? "");
@@ -146,9 +148,19 @@ export function JobDetailScreen({ jobId }: Props) {
             <div>
               <div className="fact__label">Budget</div>
               <div className="fact__value">
-                {job.budget_amount === null ? "Open" : formatMoney(job.budget_amount)}
+                {job.budget_amount === null
+                  ? pricingMode === "AFTER_VISIT"
+                    ? "After visit"
+                    : "Open"
+                  : formatMoney(job.budget_amount)}
               </div>
-              <div className="fact__hint">Cash/EcoCash</div>
+              <div className="fact__hint">
+                {pricingMode === "FIXED"
+                  ? "Fixed price"
+                  : pricingMode === "AFTER_VISIT"
+                    ? "Price after visit"
+                    : "Negotiable"}
+              </div>
             </div>
           </div>
         </section>
@@ -190,15 +202,29 @@ export function JobDetailScreen({ jobId }: Props) {
             <h2 style={{ fontSize: 15, fontWeight: 700 }}>
               {budget === null ? "The client didn't set a price. What's yours?" : "Your price"}
             </h2>
-            <label className="input--affix input--money" style={{ width: 140 }}>
-              <span className="input__prefix">$</span>
-              <input
-                inputMode="decimal"
-                aria-label="Your price in US dollars"
-                value={priceValue}
-                onChange={(event) => setPrice(event.target.value.replace(/[^\d.]/g, ""))}
-              />
-            </label>
+            <div className="row" style={{ gap: 10, flexWrap: "wrap" }}>
+              <label className="input--affix input--money" style={{ width: 140 }}>
+                <span className="input__prefix">$</span>
+                <input
+                  inputMode="decimal"
+                  aria-label="Your price in US dollars"
+                  value={priceValue}
+                  onChange={(event) => setPrice(event.target.value.replace(/[^\d.]/g, ""))}
+                />
+              </label>
+              <div className="chip-list" role="group" aria-label="Suggested price offers">
+                {quickChips.map((chipAmount) => (
+                  <button
+                    key={chipAmount}
+                    type="button"
+                    className={Number(priceValue) === chipAmount ? "tag tag--verified" : "tag"}
+                    onClick={() => setPrice(String(chipAmount))}
+                  >
+                    {formatMoney(chipAmount)}
+                  </button>
+                ))}
+              </div>
+            </div>
             <div className="meta">
               The client sees your price, track record and how close you are.
             </div>

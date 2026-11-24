@@ -23,6 +23,7 @@ from app.apps.jobs.domain.services import (
     SearchOpenJobsUseCase,
     SubmitJobOfferUseCase,
     SubmitQuoteUseCase,
+    UpdateJobRequestUseCase,
 )
 from app.apps.jobs.infrastructure.repositories import (
     SqlAlchemyDisputeRepository,
@@ -107,6 +108,14 @@ def get_create_job_request_use_case(
     uow: SqlAlchemyUnitOfWork = Depends(get_unit_of_work),
 ) -> CreateJobRequestUseCase:
     return CreateJobRequestUseCase(jobs, suburbs, uow)
+
+
+def get_update_job_request_use_case(
+    jobs: SqlAlchemyJobRepository = Depends(get_job_repository),
+    suburbs: SqlAlchemySuburbRepository = Depends(get_suburb_repository),
+    uow: SqlAlchemyUnitOfWork = Depends(get_unit_of_work),
+) -> UpdateJobRequestUseCase:
+    return UpdateJobRequestUseCase(jobs, suburbs, uow)
 
 
 def get_get_job_use_case(

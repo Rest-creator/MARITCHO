@@ -18,6 +18,7 @@ from app.apps.workers.domain.services import (
     RegisterServiceAreaUseCase,
     RegisterSkillUseCase,
     SubmitIdPhotoUseCase,
+    SubmitPoliceClearanceUseCase,
     VouchForWorkerUseCase,
 )
 from app.apps.workers.infrastructure.repositories import (
@@ -137,6 +138,16 @@ def get_submit_id_photo_use_case(
     view: GetVettingViewUseCase = Depends(get_vetting_view_use_case),
 ) -> SubmitIdPhotoUseCase:
     return SubmitIdPhotoUseCase(vetting, standings, uow, recompute_grade, view)
+
+
+def get_submit_police_clearance_use_case(
+    vetting: SqlAlchemyWorkerVettingRepository = Depends(get_worker_vetting_repository),
+    standings: SqlAlchemyStandingRepository = Depends(get_standing_repository),
+    uow: SqlAlchemyUnitOfWork = Depends(get_unit_of_work),
+    recompute_grade: RecomputeGradeUseCase = Depends(get_recompute_grade_use_case),
+    view: GetVettingViewUseCase = Depends(get_vetting_view_use_case),
+) -> SubmitPoliceClearanceUseCase:
+    return SubmitPoliceClearanceUseCase(vetting, standings, uow, recompute_grade, view)
 
 
 def get_add_reference_use_case(

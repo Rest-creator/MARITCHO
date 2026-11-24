@@ -208,3 +208,25 @@ async def test_buyer_cannot_use_vetting_endpoints(client, buyer):
     response = await client.get("/workers/me/vetting", headers=auth_headers(buyer))
 
     assert response.status_code == 403
+
+
+async def test_submitting_police_clearance_records_evidence_and_surfaces_on_profile(
+    client, worker_factory, buyer
+):
+    worker = await worker_factory(TradeEnum.PLUMBING, "Nkulumane")
+
+    response = await client.post(
+        "/workers/me/vetting/police-clearance",
+        json={"police_clearance_url": "https://example.com/police-clearance.jpg"},
+        headers=auth_headers(worker),
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["police_clearance_url"] == "https://example.com/police-clearance.jpg"
+    assert body["police_clearance_submitted_at"] is not None
+    assert body["grade"] == "IDENTIFIED"
+
+    profile = await client.get(f"/workers/{worker.id}", headers=auth_headers(buyer))
+    assert profile.status_code == 200
+    assert profile.json()["has_police_clearance"] is True
