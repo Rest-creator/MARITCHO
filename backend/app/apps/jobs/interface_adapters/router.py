@@ -271,7 +271,10 @@ async def get_job_share_summary(
         span.set_attribute("job.id", str(job_id))
         summary = await use_case.execute(job_id)
         span.set_attribute("job.share.is_open", summary.is_open)
-        logger.info(f"Job share summary served job_id={job_id} is_open={summary.is_open}")
+        logger.info(
+            f"Job share summary served job_id={job_id} is_open={summary.is_open}",
+            extra={"job_id": str(job_id), "is_open": summary.is_open},
+        )
         return summary
 
 
