@@ -337,6 +337,31 @@ paths:
                   $ref: '#/components/schemas/MyOffer'
         '403':
           description: Authenticated user is not a WORKER
+  /jobs/{job_id}/share:
+    get:
+      summary: Public teaser for a shared job link
+      description: >
+        Public teaser for a shared job link — no sign-in needed. Powers
+        social link previews (WhatsApp, LinkedIn, Facebook, X) and the
+        public landing page: returns only the kind of work and suburb.
+        All identifying, financial, and private details remain protected
+        behind sign-in. Cancelled or unknown jobs return 404.
+      parameters:
+        - name: job_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Job share teaser summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobShare'
+        '404':
+          description: Job not found or cancelled
   /jobs/{job_id}:
     get:
       summary: Fetch a job
@@ -2114,6 +2139,32 @@ components:
         job_status:
           type: string
           enum: [REQUESTED, MATCHED, BOOKED, IN_PROGRESS, DISPUTED, COMPLETED, CANCELLED]
+    JobShare:
+      type: object
+      description: >-
+        Public teaser for a shared job link — deliberately reveals only
+        the kind of work and the suburb (ADR-004).
+      properties:
+        job_id:
+          type: string
+          format: uuid
+        trade:
+          type: string
+          enum: [PLUMBING, ELECTRICAL, SOLAR, WELDING, BUILDING, APPLIANCE_REPAIR]
+        suburb:
+          type: string
+        needed_by:
+          type: string
+          enum: [TODAY, THIS_WEEK, FLEXIBLE]
+        pricing_mode:
+          type: string
+          enum: [FIXED, NEGOTIABLE, AFTER_VISIT]
+        is_open:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+          nullable: true
     OpenJob:
       type: object
       description: >-

@@ -33,6 +33,9 @@ export const BACKEND_ROUTES = {
   myOffers: { method: "GET", path: "/jobs/my-offers" },
   skills: { method: "GET", path: "/workers/me/skills" },
   standing: { method: "GET", path: "/workers/me/standing" },
+
+  /** Public job teaser for shared links and their previews (no sign-in). */
+  jobShare: { method: "GET", path: "/jobs/{job_id}/share" },
 } as const satisfies Record<string, BackendRoute>;
 
 /**

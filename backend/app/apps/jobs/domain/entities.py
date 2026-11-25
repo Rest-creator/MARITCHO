@@ -65,6 +65,22 @@ class Job:
 
 
 @dataclass
+class JobShareSummary:
+    """What a public share link may reveal about a job: the kind of work and
+    the suburb, nothing more. No address, landmark, GPS, description, photo,
+    budget or buyer identity — anyone holding the link can read this, so the
+    details stay behind sign-in (ADR-004's "address hidden until booking")."""
+
+    job_id: uuid.UUID
+    trade: TradeEnum
+    suburb: str
+    needed_by: NeededByEnum
+    pricing_mode: PricingModeEnum
+    is_open: bool
+    created_at: datetime | None = None
+
+
+@dataclass
 class LedgerEntry:
     id: uuid.UUID
     job_id: uuid.UUID

@@ -13,6 +13,7 @@ import { findNearestSuburb, mergeSuburbs } from "@/core/format/suburbs";
 import { TRAVEL_MEANS_OPTIONS } from "@/core/format/travel";
 import { updateProfile, useLocalProfile } from "@/core/session/profile-store";
 import { queryKeys } from "@/core/query/keys";
+import { withNext } from "@/core/session/next-path";
 import { canActAs } from "@/core/session/roles";
 import { homeFor, useSession, type SignInRole } from "@/core/session/SessionProvider";
 import { RoleMismatchNotice } from "@/features/accounts/RoleMismatchNotice";
@@ -22,6 +23,8 @@ type Props = {
   initialRole: SignInRole;
   isLogin: boolean;
   isExpired: boolean;
+  /** Same-site path to return to after signing in, e.g. a shared job. */
+  nextPath?: string | null;
 };
 
 const LOCAL_PHONE_PATTERN = /^0?\d{9}$/;
@@ -74,7 +77,7 @@ export function validateSignUpDetails(details: SignUpDetails): string | null {
 }
 
 /** Design 2 · Log in, or create an account with a few details about you. */
-export function SignUpScreen({ initialRole, isLogin, isExpired }: Props) {
+export function SignUpScreen({ initialRole, isLogin, isExpired, nextPath = null }: Props) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const profile = useLocalProfile();
@@ -124,7 +127,7 @@ export function SignUpScreen({ initialRole, isLogin, isExpired }: Props) {
           // Same account, other side already set up: switch into it.
           const switched = await updateServerProfile.mutateAsync({ role });
           queryClient.setQueryData(queryKeys.session, switched);
-          router.replace(homeFor(role));
+          router.replace(nextPath ?? homeFor(role));
           return;
         }
         setRegisteredAs(user.role);
@@ -132,11 +135,16 @@ export function SignUpScreen({ initialRole, isLogin, isExpired }: Props) {
       }
       if (isLogin) {
         if (trimmedName !== "") updateServerProfile.mutate({ display_name: trimmedName });
-        router.replace(homeFor(user.role));
+        router.replace(nextPath ?? homeFor(user.role));
         return;
       }
       saveNewAccountDetails(trimmedName);
-      router.replace(user.role === "WORKER" ? "/worker/skills" : homeFor(user.role));
+      // New workers add their skills first, then land on the job they came for.
+      router.replace(
+        user.role === "WORKER"
+          ? withNext("/worker/skills", nextPath)
+          : (nextPath ?? homeFor(user.role)),
+      );
     } catch {
       // signInError carries the message.
     }
@@ -469,7 +477,10 @@ export function SignUpScreen({ initialRole, isLogin, isExpired }: Props) {
         >
           {isLogin ? "Don't have an account? " : "Already have an account? "}
           <Link
-            href={isLogin ? `/signup?role=${roleParam}` : `/signup?mode=login&role=${roleParam}`}
+            href={withNext(
+              isLogin ? `/signup?role=${roleParam}` : `/signup?mode=login&role=${roleParam}`,
+              nextPath,
+            )}
             style={{ fontWeight: 600 }}
             onClick={() => setValidationError(null)}
           >

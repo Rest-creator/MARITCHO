@@ -15,6 +15,7 @@ from app.apps.jobs.domain.entities import (
     Dispute,
     Job,
     JobSearchResult,
+    JobShareSummary,
     LedgerEntry,
     MatchCandidate,
     OpenJobCandidate,
@@ -28,6 +29,7 @@ from app.apps.jobs.domain.services import (
     GetJobLedgerUseCase,
     GetJobMatchesUseCase,
     GetJobRecordUseCase,
+    GetJobShareSummaryUseCase,
     GetJobUseCase,
     ListAssignedJobsUseCase,
     ListJobDisputesUseCase,
@@ -51,6 +53,7 @@ from app.apps.jobs.interface_adapters.dependencies import (
     get_get_job_ledger_use_case,
     get_get_job_matches_use_case,
     get_get_job_record_use_case,
+    get_get_job_share_summary_use_case,
     get_get_job_use_case,
     get_list_assigned_jobs_use_case,
     get_list_job_disputes_use_case,
@@ -77,6 +80,7 @@ from app.apps.jobs.interface_adapters.schemas import (
     JobRequestCreate,
     JobRequestUpdate,
     JobSearchResultOut,
+    JobShareOut,
     LedgerEntryOut,
     MatchCandidateOut,
     MyJobOut,
@@ -250,6 +254,28 @@ async def list_my_offers(
             )
         )
     return results
+
+
+@router.get("/{job_id}/share", response_model=JobShareOut)
+async def get_job_share_summary(
+    job_id: uuid.UUID,
+    use_case: GetJobShareSummaryUseCase = Depends(get_get_job_share_summary_use_case),
+) -> JobShareSummary:
+    """Public teaser for a shared job link — no sign-in needed.
+
+    Powers the link preview (WhatsApp, LinkedIn, Facebook…) and the landing
+    page: just the kind of work and the suburb. Everything else stays behind
+    sign-in. Cancelled or unknown jobs are 404.
+    """
+    with tracer.start_as_current_span("jobs.get_job_share_summary") as span:
+        span.set_attribute("job.id", str(job_id))
+        summary = await use_case.execute(job_id)
+        span.set_attribute("job.share.is_open", summary.is_open)
+        logger.info(
+            f"Job share summary served job_id={job_id} is_open={summary.is_open}",
+            extra={"job_id": str(job_id), "is_open": summary.is_open},
+        )
+        return summary
 
 
 @router.get("/{job_id}", response_model=JobOut)
