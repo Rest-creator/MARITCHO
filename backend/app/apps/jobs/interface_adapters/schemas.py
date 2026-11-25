@@ -315,6 +315,21 @@ class JobOfferOut(BaseModel):
     worker_display_name: str | None = None
 
 
+class JobShareOut(BaseModel):
+    """Public teaser for a shared job link (GET /jobs/{job_id}/share).
+    Only the kind of work and the suburb — see JobShareSummary."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    job_id: uuid.UUID
+    trade: TradeEnum
+    suburb: str
+    needed_by: NeededByEnum
+    pricing_mode: PricingModeEnum
+    is_open: bool
+    created_at: datetime | None
+
+
 class OpenJobOut(BaseModel):
     """Worker-facing view of a still-open job — deliberately omits
     address/landmark_narrative/latitude/longitude/buyer_id, matching the

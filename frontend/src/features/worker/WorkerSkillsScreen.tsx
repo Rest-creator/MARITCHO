@@ -29,8 +29,13 @@ import { MAX_TRAVEL_KM, MIN_TRAVEL_KM, clampTravelKm } from "@/core/format/trave
 
 export const MAX_SKILLS = 5;
 
+type Props = {
+  /** Same-site path to open once skills are saved (e.g. a shared job). */
+  nextPath?: string | null;
+};
+
 /** Design W1 · Set up your skills. */
-export function WorkerSkillsScreen() {
+export function WorkerSkillsScreen({ nextPath = null }: Props) {
   const router = useRouter();
   const profile = useLocalProfile();
   const { user } = useSession();
@@ -121,7 +126,7 @@ export function WorkerSkillsScreen() {
       picked.forEach((trade) => registerSkill.mutate(trade));
       if (!knownArea) registerArea.mutate(serviceArea);
       setIsSaving(false);
-      router.replace("/worker");
+      router.replace(nextPath ?? "/worker");
       return;
     }
     try {
@@ -140,7 +145,7 @@ export function WorkerSkillsScreen() {
       if (!knownArea) {
         await registerArea.mutateAsync(serviceArea);
       }
-      router.replace("/worker");
+      router.replace(nextPath ?? "/worker");
     } catch (failure: unknown) {
       setError(failure instanceof Error ? failure.message : "Could not save. Please try again.");
     } finally {

@@ -12,6 +12,7 @@ from app.apps.jobs.domain.services import (
     GetJobLedgerUseCase,
     GetJobMatchesUseCase,
     GetJobRecordUseCase,
+    GetJobShareSummaryUseCase,
     GetJobUseCase,
     ListAssignedJobsUseCase,
     ListJobDisputesUseCase,
@@ -116,6 +117,12 @@ def get_update_job_request_use_case(
     uow: SqlAlchemyUnitOfWork = Depends(get_unit_of_work),
 ) -> UpdateJobRequestUseCase:
     return UpdateJobRequestUseCase(jobs, suburbs, uow)
+
+
+def get_get_job_share_summary_use_case(
+    jobs: SqlAlchemyJobRepository = Depends(get_job_repository),
+) -> GetJobShareSummaryUseCase:
+    return GetJobShareSummaryUseCase(jobs)
 
 
 def get_get_job_use_case(

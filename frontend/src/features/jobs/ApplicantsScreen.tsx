@@ -12,6 +12,7 @@ import type { MatchCandidate } from "@/core/api/schemas";
 import { tradeLabel } from "@/core/format/trades";
 import { CandidateCard } from "@/features/jobs/CandidateCard";
 import { HireSheet } from "@/features/jobs/HireSheet";
+import { ShareJobButton } from "@/features/jobs/ShareJobButton";
 import { useJob, useMatches } from "@/features/jobs/hooks";
 import {
   isOpenStatus,
@@ -72,6 +73,7 @@ export function ApplicantsScreen({ jobId }: Props) {
           <h1 className="title truncate">{heading}</h1>
           <div className="meta truncate">{subtitle}</div>
         </div>
+        {isOpen && job.data && <ShareJobButton jobId={jobId} job={job.data} />}
         {isOpen && (
           <Link
             href={`/employer/jobs/${jobId}/edit`}

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { safeNextPath } from "@/core/session/next-path";
 import { SignUpScreen } from "@/features/accounts/SignUpScreen";
 
 export const metadata: Metadata = { title: "Sign up" };
@@ -13,6 +14,7 @@ export default async function SignUpPage({ searchParams }: Props) {
       initialRole={params.role === "worker" ? "WORKER" : "BUYER"}
       isLogin={params.mode === "login" || params.expired === "1"}
       isExpired={params.expired === "1"}
+      nextPath={safeNextPath(params.next)}
     />
   );
 }

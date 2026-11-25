@@ -356,6 +356,21 @@ export const workerWorkScreenSchema = z.object({
   assigned: z.array(jobSchema),
 });
 
+/**
+ * Public teaser behind a shared job link (GET /jobs/{job_id}/share): only the
+ * kind of work and the suburb. `trade` stays a string because the backend
+ * knows more trades than the app's Stage One list.
+ */
+export const jobShareSchema = z.object({
+  job_id: uuid,
+  trade: z.string().min(1),
+  suburb: z.string(),
+  needed_by: neededBySchema,
+  pricing_mode: pricingModeSchema,
+  is_open: z.boolean(),
+  created_at: isoDate.nullable(),
+});
+
 export const workerHomeScreenSchema = z.object({
   skills: z.array(skillSchema),
   open_jobs: z.array(openJobSchema),
@@ -397,3 +412,4 @@ export type WorkerSummary = z.infer<typeof workerSummarySchema>;
 export type WorkerProfile = z.infer<typeof workerProfileSchema>;
 export type WorkerWorkScreen = z.infer<typeof workerWorkScreenSchema>;
 export type WorkerHomeScreen = z.infer<typeof workerHomeScreenSchema>;
+export type JobShare = z.infer<typeof jobShareSchema>;

@@ -18,6 +18,7 @@ from app.apps.jobs.domain.entities import (
     Job,
     JobOffer,
     JobSearchResult,
+    JobShareSummary,
     JobStatusEnum,
     LedgerEntry,
     MatchCandidate,
@@ -208,6 +209,32 @@ class UpdateJobRequestUseCase:
         await self._jobs.save(job)
         await self._uow.commit()
         return job
+
+
+class GetJobShareSummaryUseCase:
+    """The public, sign-in-free teaser behind a shared job link.
+
+    Deliberately bypasses the party check in GetJobUseCase: it returns only
+    the fields in JobShareSummary, which are safe to show to anyone (job ids
+    are random UUIDs, so links can't be enumerated either).
+    """
+
+    def __init__(self, jobs: JobRepository) -> None:
+        self._jobs = jobs
+
+    async def execute(self, job_id: uuid.UUID) -> JobShareSummary:
+        job = await self._jobs.get(job_id)
+        if job is None or job.status == JobStatusEnum.CANCELLED:
+            raise NotFoundError("Job not found")
+        return JobShareSummary(
+            job_id=job.id,
+            trade=job.trade,
+            suburb=job.suburb,
+            needed_by=job.needed_by,
+            pricing_mode=job.pricing_mode,
+            is_open=job.status in _OFFER_GRANTS_PARTY_STATUSES,
+            created_at=job.created_at,
+        )
 
 
 class GetJobUseCase:

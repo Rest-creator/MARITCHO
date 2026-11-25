@@ -13,6 +13,7 @@ import { distanceBandLabel, formatKm, formatMoney, formatRelativeTime } from "@/
 import { tradeLabel } from "@/core/format/trades";
 import { useJobEligibility, useMyOffers, useOpenJobs, useSubmitOffer } from "@/features/jobs/hooks";
 import { counterOfferChips, resolvePricingMode, splitTiming } from "@/features/jobs/job-helpers";
+import { ShareJobButton } from "@/features/jobs/ShareJobButton";
 import { parseOfferAmount } from "@/features/worker/money-input";
 
 type Props = { jobId: string };
@@ -125,6 +126,7 @@ export function JobDetailScreen({ jobId }: Props) {
               {tradeLabel(job.trade)} · Posted {formatRelativeTime(job.created_at)}
             </div>
           </div>
+          <ShareJobButton jobId={jobId} job={job} hasLabel={false} />
         </div>
 
         <section className="card" style={{ padding: "14px 16px" }}>
