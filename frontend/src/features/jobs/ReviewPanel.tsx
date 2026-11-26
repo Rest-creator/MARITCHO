@@ -1,5 +1,7 @@
 "use client";
 
+import { useId } from "react";
+
 import { Icon } from "@/components/ui/Icon";
 
 export const REVIEW_TAGS = [
@@ -16,10 +18,25 @@ export interface ReviewDraft {
   note: string;
 }
 
-type Props = { value: ReviewDraft; onChange: (next: ReviewDraft) => void };
+type Props = {
+  value: ReviewDraft;
+  onChange: (next: ReviewDraft) => void;
+  /** Chip labels; defaults to the employer's tags for a worker. */
+  tags?: readonly string[];
+  heading?: string;
+  description?: string;
+};
 
 /** "How did they do?" — stored on the job's sign-off record as a reference. */
-export function ReviewPanel({ value, onChange }: Props) {
+export function ReviewPanel({
+  value,
+  onChange,
+  tags = REVIEW_TAGS,
+  heading = "How did they do?",
+  description = "Your review is saved on the job record — it helps the next person decide.",
+}: Props) {
+  const headingId = useId();
+  const noteId = useId();
   function toggleTag(tag: string): void {
     const tags = value.tags.includes(tag)
       ? value.tags.filter((item) => item !== tag)
@@ -28,12 +45,12 @@ export function ReviewPanel({ value, onChange }: Props) {
   }
 
   return (
-    <section className="card" aria-labelledby="review-heading">
-      <h2 id="review-heading" style={{ fontSize: 16, fontWeight: 700 }}>
-        How did they do?
+    <section className="card" aria-labelledby={headingId}>
+      <h2 id={headingId} style={{ fontSize: 16, fontWeight: 700 }}>
+        {heading}
       </h2>
       <p className="meta meta--secondary" style={{ marginTop: 4, lineHeight: 1.5 }}>
-        Your review is saved on the job record — it helps the next person decide.
+        {description}
       </p>
       <div className="stars" role="radiogroup" aria-label="Rating" style={{ marginTop: 12 }}>
         {[1, 2, 3, 4, 5].map((star) => (
@@ -51,7 +68,7 @@ export function ReviewPanel({ value, onChange }: Props) {
         ))}
       </div>
       <div className="chip-list" style={{ marginTop: 12, gap: 6 }}>
-        {REVIEW_TAGS.map((tag) => (
+        {tags.map((tag) => (
           <button
             key={tag}
             type="button"
@@ -63,11 +80,11 @@ export function ReviewPanel({ value, onChange }: Props) {
           </button>
         ))}
       </div>
-      <label htmlFor="jt-note" className="visually-hidden">
+      <label htmlFor={noteId} className="visually-hidden">
         Add a few words
       </label>
       <textarea
-        id="jt-note"
+        id={noteId}
         rows={2}
         className="textarea"
         style={{ marginTop: 12 }}

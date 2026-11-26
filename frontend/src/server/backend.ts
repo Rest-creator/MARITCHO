@@ -75,6 +75,9 @@ const PROXY_ALLOWED_ROOTS: ReadonlySet<string> = new Set([
   "users",
   "crews",
   "crew-orders",
+  // Two-way reviews (ADR-011). OPS moderation (/ops/...) stays off the proxy.
+  "reviews",
+  "clients",
   // Photo and voice-note uploads, and reading them back (WEB-004, issue #1).
   "media",
 ]);

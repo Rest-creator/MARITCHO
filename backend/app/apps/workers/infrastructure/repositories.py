@@ -11,8 +11,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.apps.accounts.infrastructure.models import PersonModel, person_can_act_as
 from app.apps.accounts.infrastructure.repositories import person_from_model
 from app.apps.jobs.infrastructure.models import JobModel, RecordEntryModel
-from app.apps.jobs.infrastructure.review_models import ReviewModel
 from app.apps.media.models import MediaFileModel
+from app.apps.reviews.infrastructure.repositories import worker_rating_stats
 from app.apps.workers.domain.entities import (
     PendingVettingDocument,
     ServiceArea,
@@ -514,14 +514,7 @@ class SqlAlchemyWorkerDirectoryRepository(WorkerDirectoryRepository):
             model.worker_id: model for model in vetting_result.scalars().all()
         }
 
-        ratings_result = await self._db.execute(
-            select(ReviewModel.worker_id, func.avg(ReviewModel.rating), func.count())
-            .where(ReviewModel.worker_id.in_(skilled_ids))
-            .group_by(ReviewModel.worker_id)
-        )
-        ratings_by_worker: dict[uuid.UUID, tuple[Decimal | None, int]] = {
-            w_id: (avg, int(cnt)) for w_id, avg, cnt in ratings_result.all()
-        }
+        ratings_by_worker = await worker_rating_stats(self._db, skilled_ids, utcnow())
 
         vector_sim_by_worker: dict[uuid.UUID, float] = {}
         if query_embedding is not None:
@@ -622,14 +615,9 @@ class SqlAlchemyWorkerDirectoryRepository(WorkerDirectoryRepository):
 
         standing = await self._db.get(StandingModel, worker_id)
         vetting = await self._db.get(WorkerVettingModel, worker_id)
-        rating_row = (
-            await self._db.execute(
-                select(func.avg(ReviewModel.rating), func.count()).where(
-                    ReviewModel.worker_id == worker_id
-                )
-            )
-        ).one()
-        rating_avg, rating_cnt = rating_row[0], int(rating_row[1] or 0)
+        rating_avg, rating_cnt = (
+            await worker_rating_stats(self._db, [worker_id], utcnow())
+        ).get(worker_id, (None, 0))
 
         ref_count = (
             await self._db.scalar(

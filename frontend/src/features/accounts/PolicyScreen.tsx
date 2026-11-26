@@ -61,6 +61,18 @@ const TERMS_SECTIONS: readonly PolicySection[] = [
       "Exact street addresses, landmark directions, and GPS coordinates are kept private on open listings and revealed only to the worker the employer approves.",
     ],
   },
+  {
+    heading: "7. Ratings & Reviews",
+    paragraphs: [
+      "After a job is signed off, the employer and the worker can each review the other within 14 days.",
+    ],
+    bullets: [
+      "Each review stays hidden until the other side has reviewed too, or the 14 days pass, so nobody reviews in reply to what the other said.",
+      "Reviews show the reviewer's first name and suburb only. A star rating appears once someone has 3 reviews; before that they are shown as New.",
+      "The person reviewed can post one public reply and can report a review. A reported review stays up until the Maritcho team decides; we remove reviews with threats, insults, personal details, or nothing to do with the job.",
+      "Reviews never change a worker's trust tier, which is earned through ID checks, references and vouches.",
+    ],
+  },
 ];
 
 const PRIVACY_SECTIONS: readonly PolicySection[] = [

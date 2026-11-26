@@ -264,6 +264,16 @@ async def test_completed_job_review_updates_worker_standing(
     assert review_res.status_code == 201
     assert review_res.json()["rating"] == 5
 
+    # Double-blind (ADR-011): the rating counts once the worker reviews too.
+    hidden = await client.get("/workers/me/standing", headers=auth_headers(skilled_worker))
+    assert hidden.json()["rating_count"] == 0
+    worker_review = await client.post(
+        f"/jobs/{job_id}/review",
+        headers=auth_headers(skilled_worker),
+        json={"rating": 4, "tags": ["PAID_ON_TIME"]},
+    )
+    assert worker_review.status_code == 201
+
     standing_res = await client.get("/workers/me/standing", headers=auth_headers(skilled_worker))
     assert standing_res.status_code == 200
     assert standing_res.json()["rating_count"] == 1

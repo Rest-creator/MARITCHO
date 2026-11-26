@@ -25,6 +25,7 @@ import {
   summariseJob,
 } from "@/features/jobs/job-helpers";
 import { ReviewPanel, type ReviewDraft } from "@/features/jobs/ReviewPanel";
+import { JobReviewCard } from "@/features/reviews/JobReviewCard";
 
 type Props = { jobId: string };
 
@@ -204,6 +205,13 @@ export function JobTrackingScreen({ jobId }: Props) {
             Hire again
           </Link>
         </section>
+      )}
+
+      {data.status === "COMPLETED" && (
+        <JobReviewCard
+          jobId={data.id}
+          otherName={data.worker_display_name?.trim().split(/\s+/)[0] || "the worker"}
+        />
       )}
 
       {canSignOff && <ReviewPanel value={review} onChange={setReview} />}

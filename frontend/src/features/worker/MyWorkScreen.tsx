@@ -165,8 +165,14 @@ export function MyWorkScreen({ initialTab }: Props) {
               Each signed-off job builds your record on Maritcho.
             </EmptyState>
           )}
+          {doneJobs.length > 0 && (
+            <Link href="/worker/reviews" className="btn btn--soft btn--block">
+              <Icon name="star" size={16} />
+              What clients say about you
+            </Link>
+          )}
           {doneJobs.map((job) => (
-            <div key={job.id} className="list-row">
+            <Link key={job.id} href={`/worker/work/${job.id}`} className="list-row">
               <div className="icon-tile icon-tile--sm icon-tile--emerald">
                 <Icon name="check" />
               </div>
@@ -180,7 +186,7 @@ export function MyWorkScreen({ initialTab }: Props) {
                 </div>
               </div>
               <span style={{ fontWeight: 700 }}>{formatMoney(job.quote_amount)}</span>
-            </div>
+            </Link>
           ))}
         </>
       )}

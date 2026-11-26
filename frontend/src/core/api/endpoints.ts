@@ -26,6 +26,9 @@ import {
   workerProfileSchema,
   workerSummarySchema,
   workerVettingSchema,
+  jobReviewsSchema,
+  reviewPageSchema,
+  reviewSchema,
   workerWorkScreenSchema,
   type Dispute,
   type Job,
@@ -56,6 +59,9 @@ import {
   type WorkerProfile,
   type WorkerSummary,
   type WorkerVetting,
+  type JobReviews,
+  type Review,
+  type ReviewPage,
   type WorkerWorkScreen,
 } from "@/core/api/schemas";
 
@@ -289,6 +295,40 @@ export function submitReview({ jobId, ...body }: SubmitReviewInput): Promise<voi
   return apiRequest(`/jobs/${encodeURIComponent(jobId)}/review`, {
     method: "POST",
     body,
+  });
+}
+
+/** Both sides' reviews of one job, as the signed-in party sees them (ADR-011). */
+export function fetchJobReviews(jobId: string): Promise<JobReviews> {
+  return apiRequest(`/jobs/${encodeURIComponent(jobId)}/reviews`, { schema: jobReviewsSchema });
+}
+
+export function fetchWorkerReviews(workerId: string, limit: number = 20): Promise<ReviewPage> {
+  return apiRequest(`/workers/${encodeURIComponent(workerId)}/reviews?limit=${limit}`, {
+    schema: reviewPageSchema,
+  });
+}
+
+/** What workers said about the client behind an open job (who stays hidden). */
+export function fetchClientReviewsForJob(jobId: string): Promise<ReviewPage> {
+  return apiRequest(`/jobs/${encodeURIComponent(jobId)}/client-reviews?limit=3`, {
+    schema: reviewPageSchema,
+  });
+}
+
+export function replyToReview(reviewId: string, reply: string): Promise<Review> {
+  return apiRequest(`/reviews/${encodeURIComponent(reviewId)}/reply`, {
+    method: "POST",
+    body: { reply },
+    schema: reviewSchema,
+  });
+}
+
+export function reportReview(reviewId: string, reason: string): Promise<Review> {
+  return apiRequest(`/reviews/${encodeURIComponent(reviewId)}/report`, {
+    method: "POST",
+    body: { reason },
+    schema: reviewSchema,
   });
 }
 

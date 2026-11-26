@@ -18,6 +18,8 @@ import {
 import { tradeIcon, tradeLabel } from "@/core/format/trades";
 import { useLocalProfile } from "@/core/session/profile-store";
 import { candidateTitle } from "@/features/jobs/job-helpers";
+import { useWorkerReviews } from "@/features/reviews/hooks";
+import { ReviewList } from "@/features/reviews/ReviewList";
 import { useWorkerProfile } from "@/features/workers/hooks";
 
 type Props = {
@@ -31,6 +33,7 @@ export function WorkerPublicProfileScreen({ workerId, initialSuburb }: Props) {
   const originSuburb =
     initialSuburb?.trim() || localProfile.lastSuburb || localProfile.homeSuburb || "";
   const profile = useWorkerProfile(workerId, originSuburb);
+  const reviews = useWorkerReviews(workerId);
 
   if (profile.isPending) {
     return (
@@ -199,6 +202,8 @@ export function WorkerPublicProfileScreen({ workerId, initialSuburb }: Props) {
             ))}
           </section>
         )}
+
+        {reviews.data && <ReviewList page={reviews.data} title="What clients say" />}
       </main>
 
       <div className="action-bar">

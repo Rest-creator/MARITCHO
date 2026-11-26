@@ -255,6 +255,32 @@ type Who = "BUYER" | "WORKER" | null;
 /** A stubbed answer: a JSON body, or a status with an optional body. */
 export type Reply = { status: number; json?: unknown } | { json: unknown };
 
+const CLIENT_REVIEWS = {
+  summary: {
+    count: 4,
+    average: 4.5,
+    score: 4.2,
+    is_new: false,
+    tag_counts: { PAID_ON_TIME: 4, JOB_AS_DESCRIBED: 3 },
+  },
+  reviews: [
+    {
+      id: "5f0c9a1e-2b3d-4c5e-8f60-718293a4b5c6",
+      direction: "WORKER_TO_BUYER",
+      rating: 5,
+      tags: ["PAID_ON_TIME", "JOB_AS_DESCRIBED"],
+      comment: "Paid in cash the same day, and the job was as described.",
+      reviewer_name: "Tendai",
+      reviewer_suburb: "Nkulumane",
+      trade: "ELECTRICAL",
+      created_at: "2026-11-01T10:00:00Z",
+      had_dispute: false,
+      reply: null,
+      replied_at: null,
+    },
+  ],
+};
+
 function ok(json: unknown): Reply {
   return { json };
 }
@@ -281,6 +307,9 @@ function responsesFor(who: Who): Record<string, Reply> {
     "GET workers/me/service-areas": ok(SERVICE_AREAS),
     "GET workers/me/standing": ok(STANDING),
     "GET workers/me/references": ok([]),
+    // Two-way reviews (ADR-011): what workers said about this job's client.
+    "GET jobs/job-open-2/client-reviews": ok(CLIENT_REVIEWS),
+    [`GET workers/${EXPERT_ID}/reviews`]: ok(CLIENT_REVIEWS),
     // Screen bundles (ADR-009 phase 2), built from the same world.
     "GET screens/worker-work": ok({
       standing: STANDING,

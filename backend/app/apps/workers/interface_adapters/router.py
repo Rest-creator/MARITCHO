@@ -3,12 +3,11 @@ from collections.abc import Sequence
 
 from fastapi import APIRouter, Depends, Query, status
 from opentelemetry import trace
-from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.apps.accounts.domain.entities import Person
 from app.apps.accounts.interface_adapters.dependencies import RequireRole
-from app.apps.jobs.infrastructure.review_models import ReviewModel
+from app.apps.reviews.infrastructure.repositories import worker_rating_stats
 from app.apps.workers.domain.entities import (
     ServiceArea,
     Skill,
@@ -68,6 +67,7 @@ from app.apps.workers.interface_adapters.schemas import (
 from app.core.database import get_db_session
 from app.core.pagination import Pagination, pagination_params
 from app.core.telemetry import logger
+from app.shared_kernel.clock import utcnow
 from app.shared_kernel.enums import RoleEnum, TradeEnum
 
 router = APIRouter(prefix="/workers/me", tags=["workers"])
@@ -118,15 +118,9 @@ async def get_my_standing(
     db: AsyncSession = Depends(get_db_session),
 ) -> StandingView:
     view = await use_case.execute(current_user.id)
-    average, count = (
-        await db.execute(
-            select(func.avg(ReviewModel.rating), func.count()).where(
-                ReviewModel.worker_id == current_user.id
-            )
-        )
-    ).one()
-    view.rating_average = average
-    view.rating_count = count
+    view.rating_average, view.rating_count = (
+        await worker_rating_stats(db, [current_user.id], utcnow())
+    ).get(current_user.id, (None, 0))
     return view
 
 

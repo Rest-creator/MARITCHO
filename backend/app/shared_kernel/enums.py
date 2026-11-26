@@ -50,6 +50,18 @@ class ReviewTagEnum(str, enum.Enum):
     QUALITY_WORK = "QUALITY_WORK"
     FAIR_PRICE = "FAIR_PRICE"
     RELIABLE = "RELIABLE"
+    # Worker -> client tags (two-way reviews, ADR-011).
+    PAID_ON_TIME = "PAID_ON_TIME"
+    JOB_AS_DESCRIBED = "JOB_AS_DESCRIBED"
+    RESPECTFUL = "RESPECTFUL"
+    SAFE_WORKPLACE = "SAFE_WORKPLACE"
+
+
+class ReviewDirectionEnum(str, enum.Enum):
+    """Who reviewed whom on a job (ADR-011)."""
+
+    BUYER_TO_WORKER = "BUYER_TO_WORKER"
+    WORKER_TO_BUYER = "WORKER_TO_BUYER"
 
 
 class VerificationStatusEnum(str, enum.Enum):

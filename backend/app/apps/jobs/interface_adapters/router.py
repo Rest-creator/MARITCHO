@@ -2,11 +2,9 @@ import uuid
 from collections.abc import Sequence
 from dataclasses import asdict
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Query, status
 from fastapi.concurrency import run_in_threadpool
 from opentelemetry import trace
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.apps.accounts.domain.entities import Person
 from app.apps.accounts.interface_adapters.dependencies import RequireRole, get_current_user
@@ -43,8 +41,6 @@ from app.apps.jobs.domain.services import (
     SubmitQuoteUseCase,
     UpdateJobRequestUseCase,
 )
-from app.apps.jobs.infrastructure.models import JobModel
-from app.apps.jobs.infrastructure.review_models import ReviewModel
 from app.apps.jobs.interface_adapters.dependencies import (
     get_book_job_use_case,
     get_check_job_eligibility_use_case,
@@ -88,13 +84,10 @@ from app.apps.jobs.interface_adapters.schemas import (
     OpenJobOut,
     QuoteCreate,
     RecordEntryOut,
-    ReviewCreate,
     SkillSearchResultOut,
 )
-from app.core.database import get_db_session
 from app.core.pagination import Pagination, pagination_params
 from app.core.telemetry import logger
-from app.shared_kernel.clock import utcnow
 from app.shared_kernel.embeddings import SkillSemanticMatch, rank_skills_by_query
 from app.shared_kernel.enums import RoleEnum, TradeEnum
 
@@ -427,42 +420,6 @@ async def complete_job(
         before_photo_url=payload.before_photo_url,
         after_photo_url=payload.after_photo_url,
     )
-
-
-@router.post("/{job_id}/review", status_code=status.HTTP_201_CREATED)
-async def review_completed_job(
-    job_id: uuid.UUID,
-    payload: ReviewCreate,
-    current_user: Person = Depends(RequireRole([RoleEnum.BUYER])),
-    db: AsyncSession = Depends(get_db_session),
-) -> dict[str, object]:
-    job = await db.get(JobModel, job_id)
-    if job is None or job.buyer_id != current_user.id:
-        raise HTTPException(status_code=404, detail="Job not found")
-    if job.status.value != "COMPLETED" or job.worker_id is None:
-        raise HTTPException(status_code=409, detail="Job must be completed before review")
-    existing = await db.scalar(select(ReviewModel).where(ReviewModel.job_id == job_id))
-    if existing:
-        raise HTTPException(status_code=409, detail="Job already reviewed")
-    review = ReviewModel(
-        id=uuid.uuid4(),
-        job_id=job_id,
-        buyer_id=current_user.id,
-        worker_id=job.worker_id,
-        rating=payload.rating,
-        tags=payload.tags,
-        comment=payload.comment,
-        created_at=utcnow(),
-    )
-    db.add(review)
-    await db.commit()
-    return {
-        "id": str(review.id),
-        "job_id": str(job_id),
-        "rating": review.rating,
-        "tags": [tag.value for tag in review.tags],
-        "comment": review.comment,
-    }
 
 
 @router.post("/{job_id}/dispute", response_model=DisputeOut, status_code=status.HTTP_201_CREATED)

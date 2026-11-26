@@ -676,3 +676,31 @@ Rules (`app/apps/workers/domain/services.py`):
 Data migration: rows that already had a photo become `PENDING`, and
 `standings.grade` values of `IDENTIFIED`/`APPRENTICE` drop to `REGISTERED`
 until a reviewer approves the ID. Vouch-earned grades are unchanged.
+
+## 19. Two-Way, Double-Blind Reviews (`9d0e1f2a3b4c`, ADR-011)
+
+`REVIEWS` gains a direction and the fields for publication, replies and
+moderation. Unique key changes from `(job_id)` to `(job_id, direction)`: one
+review each way per job.
+
+| Column | Meaning |
+| :--- | :--- |
+| `direction` | `BUYER_TO_WORKER` / `WORKER_TO_BUYER` |
+| `author_id`, `subject_id` | Who wrote it, who it is about (`buyer_id`/`worker_id` stay the job's parties) |
+| `visible_after` | Sign-off + 14 days: shown from then even if the other side never reviews |
+| `published_at` | Set on both reviews when the second one arrives |
+| `had_dispute` | The job had a dispute; shown as a label |
+| `reply`, `replied_at` | The subject's one public reply |
+| `reported_at/_by`, `report_reason` | Waiting for OPS; the review stays visible |
+| `hidden_at`, `moderated_by/_at` | OPS removed it: hidden and out of the rating |
+
+Visible = `hidden_at IS NULL AND (published_at IS NOT NULL OR visible_after <= now())`
+(`reviews/infrastructure/models.py::visible_review_clause`). Every rating
+aggregate uses it (`worker_rating_stats`: directory, public profile, matching,
+`GET /workers/me/standing`). `reviewtagenum` gains `PAID_ON_TIME`,
+`JOB_AS_DESCRIBED`, `RESPECTFUL` and `SAFE_WORKPLACE` for worker → employer
+reviews.
+
+Backfill: existing rows were all employer → worker and already public, so
+they get `author_id = buyer_id`, `subject_id = worker_id`, and
+`visible_after = published_at = created_at`.
