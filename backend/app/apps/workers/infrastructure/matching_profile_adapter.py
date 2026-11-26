@@ -7,12 +7,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.apps.accounts.infrastructure.models import PersonModel
 from app.apps.jobs.infrastructure.review_models import ReviewModel
+from app.apps.workers.domain.entities import is_police_clearance_current
 from app.apps.workers.infrastructure.models import (
     ServiceAreaModel,
     SkillModel,
     StandingModel,
     WorkerVettingModel,
 )
+from app.shared_kernel.clock import utcnow
 from app.shared_kernel.enums import GradeEnum, TradeEnum
 from app.shared_kernel.ports import WorkerMatchingProfilePort
 from app.shared_kernel.value_objects import (
@@ -82,10 +84,13 @@ class WorkerMatchingProfileAdapter(WorkerMatchingProfilePort):
         vetting_rows = await self._db.execute(
             select(WorkerVettingModel).where(WorkerVettingModel.worker_id.in_(worker_ids))
         )
+        today = utcnow().date()
         police_cleared_ids = {
             model.worker_id
             for model in vetting_rows.scalars().all()
-            if model.police_clearance_url
+            if is_police_clearance_current(
+                model.police_clearance_status, model.police_clearance_expires_on, today
+            )
         }
         snapshots: dict[uuid.UUID, WorkerStandingSnapshot] = {}
         for model in result.scalars().all():

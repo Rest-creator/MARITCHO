@@ -75,7 +75,22 @@ CREATE TABLE worker_vetting (
     id_photo_url VARCHAR(255),
     id_submitted_at TIMESTAMP WITH TIME ZONE,
     police_clearance_url VARCHAR(255),
-    police_clearance_submitted_at TIMESTAMP WITH TIME ZONE
+    police_clearance_submitted_at TIMESTAMP WITH TIME ZONE,
+    -- Review results (ADR-010, database_schema_design.md §18). The photos
+    -- above are private (owner + OPS); badges follow these columns.
+    id_status VARCHAR(20),                      -- PENDING | VERIFIED | REJECTED
+    id_reviewed_at TIMESTAMP WITH TIME ZONE,
+    id_reviewed_by UUID REFERENCES persons(id) ON DELETE SET NULL,
+    id_rejection_reason VARCHAR(255),
+    id_verified_name VARCHAR(120),
+    id_number_hash VARCHAR(64),                 -- HMAC-SHA256; the number is never stored
+    police_clearance_status VARCHAR(20),        -- PENDING | VERIFIED | REJECTED
+    police_clearance_reviewed_at TIMESTAMP WITH TIME ZONE,
+    police_clearance_reviewed_by UUID REFERENCES persons(id) ON DELETE SET NULL,
+    police_clearance_rejection_reason VARCHAR(255),
+    police_clearance_issued_on DATE,
+    police_clearance_expires_on DATE,           -- issued_on + 365 days
+    CONSTRAINT uq_worker_vetting_id_number_hash UNIQUE (id_number_hash)
 );
 
 CREATE TABLE worker_references (

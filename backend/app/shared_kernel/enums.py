@@ -52,6 +52,14 @@ class ReviewTagEnum(str, enum.Enum):
     RELIABLE = "RELIABLE"
 
 
+class VerificationStatusEnum(str, enum.Enum):
+    """Review state of a vetting document (ADR-010). Unsubmitted = no row value."""
+
+    PENDING = "PENDING"
+    VERIFIED = "VERIFIED"
+    REJECTED = "REJECTED"
+
+
 class GradeEnum(str, enum.Enum):
     REGISTERED = "REGISTERED"
     IDENTIFIED = "IDENTIFIED"

@@ -25,7 +25,7 @@ ALLOWED_KEYS = {"job_id", "trade", "suburb", "needed_by", "pricing_mode", "is_op
 async def _create_job(client, buyer) -> str:
     response = await client.post("/jobs/request", json=PAYLOAD, headers=auth_headers(buyer))
     assert response.status_code == 201
-    return response.json()["id"]
+    return str(response.json()["id"])
 
 
 async def test_share_summary_is_public_and_minimal(client, buyer):

@@ -1,9 +1,10 @@
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 
 from sqlalchemy import (
     CheckConstraint,
+    Date,
     DateTime,
     Enum,
     ForeignKey,
@@ -16,7 +17,7 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
-from app.shared_kernel.enums import GradeEnum, TradeEnum
+from app.shared_kernel.enums import GradeEnum, TradeEnum, VerificationStatusEnum
 
 
 class SkillModel(Base):
@@ -61,8 +62,9 @@ class StandingModel(Base):
 
 
 class WorkerVettingModel(Base):
-    """Progressive vetting evidence (ADR-005): a photographed national ID
-    and optional Police Clearance certificate.
+    """Progressive vetting evidence (ADR-005, ADR-010): a national ID photo
+    and optional Police Clearance certificate, each reviewed by OPS. The
+    photos are private (owner + OPS only).
 
     One row per worker. References and vouches live in their own tables
     since they're one-to-many; this table holds the identity and police
@@ -76,6 +78,34 @@ class WorkerVettingModel(Base):
     id_submitted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     police_clearance_url: Mapped[str | None] = mapped_column(String(255))
     police_clearance_submitted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Review results (ADR-010): badges follow these, not the photo URLs.
+    id_status: Mapped[VerificationStatusEnum | None] = mapped_column(
+        Enum(VerificationStatusEnum, native_enum=False, length=20)
+    )
+    id_reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    id_reviewed_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("persons.id", ondelete="SET NULL")
+    )
+    id_rejection_reason: Mapped[str | None] = mapped_column(String(255))
+    id_verified_name: Mapped[str | None] = mapped_column(String(120))
+    # HMAC of the national ID number; the number itself is never stored.
+    id_number_hash: Mapped[str | None] = mapped_column(String(64))
+    police_clearance_status: Mapped[VerificationStatusEnum | None] = mapped_column(
+        Enum(VerificationStatusEnum, native_enum=False, length=20)
+    )
+    police_clearance_reviewed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True)
+    )
+    police_clearance_reviewed_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("persons.id", ondelete="SET NULL")
+    )
+    police_clearance_rejection_reason: Mapped[str | None] = mapped_column(String(255))
+    police_clearance_issued_on: Mapped[date | None] = mapped_column(Date)
+    police_clearance_expires_on: Mapped[date | None] = mapped_column(Date)
+    __table_args__ = (
+        # One national ID can verify only one account.
+        UniqueConstraint("id_number_hash", name="uq_worker_vetting_id_number_hash"),
+    )
 
 
 class WorkerReferenceModel(Base):

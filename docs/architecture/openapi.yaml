@@ -1179,10 +1179,12 @@ paths:
           description: Authenticated user is not a WORKER
   /workers/me/vetting/id-photo:
     post:
-      summary: Submit (or replace) ID-photo evidence
+      summary: Submit (or replace) the ID photo for review
       description: >
-        Gates REGISTERED -> IDENTIFIED (ADR-005). Grade is recomputed
-        immediately from all accumulated evidence.
+        The URL must be this worker's own `/media/{id}` image upload; the
+        photo stays private (owner + OPS). The document goes to PENDING and
+        IDENTIFIED (ADR-005) follows an OPS approval, not the upload
+        (ADR-010). Replacing an approved photo sends it back to PENDING.
       security:
         - bearerAuth: []
       requestBody:
@@ -1197,19 +1199,23 @@ paths:
                   type: string
       responses:
         '200':
-          description: ID photo recorded, grade recomputed
+          description: ID photo recorded as PENDING, grade recomputed
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/WorkerVetting'
         '403':
           description: Authenticated user is not a WORKER
+        '422':
+          description: Not this worker's own /media/{id} image upload
   /workers/me/vetting/police-clearance:
     post:
-      summary: Submit (or replace) Police Clearance certificate image
+      summary: Submit (or replace) the Police Clearance certificate for review
       description: >
-        Optional when joining Maritcho, but a prerequisite for the Police
-        Cleared worker verification badge shown to employers.
+        Optional when joining Maritcho. Must be this worker's own
+        `/media/{id}` image upload (private: owner + OPS). The Police Cleared
+        badge follows an OPS approval and lapses 12 months after the
+        certificate's issue date (ADR-010). It no longer counts as identity.
       security:
         - bearerAuth: []
       requestBody:
@@ -1224,13 +1230,146 @@ paths:
                   type: string
       responses:
         '200':
-          description: Police clearance recorded, grade recomputed
+          description: Police clearance recorded as PENDING
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/WorkerVetting'
         '403':
           description: Authenticated user is not a WORKER
+        '422':
+          description: Not this worker's own /media/{id} image upload
+  /ops/vetting/pending:
+    get:
+      summary: Identity documents waiting for review (OPS)
+      description: Oldest submission first (ADR-010).
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: limit
+          schema:
+            type: integer
+        - in: query
+          name: offset
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Waiting documents
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PendingVettingDocument'
+        '403':
+          description: Authenticated user is not OPS
+  /ops/vetting/{worker_id}/id:
+    post:
+      summary: Approve or reject a worker's ID photo (OPS)
+      description: >
+        Approve with the name as printed and the ID number (Zimbabwe layout,
+        e.g. 08-2047823 Q 29). Only a keyed HMAC of the number is stored,
+        and it is unique: one national ID verifies one account. Reject with
+        a reason the worker sees (ADR-010).
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: worker_id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [decision]
+              properties:
+                decision:
+                  type: string
+                  enum: [APPROVE, REJECT]
+                verified_name:
+                  type: string
+                  maxLength: 120
+                  nullable: true
+                id_number:
+                  type: string
+                  maxLength: 20
+                  nullable: true
+                rejection_reason:
+                  type: string
+                  maxLength: 255
+                  nullable: true
+      responses:
+        '200':
+          description: Decision recorded, grade recomputed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkerVetting'
+        '403':
+          description: Authenticated user is not OPS
+        '404':
+          description: The worker has not submitted an ID photo
+        '409':
+          description: This ID number already verifies another account
+        '422':
+          description: Missing name, malformed ID number, or missing rejection reason
+  /ops/vetting/{worker_id}/police-clearance:
+    post:
+      summary: Approve or reject a Police Clearance certificate (OPS)
+      description: >
+        Approval needs the worker's ID to be VERIFIED first and the
+        certificate's issue date (not in the future, not over a year old).
+        The badge expires 12 months after issue (ADR-010).
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: worker_id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [decision]
+              properties:
+                decision:
+                  type: string
+                  enum: [APPROVE, REJECT]
+                issued_on:
+                  type: string
+                  format: date
+                  nullable: true
+                rejection_reason:
+                  type: string
+                  maxLength: 255
+                  nullable: true
+      responses:
+        '200':
+          description: Decision recorded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkerVetting'
+        '403':
+          description: Authenticated user is not OPS
+        '404':
+          description: The worker has not submitted a police clearance
+        '409':
+          description: The worker's ID is not verified yet
+        '422':
+          description: Missing, future or expired issue date, or missing rejection reason
   /workers/me/references:
     post:
       summary: Add a contactable reference
@@ -2249,9 +2388,42 @@ components:
             True while this worker has any job currently under an open
             dispute. Computed, not stored — never dropped, per the
             "worker's worst day" design principle.
+    VerificationStatus:
+      type: string
+      enum: [PENDING, VERIFIED, REJECTED]
+      nullable: true
+      description: Review state of an identity document; null when not submitted (ADR-010).
+    PendingVettingDocument:
+      type: object
+      properties:
+        worker_id:
+          type: string
+          format: uuid
+        worker_name:
+          type: string
+          nullable: true
+        worker_phone:
+          type: string
+        document:
+          type: string
+          enum: [ID, POLICE_CLEARANCE]
+        photo_url:
+          type: string
+          description: Private /media/{id} path, readable by the owner and OPS only.
+        submitted_at:
+          type: string
+          format: date-time
+          nullable: true
+        id_status:
+          $ref: '#/components/schemas/VerificationStatus'
+        id_verified_name:
+          type: string
+          nullable: true
     WorkerVetting:
       type: object
-      description: Progressive vetting evidence and computed grade (ADR-005).
+      description: >
+        Progressive vetting evidence and computed grade (ADR-005). Photo URLs
+        are private (owner + OPS); badges follow the review status (ADR-010).
       properties:
         worker_id:
           type: string
@@ -2270,6 +2442,37 @@ components:
           description: Total vouches received, regardless of voucher grade validity.
         grade:
           type: string
+        police_clearance_url:
+          type: string
+          nullable: true
+        police_clearance_submitted_at:
+          type: string
+          format: date-time
+          nullable: true
+        id_status:
+          $ref: '#/components/schemas/VerificationStatus'
+        id_rejection_reason:
+          type: string
+          nullable: true
+        id_verified_name:
+          type: string
+          nullable: true
+        police_clearance_status:
+          $ref: '#/components/schemas/VerificationStatus'
+        police_clearance_rejection_reason:
+          type: string
+          nullable: true
+        police_clearance_issued_on:
+          type: string
+          format: date
+          nullable: true
+        police_clearance_expires_on:
+          type: string
+          format: date
+          nullable: true
+        has_police_clearance:
+          type: boolean
+          description: VERIFIED and not expired - the Police Cleared badge.
     WorkerReference:
       type: object
       properties:

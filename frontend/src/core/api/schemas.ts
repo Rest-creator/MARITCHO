@@ -287,6 +287,8 @@ export const referenceSchema = z.object({
   created_at: isoDate,
 });
 
+export const verificationStatusSchema = z.enum(["PENDING", "VERIFIED", "REJECTED"]);
+
 export const workerVettingSchema = z.object({
   worker_id: uuid,
   id_photo_url: z.string().nullable(),
@@ -296,6 +298,16 @@ export const workerVettingSchema = z.object({
   grade: gradeSchema,
   police_clearance_url: z.string().nullable().optional(),
   police_clearance_submitted_at: isoDate.nullable().optional(),
+  // ADR-010: badges follow an OPS review, not the upload.
+  id_status: verificationStatusSchema.nullable().optional(),
+  id_rejection_reason: z.string().nullable().optional(),
+  id_verified_name: z.string().nullable().optional(),
+  police_clearance_status: verificationStatusSchema.nullable().optional(),
+  police_clearance_rejection_reason: z.string().nullable().optional(),
+  /** Plain dates (YYYY-MM-DD). */
+  police_clearance_issued_on: z.string().nullable().optional(),
+  police_clearance_expires_on: z.string().nullable().optional(),
+  has_police_clearance: z.boolean().optional(),
 });
 
 export const vouchSchema = z.object({

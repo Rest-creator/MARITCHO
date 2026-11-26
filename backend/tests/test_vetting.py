@@ -20,22 +20,6 @@ async def test_fresh_worker_starts_registered_with_no_evidence(client, worker_fa
     assert body["vouch_count"] == 0
 
 
-async def test_submitting_id_photo_promotes_to_identified(client, worker_factory):
-    worker = await worker_factory(TradeEnum.PLUMBING, "Nkulumane")
-
-    response = await client.post(
-        "/workers/me/vetting/id-photo",
-        json={"id_photo_url": "https://example.com/id.jpg"},
-        headers=auth_headers(worker),
-    )
-
-    assert response.status_code == 200
-    body = response.json()
-    assert body["grade"] == "IDENTIFIED"
-    assert body["id_photo_url"] == "https://example.com/id.jpg"
-    assert body["id_submitted_at"] is not None
-
-
 async def test_reference_without_id_photo_does_not_promote(client, worker_factory):
     worker = await worker_factory(TradeEnum.PLUMBING, "Nkulumane")
 
@@ -49,25 +33,6 @@ async def test_reference_without_id_photo_does_not_promote(client, worker_factor
     body = await _get_vetting(client, worker)
     assert body["grade"] == "REGISTERED"
     assert body["reference_count"] == 1
-
-
-async def test_id_photo_plus_reference_promotes_to_apprentice(client, worker_factory):
-    worker = await worker_factory(TradeEnum.PLUMBING, "Nkulumane")
-
-    await client.post(
-        "/workers/me/vetting/id-photo",
-        json={"id_photo_url": "https://example.com/id.jpg"},
-        headers=auth_headers(worker),
-    )
-    response = await client.post(
-        "/workers/me/references",
-        json={"name": "Mai Ncube", "phone": "+263771234567"},
-        headers=auth_headers(worker),
-    )
-
-    assert response.status_code == 201
-    body = await _get_vetting(client, worker)
-    assert body["grade"] == "APPRENTICE"
 
 
 async def test_list_my_references_returns_submitted_references(client, worker_factory):
@@ -208,25 +173,3 @@ async def test_buyer_cannot_use_vetting_endpoints(client, buyer):
     response = await client.get("/workers/me/vetting", headers=auth_headers(buyer))
 
     assert response.status_code == 403
-
-
-async def test_submitting_police_clearance_records_evidence_and_surfaces_on_profile(
-    client, worker_factory, buyer
-):
-    worker = await worker_factory(TradeEnum.PLUMBING, "Nkulumane")
-
-    response = await client.post(
-        "/workers/me/vetting/police-clearance",
-        json={"police_clearance_url": "https://example.com/police-clearance.jpg"},
-        headers=auth_headers(worker),
-    )
-
-    assert response.status_code == 200
-    body = response.json()
-    assert body["police_clearance_url"] == "https://example.com/police-clearance.jpg"
-    assert body["police_clearance_submitted_at"] is not None
-    assert body["grade"] == "IDENTIFIED"
-
-    profile = await client.get(f"/workers/{worker.id}", headers=auth_headers(buyer))
-    assert profile.status_code == 200
-    assert profile.json()["has_police_clearance"] is True

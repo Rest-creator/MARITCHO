@@ -16,6 +16,7 @@ from app.apps.messaging.interface_adapters.router import inbox_router as messagi
 from app.apps.messaging.interface_adapters.router import router as messaging_router
 from app.apps.payments.interface_adapters.router import router as payment_gateways_router
 from app.apps.suburbs.interface_adapters.router import router as suburbs_router
+from app.apps.workers.interface_adapters.ops_router import router as ops_vetting_router
 from app.apps.workers.interface_adapters.router import (
     directory_router as workers_directory_router,
 )
@@ -41,6 +42,7 @@ app.include_router(messaging_router)
 app.include_router(messaging_inbox_router)
 app.include_router(workers_router)
 app.include_router(workers_directory_router)
+app.include_router(ops_vetting_router)
 app.include_router(suburbs_router)
 app.include_router(crews_router)
 app.include_router(crew_orders_router)

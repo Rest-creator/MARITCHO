@@ -144,12 +144,18 @@ async def submit_id_photo(
     current_user: Person = Depends(RequireRole([RoleEnum.WORKER])),
     use_case: SubmitIdPhotoUseCase = Depends(get_submit_id_photo_use_case),
 ) -> WorkerVettingView:
-    """Submit (or replace) the worker's ID-photo evidence.
+    """Submit (or replace) the worker's ID photo for review.
 
-    Gates REGISTERED -> IDENTIFIED (ADR-005). Grade is recomputed
-    immediately, same transaction, from all accumulated evidence.
+    Must be the worker's own `/media/{id}` upload; it stays private (owner +
+    OPS). IDENTIFIED (ADR-005) follows an OPS approval, not the upload
+    (ADR-010).
     """
-    return await use_case.execute(current_user.id, payload.id_photo_url)
+    with tracer.start_as_current_span("workers.submit_id_photo") as span:
+        span.set_attribute("worker.id", str(current_user.id))
+        view = await use_case.execute(current_user.id, payload.id_photo_url)
+        span.set_attribute("worker.grade", view.grade.value)
+        logger.info(f"ID photo submitted for review by worker={current_user.id}")
+        return view
 
 
 @router.post("/vetting/police-clearance", response_model=WorkerVettingOut)
@@ -158,7 +164,11 @@ async def submit_police_clearance(
     current_user: Person = Depends(RequireRole([RoleEnum.WORKER])),
     use_case: SubmitPoliceClearanceUseCase = Depends(get_submit_police_clearance_use_case),
 ) -> WorkerVettingView:
-    """Submit (or replace) the worker's Police Clearance certificate image."""
+    """Submit (or replace) the Police Clearance certificate for review.
+
+    Must be the worker's own `/media/{id}` upload; the Police Cleared badge
+    follows an OPS approval (ADR-010).
+    """
     with tracer.start_as_current_span("workers.submit_police_clearance") as span:
         span.set_attribute("worker.id", str(current_user.id))
         view = await use_case.execute(current_user.id, payload.police_clearance_url)

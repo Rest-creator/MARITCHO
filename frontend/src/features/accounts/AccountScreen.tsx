@@ -30,6 +30,7 @@ import { queryKeys } from "@/core/query/keys";
 import { updateProfile, useLocalProfile } from "@/core/session/profile-store";
 import { hasBothSides } from "@/core/session/roles";
 import { homeFor, useSession, type SignInRole } from "@/core/session/SessionProvider";
+import { idDocumentCopy, policeClearanceCopy } from "@/features/accounts/vetting-status";
 import { activeJobs, finishedJobs } from "@/features/jobs/job-helpers";
 import { useAssignedJobs, useMyJobs, useMyOffers } from "@/features/jobs/hooks";
 import { monthLabel, summariseMonth } from "@/features/worker/earnings";
@@ -187,8 +188,11 @@ export function AccountScreen({ tabBar }: Props) {
   const referenceList = references.data ?? [];
   const referenceCount = Math.max(referenceList.length, vetting.data?.reference_count ?? 0);
   const vouchCount = vetting.data?.vouch_count ?? 0;
-  const hasIdVerified = Boolean(vetting.data?.id_photo_url) || currentGradeRank >= 1;
-  const hasPoliceClearance = Boolean(vetting.data?.police_clearance_url);
+  // ADR-010: badges follow the Maritcho team's review, not the upload.
+  const idCopy = idDocumentCopy(vetting.data);
+  const clearanceCopy = policeClearanceCopy(vetting.data);
+  const hasIdVerified = idCopy.state === "VERIFIED";
+  const hasPoliceClearance = clearanceCopy.state === "VERIFIED";
   const canVouchForPeers = currentGrade === "JOURNEYMAN" || currentGrade === "EXPERT";
   // Only once the server has confirmed the tier, and only for a tier this phone hasn't celebrated.
   const gradeToCelebrate: Grade | null =
@@ -328,7 +332,9 @@ export function AccountScreen({ tabBar }: Props) {
     }
     try {
       await submitIdPhoto.mutateAsync({ id_photo_url: url });
-      setVettingFeedback("National ID photo submitted. Your standing is now ID checked.");
+      setVettingFeedback(
+        "ID photo sent. The Maritcho team will check it; your badge appears once it's approved.",
+      );
     } catch (failure: unknown) {
       setVettingError(
         failure instanceof Error ? failure.message : "Could not submit ID verification.",
@@ -361,7 +367,7 @@ export function AccountScreen({ tabBar }: Props) {
     try {
       await submitPoliceClearance.mutateAsync({ police_clearance_url: url });
       setVettingFeedback(
-        "Police Clearance certificate submitted. Clients now see your Police Cleared verification badge.",
+        "Certificate sent. The Maritcho team will check it; the Police Cleared badge appears once it's approved.",
       );
     } catch (failure: unknown) {
       setVettingError(
@@ -893,12 +899,12 @@ export function AccountScreen({ tabBar }: Props) {
                     1. National ID check (ID checked tier)
                   </span>
                 </div>
-                <span className="meta">{hasIdVerified ? "Submitted" : "Required"}</span>
+                <span className="meta" role="status">
+                  {idCopy.label}
+                </span>
               </div>
               <p className="meta meta--secondary" style={{ lineHeight: 1.45 }}>
-                {hasIdVerified
-                  ? "Your National ID evidence is on file. Clients see the Checked by Maritcho badge."
-                  : "Take a clear photo of your National ID to unlock the ID checked badge."}
+                {idCopy.message}
               </p>
               <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
                 <button
@@ -908,7 +914,7 @@ export function AccountScreen({ tabBar }: Props) {
                   onClick={() => setIsIdPickerOpen(true)}
                 >
                   <Icon name="camera" size={15} />
-                  {hasIdVerified ? "Replace ID photo" : "Upload ID photo"}
+                  {idCopy.action}
                 </button>
               </div>
             </div>
@@ -929,14 +935,12 @@ export function AccountScreen({ tabBar }: Props) {
                     Police Clearance (Verification badge)
                   </span>
                 </div>
-                <span className="meta">
-                  {hasPoliceClearance ? "Verified" : "Optional · For verification"}
+                <span className="meta" role="status">
+                  {clearanceCopy.label}
                 </span>
               </div>
               <p className="meta meta--secondary" style={{ lineHeight: 1.45 }}>
-                {hasPoliceClearance
-                  ? "Your Police Clearance certificate image is on file. Employers see the Police Cleared badge on your profile and offers."
-                  : "Optional when you join, but a prerequisite for full Police Cleared worker verification. Upload a clear photo of your ZRP Police Clearance certificate."}
+                {clearanceCopy.message}
               </p>
               <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
                 <button
@@ -946,7 +950,7 @@ export function AccountScreen({ tabBar }: Props) {
                   onClick={() => setIsPoliceClearancePickerOpen(true)}
                 >
                   <Icon name="camera" size={15} />
-                  {hasPoliceClearance ? "Replace Police Clearance" : "Upload Police Clearance"}
+                  {clearanceCopy.action}
                 </button>
               </div>
             </div>

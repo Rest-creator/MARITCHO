@@ -650,3 +650,29 @@ Migration `7b8c9d0e1f2a_add_police_clearance_and_pricing_mode.py` adds:
 - `JOBS.pricing_mode` (`VARCHAR(20) NOT NULL DEFAULT 'NEGOTIABLE'`): models the employer's chosen pricing mode (`FIXED`, `NEGOTIABLE`, or `AFTER_VISIT`).
 - `PATCH /jobs/{job_id}`: allows the buyer to edit an open (`REQUESTED` or `MATCHED`) job posting (`trade`, `suburb`, `address`, `landmark_narrative`, `latitude`, `longitude`, `problem_description`, `problem_photo_url`, `needed_by`, `pricing_mode`, `budget_amount`) before a worker is booked.
 - `WORKER_VETTING.police_clearance_url` (`VARCHAR(255)`, nullable) and `WORKER_VETTING.police_clearance_submitted_at` (`TIMESTAMP WITH TIME ZONE`, nullable) via `POST /workers/me/vetting/police-clearance`: optional when joining Maritcho, but a verification prerequisite for the `has_police_clearance` ("Police Cleared") badge surfaced on `MatchCandidate`, `WorkerDirectoryItem`, and `WorkerPublicProfile`.
+
+## 18. Reviewed Identity Documents (`8c9d0e1f2a3b`, ADR-010)
+
+Badges used to be granted the moment `WORKER_VETTING.id_photo_url` /
+`police_clearance_url` held any string. Migration
+`8c9d0e1f2a3b_review_identity_documents.py` adds the review result instead:
+
+| Column | Type | Meaning |
+| :--- | :--- | :--- |
+| `id_status`, `police_clearance_status` | `VARCHAR(20)` | `PENDING` / `VERIFIED` / `REJECTED`; null = not submitted |
+| `id_reviewed_at/_by`, `police_clearance_reviewed_at/_by` | `TIMESTAMPTZ`, `UUID` FK→`persons` (`SET NULL`) | Who decided, and when |
+| `id_rejection_reason`, `police_clearance_rejection_reason` | `VARCHAR(255)` | Shown to the worker |
+| `id_verified_name` | `VARCHAR(120)` | Name as printed on the approved ID |
+| `id_number_hash` | `VARCHAR(64)`, `UNIQUE` | HMAC-SHA256 of the normalized ID number (`ID_NUMBER_HASH_KEY`); the number itself is never stored. One national ID verifies one account |
+| `police_clearance_issued_on`, `police_clearance_expires_on` | `DATE` | Badge lapses 365 days after issue |
+
+Rules (`app/apps/workers/domain/services.py`):
+- Submitting accepts only the worker's own `/media/{id}` image (422 otherwise) and resets that document to `PENDING`.
+- `IDENTIFIED` (and `APPRENTICE`) require `id_status = VERIFIED`. A police clearance no longer counts as identity.
+- `has_police_clearance` = `police_clearance_status = VERIFIED` and `police_clearance_expires_on >= today`, on `MatchCandidate`, `WorkerDirectoryItem`, `WorkerPublicProfile` and `GET /workers/me/vetting`.
+- A clearance can be approved only after the ID is verified.
+- OPS endpoints: `GET /ops/vetting/pending`, `POST /ops/vetting/{worker_id}/id`, `POST /ops/vetting/{worker_id}/police-clearance`. Not proxied by the web BFF (ops surfaces stay off the browser proxy); an OPS console is follow-up work.
+
+Data migration: rows that already had a photo become `PENDING`, and
+`standings.grade` values of `IDENTIFIED`/`APPRENTICE` drop to `REGISTERED`
+until a reviewer approves the ID. Vouch-earned grades are unchanged.
