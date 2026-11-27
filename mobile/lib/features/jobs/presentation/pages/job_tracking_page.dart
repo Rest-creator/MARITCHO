@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import 'package:mobile/core/theme/app_theme.dart';
+
 import '../../data/models/job.dart';
 import '../../data/repositories/jobs_repository.dart';
 import '../cubit/job_tracking_cubit.dart';
 import '../cubit/job_tracking_state.dart';
+import '../widgets/dispute_sheet.dart';
+import '../widgets/review_panel.dart';
 
-/// Ports JobTracking.dc.html's status + completion step. Simplified per
-/// the plan's disclosed mismatch: no star rating / quick-tag review
-/// system exists in the backend (CompletionCreate only has a free-text
-/// client_words field, and nothing links completion to the workers app's
-/// references/standing) — this is a single review text field, not a fake
-/// star-and-tags UI that would verify nothing real.
+/// Ports JobTracking screen with status, in-job messaging, dispute sheet,
+/// completion confirmation, and structured review (stars + tags).
 class JobTrackingPage extends StatelessWidget {
   final Job job;
 
@@ -37,26 +37,55 @@ class _JobTrackingView extends StatefulWidget {
 
 class _JobTrackingViewState extends State<_JobTrackingView> {
   final _whatWasDoneController = TextEditingController();
-  final _reviewController = TextEditingController();
+  final _commentController = TextEditingController();
+  final ReviewDraft _reviewDraft = ReviewDraft();
+
+  bool _isDisputed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _isDisputed = widget.job.status == 'DISPUTED';
+  }
 
   @override
   void dispose() {
     _whatWasDoneController.dispose();
-    _reviewController.dispose();
+    _commentController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(widget.job.trade)),
+      appBar: AppBar(
+        title: Text(widget.job.trade),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.chat_bubble_outline),
+            tooltip: 'Open Chat',
+            onPressed: () {
+              Navigator.of(context).pushNamed(
+                '/chat',
+                arguments: {
+                  'jobId': widget.job.id,
+                  'jobTitle': widget.job.trade,
+                },
+              );
+            },
+          ),
+        ],
+      ),
       body: BlocConsumer<JobTrackingCubit, JobTrackingState>(
         listener: (context, state) {
-          if (!mounted) return; // Engineering Standard: Async Gap Safety
+          if (!mounted) return;
 
           if (state is JobTrackingSuccess) {
+            _submitPostCompletionReview();
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Job confirmed done.')),
+              const SnackBar(
+                content: Text('Job confirmed done & payment released.'),
+              ),
             );
             Navigator.of(context).popUntil((route) => route.isFirst);
           } else if (state is JobTrackingFailure) {
@@ -70,57 +99,129 @@ class _JobTrackingViewState extends State<_JobTrackingView> {
         },
         builder: (context, state) {
           final isSubmitting = state is JobTrackingSubmitting;
-          final canComplete = widget.job.status == 'IN_PROGRESS';
+          final canComplete =
+              widget.job.status == 'IN_PROGRESS' && !_isDisputed;
 
           return Padding(
             padding: const EdgeInsets.all(20),
             child: ListView(
               children: [
-                Text(
-                  'Status: ${widget.job.status}',
-                  style: Theme.of(context).textTheme.titleLarge,
+                _buildStatusBanner(),
+                const SizedBox(height: 12),
+                Text('Location: ${widget.job.suburb}'),
+                const SizedBox(height: 16),
+                Card(
+                  child: ListTile(
+                    leading: const Icon(Icons.chat, color: Colors.blueGrey),
+                    title: const Text('Message worker'),
+                    subtitle: const Text(
+                      'Discuss job, arrival or instructions',
+                    ),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () {
+                      Navigator.of(context).pushNamed(
+                        '/chat',
+                        arguments: {
+                          'jobId': widget.job.id,
+                          'jobTitle': widget.job.trade,
+                        },
+                      );
+                    },
+                  ),
                 ),
-                const SizedBox(height: 8),
-                Text('${widget.job.suburb} · ${widget.job.address}'),
-                const SizedBox(height: 24),
-                if (!canComplete)
-                  Text(
-                    widget.job.status == 'COMPLETED'
-                        ? 'This job is already complete.'
-                        : 'This job isn\'t ready to confirm yet (needs to be IN_PROGRESS).',
-                  )
-                else ...[
+                const SizedBox(height: 20),
+                if (canComplete) ...[
                   TextField(
                     controller: _whatWasDoneController,
-                    enabled: !isSubmitting,
-                    maxLines: 3,
                     decoration: const InputDecoration(
-                      labelText: 'What was done?',
+                      labelText: 'What was done',
+                      hintText: 'e.g. Fixed leaking sink pipe under counter',
+                      border: OutlineInputBorder(),
                     ),
                   ),
                   const SizedBox(height: 16),
+                  ReviewPanel(
+                    draft: _reviewDraft,
+                    onChanged: (updated) {
+                      setState(() {});
+                    },
+                  ),
+                  const SizedBox(height: 12),
                   TextField(
-                    controller: _reviewController,
-                    enabled: !isSubmitting,
-                    maxLines: 3,
+                    controller: _commentController,
                     decoration: const InputDecoration(
-                      labelText: 'A few words about the worker (optional)',
+                      labelText: 'Review comment (Optional)',
+                      hintText: 'Any words for the worker...',
+                      border: OutlineInputBorder(),
                     ),
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 20),
                   ElevatedButton(
-                    onPressed: isSubmitting ? null : () => _confirm(context),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      backgroundColor: AppTheme.primaryBlueGray,
+                      foregroundColor: Colors.white,
+                    ),
+                    onPressed: isSubmitting ? null : _confirmDone,
                     child: isSubmitting
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : const Text('Confirm job done'),
+                        ? const CircularProgressIndicator(color: Colors.white)
+                        : const Text(
+                            'Confirm Done & Release Payment',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
                   ),
+                  const SizedBox(height: 16),
+                  Center(
+                    child: TextButton.icon(
+                      style: TextButton.styleFrom(
+                        foregroundColor: Colors.red.shade700,
+                      ),
+                      icon: const Icon(Icons.warning_amber),
+                      label: const Text("Something's not right? Raise concern"),
+                      onPressed: () {
+                        DisputeSheet.show(
+                          context,
+                          jobId: widget.job.id,
+                          jobsRepository: context.read<JobsRepository>(),
+                          onDisputeRaised: () {
+                            setState(() {
+                              _isDisputed = true;
+                            });
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'Concern reported. Payment frozen.',
+                                ),
+                              ),
+                            );
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                ] else if (_isDisputed) ...[
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.red.shade50,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.red.shade200),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.lock, color: Colors.red.shade700),
+                        const SizedBox(width: 12),
+                        const Expanded(
+                          child: Text(
+                            'Payment is frozen while this concern is open. The worker has been notified to respond.',
+                            style: TextStyle(fontSize: 13),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ] else ...[
+                  const Text('Payment is locked until the job is in progress.'),
                 ],
               ],
             ),
@@ -130,20 +231,55 @@ class _JobTrackingViewState extends State<_JobTrackingView> {
     );
   }
 
-  void _confirm(BuildContext context) {
-    final whatWasDone = _whatWasDoneController.text.trim();
-    if (whatWasDone.isEmpty) {
+  Widget _buildStatusBanner() {
+    final statusText = _isDisputed ? 'DISPUTED' : widget.job.status;
+    final color = _isDisputed ? Colors.red.shade700 : AppTheme.primaryBlueGray;
+
+    return Row(
+      children: [
+        Text('Status: ', style: Theme.of(context).textTheme.titleMedium),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Text(
+            statusText,
+            style: TextStyle(color: color, fontWeight: FontWeight.bold),
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _confirmDone() {
+    final whatDone = _whatWasDoneController.text.trim();
+    if (whatDone.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Describe what was done to confirm')),
+        const SnackBar(content: Text('Please describe what was done.')),
       );
       return;
     }
 
-    final review = _reviewController.text.trim();
     context.read<JobTrackingCubit>().completeJob(
       jobId: widget.job.id,
-      whatWasDone: whatWasDone,
-      clientWords: review.isEmpty ? null : review,
+      whatWasDone: whatDone,
+      clientWords: _commentController.text.isNotEmpty
+          ? _commentController.text
+          : null,
+    );
+  }
+
+  void _submitPostCompletionReview() {
+    final repo = context.read<JobsRepository>();
+    repo.submitReview(
+      jobId: widget.job.id,
+      rating: _reviewDraft.rating,
+      tags: _reviewDraft.tags,
+      comment: _commentController.text.isNotEmpty
+          ? _commentController.text
+          : null,
     );
   }
 }

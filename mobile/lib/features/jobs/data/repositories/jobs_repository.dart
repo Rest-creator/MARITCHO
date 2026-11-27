@@ -114,6 +114,38 @@ class JobsRepository {
     }
   }
 
+  Future<Result<void, Failure>> raiseDispute({
+    required String jobId,
+    required String reason,
+  }) async {
+    try {
+      await _dio.post<Map<String, dynamic>>(
+        '/jobs/$jobId/dispute',
+        data: {'reason': reason},
+      );
+      return const Ok(null);
+    } on DioException catch (e) {
+      return Error(_failureFor(e));
+    }
+  }
+
+  Future<Result<void, Failure>> submitReview({
+    required String jobId,
+    required int rating,
+    List<String> tags = const [],
+    String? comment,
+  }) async {
+    try {
+      await _dio.post<Map<String, dynamic>>(
+        '/jobs/$jobId/review',
+        data: {'rating': rating, 'tags': tags, 'comment': ?comment},
+      );
+      return const Ok(null);
+    } on DioException catch (e) {
+      return Error(_failureFor(e));
+    }
+  }
+
   Future<Result<List<Job>, Failure>> listAssigned() {
     return _cachedList(
       cacheKey: 'jobs.listAssigned',

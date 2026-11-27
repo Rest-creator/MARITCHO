@@ -38,9 +38,13 @@ class ActiveJobCard extends StatelessWidget {
         .first
         .trim();
     return Card(
-      margin: const EdgeInsets.only(bottom: 12),
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: const BorderSide(color: AppTheme.lightBlueGray),
+      ),
       child: Padding(
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
@@ -48,100 +52,179 @@ class ActiveJobCard extends StatelessWidget {
               children: <Widget>[
                 Expanded(
                   child: Text(
-                    isBooked ? 'You got the job' : 'Price agreed · working',
+                    job.trade,
                     style: const TextStyle(
-                      fontWeight: FontWeight.w700,
-                      color: AppTheme.darkBlueGray,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
                 ),
-                if (job.quoteAmount != null)
-                  Text(
-                    '\$${job.quoteAmount!.toStringAsFixed(2)}',
-                    style: const TextStyle(fontWeight: FontWeight.w700),
+                IconButton(
+                  icon: const Icon(
+                    Icons.chat_bubble_outline,
+                    color: AppTheme.primaryBlueGray,
                   ),
+                  tooltip: 'Chat with employer',
+                  onPressed: () {
+                    Navigator.of(context).pushNamed(
+                      '/chat',
+                      arguments: {'jobId': job.id, 'jobTitle': job.trade},
+                    );
+                  },
+                ),
+                _statusBadge(job.status),
               ],
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 4),
             Text(
-              headline.isEmpty ? job.trade : headline,
-              style: Theme.of(context).textTheme.titleMedium,
+              job.suburb,
+              style: TextStyle(
+                color: AppTheme.darkBlueGray.withValues(alpha: 0.7),
+                fontSize: 13,
+              ),
             ),
-            Text(
-              '${job.address}, ${job.suburb}',
-              style: const TextStyle(color: AppTheme.coolGray),
-            ),
-            for (final OutboxItem item in undelivered) ...<Widget>[
+            if (headline.isNotEmpty) ...<Widget>[
               const SizedBox(height: 8),
-              _UndeliveredLine(item: item, onRetry: () => onRetry(item.id)),
+              Text(
+                headline,
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: AppTheme.darkBlueGray,
+                ),
+              ),
+            ],
+            if (undelivered.isNotEmpty) ...<Widget>[
+              const SizedBox(height: 12),
+              _outboxSection(context),
             ],
             const SizedBox(height: 12),
-            Row(
-              children: <Widget>[
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: onAddPhoto,
-                    icon: const Icon(Icons.photo_camera_outlined),
-                    label: const Text('Add photo'),
+            if (isBooked)
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppTheme.primaryBlueGray,
+                  ),
+                  onPressed: _hasQueuedPrice ? null : onArrived,
+                  icon: const Icon(Icons.pin_drop_outlined),
+                  label: Text(
+                    _hasQueuedPrice
+                        ? "Price saved — waiting for signal"
+                        : "I've arrived · Confirm price",
                   ),
                 ),
-                if (isBooked) ...<Widget>[
-                  const SizedBox(width: 10),
+              )
+            else if (job.status == 'COMPLETED')
+              Row(
+                children: [
                   Expanded(
-                    child: FilledButton(
-                      onPressed: _hasQueuedPrice ? null : onArrived,
-                      child: Text(
-                        _hasQueuedPrice ? 'Price saved' : "I've arrived",
-                      ),
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        Navigator.of(context)
+                            .pushNamed('/worker-review-client', arguments: job);
+                      },
+                      icon: const Icon(Icons.star_outline),
+                      label: const Text('Rate client'),
                     ),
                   ),
+                  const SizedBox(width: 8),
+                  OutlinedButton.icon(
+                    onPressed: () {
+                      Navigator.of(context).pushNamed(
+                        '/chat',
+                        arguments: {'jobId': job.id, 'jobTitle': job.trade},
+                      );
+                    },
+                    icon: const Icon(Icons.chat),
+                    label: const Text('Chat'),
+                  ),
                 ],
-              ],
-            ),
+              ),
           ],
         ),
       ),
     );
   }
-}
 
-/// "Saved, sends when there's signal" — or why the backend refused it.
-class _UndeliveredLine extends StatelessWidget {
-  final OutboxItem item;
-  final VoidCallback onRetry;
+  Widget _statusBadge(String status) {
+    final (String label, Color color) = switch (status) {
+      'BOOKED' => ('Booked', Colors.amber.shade800),
+      'IN_PROGRESS' => ('On site', AppTheme.primaryBlueGray),
+      'COMPLETED' => ('Finished', Colors.green.shade700),
+      _ => (status, AppTheme.darkBlueGray),
+    };
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: color,
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
 
-  const _UndeliveredLine({required this.item, required this.onRetry});
-
-  @override
-  Widget build(BuildContext context) {
-    final String what = item.type == OutboxActions.submitQuote
-        ? 'Price'
-        : 'Photo';
-    final bool hasFailed = item.status == OutboxStatus.failed;
-    final Color color = hasFailed
-        ? Theme.of(context).colorScheme.error
-        : AppTheme.darkBlueGray;
-    final String text = hasFailed
-        ? '$what not sent: ${item.lastError ?? 'refused'}'
-        : '$what saved on your phone. ${item.lastError ?? 'Sending…'}';
-    return Semantics(
-      liveRegion: true,
-      child: Row(
+  Widget _outboxSection(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: AppTheme.lightBlueGray.withValues(alpha: 0.25),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Icon(
-            hasFailed ? Icons.error_outline : Icons.schedule,
-            size: 18,
-            color: color,
-          ),
-          const SizedBox(width: 6),
-          Expanded(
-            child: Text(text, style: TextStyle(fontSize: 13, color: color)),
-          ),
-          if (hasFailed)
-            TextButton(onPressed: onRetry, child: const Text('Try again')),
+          for (final OutboxItem item in undelivered) ...<Widget>[
+            Row(
+              children: <Widget>[
+                Icon(
+                  item.status == OutboxStatus.failed
+                      ? Icons.error_outline
+                      : Icons.schedule,
+                  size: 16,
+                  color: item.status == OutboxStatus.failed
+                      ? Colors.red.shade700
+                      : AppTheme.primaryBlueGray,
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    _itemSummary(item),
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                ),
+                if (item.status == OutboxStatus.failed)
+                  TextButton(
+                    onPressed: () => onRetry(item.id),
+                    child: const Text('Retry now'),
+                  ),
+              ],
+            ),
+            if (item.lastError != null)
+              Padding(
+                padding: const EdgeInsets.only(left: 22, top: 2),
+                child: Text(
+                  item.lastError!,
+                  style: TextStyle(fontSize: 11, color: Colors.red.shade800),
+                ),
+              ),
+          ],
         ],
       ),
     );
+  }
+
+  String _itemSummary(OutboxItem item) {
+    return switch (item.type) {
+      OutboxActions.submitQuote => 'Price update queued',
+      OutboxActions.sendPhoto => 'Job photo queued',
+      _ => 'Update queued',
+    };
   }
 }

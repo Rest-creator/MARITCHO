@@ -1,20 +1,23 @@
 import 'package:flutter/material.dart';
 
+import '../../features/accounts/presentation/pages/account_page.dart';
 import '../../features/accounts/presentation/pages/landing_page.dart';
 import '../../features/accounts/presentation/pages/signup_page.dart';
 import '../../features/jobs/data/models/job.dart';
 import '../../features/jobs/data/models/open_job.dart';
 import '../../features/jobs/presentation/pages/applicants_page.dart';
-import '../../features/jobs/presentation/pages/employer_home_page.dart';
 import '../../features/jobs/presentation/pages/job_detail_page.dart';
 import '../../features/jobs/presentation/pages/job_tracking_page.dart';
 import '../../features/jobs/presentation/pages/post_job_page.dart';
-import '../../features/jobs/presentation/pages/worker_home_page.dart';
+import '../../features/messaging/presentation/pages/chat_page.dart';
 import '../../features/workers/presentation/pages/my_work_page.dart';
+import '../../features/workers/presentation/pages/worker_public_profile_page.dart';
+import '../../features/workers/presentation/pages/worker_review_client_page.dart';
 import '../../features/workers/presentation/pages/worker_skills_page.dart';
+import '../../features/workers/presentation/pages/workers_directory_page.dart';
+import 'main_navigation_shell.dart';
 
-/// Named-route table. No routing package is introduced for this — the
-/// screen count doesn't warrant `go_router` yet.
+/// Named-route table.
 Route<dynamic>? onGenerateRoute(RouteSettings settings) {
   switch (settings.name) {
     case '/':
@@ -22,8 +25,40 @@ Route<dynamic>? onGenerateRoute(RouteSettings settings) {
     case '/signup':
       final role = settings.arguments as String? ?? 'BUYER';
       return MaterialPageRoute(builder: (_) => SignUpPage(role: role));
+    case '/shell':
+      final role = settings.arguments as String? ?? 'BUYER';
+      return MaterialPageRoute(
+        builder: (_) => MainNavigationShell(initialRole: role),
+      );
     case '/employer-home':
-      return MaterialPageRoute(builder: (_) => const EmployerHomePage());
+      return MaterialPageRoute(
+        builder: (_) => const MainNavigationShell(initialRole: 'BUYER'),
+      );
+    case '/worker-home':
+      return MaterialPageRoute(
+        builder: (_) => const MainNavigationShell(initialRole: 'WORKER'),
+      );
+    case '/workers':
+      return MaterialPageRoute(builder: (_) => const WorkersDirectoryPage());
+    case '/worker-public-profile':
+      final workerId = settings.arguments as String;
+      return MaterialPageRoute(
+        builder: (_) => WorkerPublicProfilePage(workerId: workerId),
+      );
+    case '/worker-review-client':
+      final job = settings.arguments as Job;
+      return MaterialPageRoute(
+        builder: (_) => WorkerReviewClientPage(job: job),
+      );
+    case '/account':
+      return MaterialPageRoute(builder: (_) => const AccountPage());
+    case '/chat':
+      final args = settings.arguments as Map<String, dynamic>? ?? {};
+      final jobId = args['jobId'] as String? ?? '';
+      final jobTitle = args['jobTitle'] as String?;
+      return MaterialPageRoute(
+        builder: (_) => ChatPage(jobId: jobId, jobTitle: jobTitle),
+      );
     case '/post-job':
       final initialTrade = settings.arguments as String?;
       return MaterialPageRoute(
@@ -37,8 +72,6 @@ Route<dynamic>? onGenerateRoute(RouteSettings settings) {
       return MaterialPageRoute(builder: (_) => JobTrackingPage(job: job));
     case '/worker-skills':
       return MaterialPageRoute(builder: (_) => const WorkerSkillsPage());
-    case '/worker-home':
-      return MaterialPageRoute(builder: (_) => const WorkerHomePage());
     case '/job-detail':
       final job = settings.arguments as OpenJob;
       return MaterialPageRoute(builder: (_) => JobDetailPage(job: job));

@@ -12,9 +12,11 @@ import 'core/sync/sqlite_outbox.dart';
 import 'core/sync/sync_scheduler.dart';
 import 'core/sync/sync_service.dart';
 import 'core/theme/app_theme.dart';
+import 'features/accounts/data/repositories/account_repository.dart';
 import 'features/accounts/data/repositories/auth_repository.dart';
 import 'features/jobs/data/repositories/job_work_repository.dart';
 import 'features/jobs/data/repositories/jobs_repository.dart';
+import 'features/messaging/data/repositories/chat_repository.dart';
 import 'features/suburbs/data/repositories/suburbs_repository.dart';
 import 'features/workers/data/repositories/work_screen_repository.dart';
 import 'features/workers/data/repositories/workers_repository.dart';
@@ -26,6 +28,8 @@ void main() {
   final dbHelper = DatabaseHelper();
   final dio = buildApiDio(tokenStorage);
   final authRepository = AuthRepository(dio, tokenStorage);
+  final accountRepository = AccountRepository(dio);
+  final chatRepository = ChatRepository(dio);
   final jobsRepository = JobsRepository(dio, dbHelper);
   final suburbsRepository = SuburbsRepository(dio);
   final workersRepository = WorkersRepository(dio, dbHelper);
@@ -48,6 +52,8 @@ void main() {
   runApp(
     MyApp(
       authRepository: authRepository,
+      accountRepository: accountRepository,
+      chatRepository: chatRepository,
       jobsRepository: jobsRepository,
       suburbsRepository: suburbsRepository,
       workersRepository: workersRepository,
@@ -60,6 +66,8 @@ void main() {
 
 class MyApp extends StatelessWidget {
   final AuthRepository authRepository;
+  final AccountRepository accountRepository;
+  final ChatRepository chatRepository;
   final JobsRepository jobsRepository;
   final SuburbsRepository suburbsRepository;
   final WorkersRepository workersRepository;
@@ -70,6 +78,8 @@ class MyApp extends StatelessWidget {
   const MyApp({
     super.key,
     required this.authRepository,
+    required this.accountRepository,
+    required this.chatRepository,
     required this.jobsRepository,
     required this.suburbsRepository,
     required this.workersRepository,
@@ -83,6 +93,8 @@ class MyApp extends StatelessWidget {
     return MultiRepositoryProvider(
       providers: [
         RepositoryProvider<AuthRepository>.value(value: authRepository),
+        RepositoryProvider<AccountRepository>.value(value: accountRepository),
+        RepositoryProvider<ChatRepository>.value(value: chatRepository),
         RepositoryProvider<JobsRepository>.value(value: jobsRepository),
         RepositoryProvider<SuburbsRepository>.value(value: suburbsRepository),
         RepositoryProvider<WorkersRepository>.value(value: workersRepository),

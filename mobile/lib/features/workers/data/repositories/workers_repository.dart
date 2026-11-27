@@ -6,6 +6,8 @@ import '../../../../core/error/failure.dart';
 import '../../../../core/error/result.dart';
 import '../../../../core/storage/database_helper.dart';
 import '../models/standing.dart';
+import '../models/worker_directory_item.dart';
+import '../models/worker_vetting.dart';
 
 class WorkersRepository {
   final Dio _dio;
@@ -43,9 +45,24 @@ class WorkersRepository {
     }
   }
 
-  /// Offline-first read, same cache-aside pattern as JobsRepository: try the
-  /// network first, cache the payload on success, and fall back to the last
-  /// cached standing if the live fetch fails.
+  Future<Result<WorkerVetting, Failure>> getVetting() async {
+    try {
+      final response = await _dio.get<Map<String, dynamic>>(
+        '/workers/me/vetting',
+      );
+      return Ok(WorkerVetting.fromJson(response.data!));
+    } on DioException catch (e) {
+      return Error(_failureFor(e));
+    } on Object catch (e) {
+      return Error(
+        UnknownFailure(
+          message: 'Could not load vetting status',
+          exception: e is Exception ? e : Exception(e.toString()),
+        ),
+      );
+    }
+  }
+
   Future<Result<Standing, Failure>> getStanding() async {
     const cacheKey = 'workers.standing';
     try {
@@ -63,6 +80,64 @@ class WorkersRepository {
         );
       }
       return Error(_failureFor(e));
+    }
+  }
+
+  Future<Result<List<WorkerDirectoryItem>, Failure>> listNearbyWorkers({
+    String? suburb,
+    String? trade,
+    String? query,
+    int limit = 50,
+    int offset = 0,
+  }) async {
+    try {
+      final Map<String, dynamic> params = {'limit': limit, 'offset': offset};
+      if (suburb != null && suburb.isNotEmpty) params['suburb'] = suburb;
+      if (trade != null && trade.isNotEmpty) params['trade'] = trade;
+      if (query != null && query.isNotEmpty) params['q'] = query;
+
+      final response = await _dio.get<List<dynamic>>(
+        '/workers',
+        queryParameters: params,
+      );
+      final items = (response.data ?? [])
+          .map((e) => WorkerDirectoryItem.fromJson(e as Map<String, dynamic>))
+          .toList();
+      return Ok(items);
+    } on DioException catch (e) {
+      return Error(_failureFor(e));
+    } on Object catch (e) {
+      return Error(
+        UnknownFailure(
+          message: 'Could not load workers directory',
+          exception: e is Exception ? e : Exception(e.toString()),
+        ),
+      );
+    }
+  }
+
+  Future<Result<WorkerPublicProfile, Failure>> getWorkerProfile(
+    String workerId, {
+    String? suburb,
+  }) async {
+    try {
+      final Map<String, dynamic> params = {};
+      if (suburb != null && suburb.isNotEmpty) params['suburb'] = suburb;
+
+      final response = await _dio.get<Map<String, dynamic>>(
+        '/workers/$workerId',
+        queryParameters: params,
+      );
+      return Ok(WorkerPublicProfile.fromJson(response.data!));
+    } on DioException catch (e) {
+      return Error(_failureFor(e));
+    } on Object catch (e) {
+      return Error(
+        UnknownFailure(
+          message: 'Could not load worker profile',
+          exception: e is Exception ? e : Exception(e.toString()),
+        ),
+      );
     }
   }
 
