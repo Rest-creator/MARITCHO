@@ -1,18 +1,20 @@
 import uuid
 from collections import defaultdict
 from collections.abc import Sequence
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 
-from sqlalchemy import desc, func, select
+from sqlalchemy import desc, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.apps.accounts.infrastructure.models import PersonModel, person_can_act_as
 from app.apps.accounts.infrastructure.repositories import person_from_model
 from app.apps.jobs.infrastructure.models import JobModel, RecordEntryModel
-from app.apps.jobs.infrastructure.review_models import ReviewModel
+from app.apps.media.models import MediaFileModel
+from app.apps.reviews.infrastructure.repositories import worker_rating_stats
 from app.apps.workers.domain.entities import (
+    PendingVettingDocument,
     ServiceArea,
     Skill,
     Standing,
@@ -22,8 +24,10 @@ from app.apps.workers.domain.entities import (
     WorkerVetting,
     WorkerVouch,
     WorkerWorkRecord,
+    is_police_clearance_current,
 )
 from app.apps.workers.domain.repositories import (
+    MediaOwnershipRepository,
     ServiceAreaRepository,
     SkillRepository,
     StandingRepository,
@@ -41,7 +45,8 @@ from app.apps.workers.infrastructure.models import (
     WorkerVouchModel,
 )
 from app.core.exceptions import IntegrityConflictError
-from app.shared_kernel.enums import GradeEnum, RoleEnum, TradeEnum
+from app.shared_kernel.clock import utcnow
+from app.shared_kernel.enums import GradeEnum, RoleEnum, TradeEnum, VerificationStatusEnum
 
 _DEFAULT_ON_TIME_RATE = Decimal("100.00")
 _DEFAULT_DISPUTE_RATE = Decimal("0.00")
@@ -77,6 +82,25 @@ def _vetting_to_entity(model: WorkerVettingModel) -> WorkerVetting:
         id_submitted_at=model.id_submitted_at,
         police_clearance_url=model.police_clearance_url,
         police_clearance_submitted_at=model.police_clearance_submitted_at,
+        id_status=model.id_status,
+        id_reviewed_at=model.id_reviewed_at,
+        id_reviewed_by=model.id_reviewed_by,
+        id_rejection_reason=model.id_rejection_reason,
+        id_verified_name=model.id_verified_name,
+        police_clearance_status=model.police_clearance_status,
+        police_clearance_reviewed_at=model.police_clearance_reviewed_at,
+        police_clearance_reviewed_by=model.police_clearance_reviewed_by,
+        police_clearance_rejection_reason=model.police_clearance_rejection_reason,
+        police_clearance_issued_on=model.police_clearance_issued_on,
+        police_clearance_expires_on=model.police_clearance_expires_on,
+    )
+
+
+def _is_police_cleared(model: WorkerVettingModel | None) -> bool:
+    if model is None:
+        return False
+    return is_police_clearance_current(
+        model.police_clearance_status, model.police_clearance_expires_on, utcnow().date()
     )
 
 
@@ -192,6 +216,14 @@ class SqlAlchemyWorkerVettingRepository(WorkerVettingRepository):
             self._db.add(model)
         model.id_photo_url = id_photo_url
         model.id_submitted_at = submitted_at
+        # A new photo needs a new review (ADR-010). The verified number hash
+        # is cleared too, so the next approval re-checks it.
+        model.id_status = VerificationStatusEnum.PENDING
+        model.id_reviewed_at = None
+        model.id_reviewed_by = None
+        model.id_rejection_reason = None
+        model.id_verified_name = None
+        model.id_number_hash = None
         await self._db.flush()
         return _vetting_to_entity(model)
 
@@ -204,8 +236,136 @@ class SqlAlchemyWorkerVettingRepository(WorkerVettingRepository):
             self._db.add(model)
         model.police_clearance_url = police_clearance_url
         model.police_clearance_submitted_at = submitted_at
+        model.police_clearance_status = VerificationStatusEnum.PENDING
+        model.police_clearance_reviewed_at = None
+        model.police_clearance_reviewed_by = None
+        model.police_clearance_rejection_reason = None
+        model.police_clearance_issued_on = None
+        model.police_clearance_expires_on = None
         await self._db.flush()
         return _vetting_to_entity(model)
+
+    async def record_id_review(
+        self,
+        worker_id: uuid.UUID,
+        *,
+        status: VerificationStatusEnum,
+        reviewed_by: uuid.UUID,
+        reviewed_at: datetime,
+        verified_name: str | None,
+        id_number_hash: str | None,
+        rejection_reason: str | None,
+    ) -> WorkerVetting:
+        model = await self._db.get(WorkerVettingModel, worker_id)
+        if model is None:
+            raise LookupError(f"no vetting row for worker {worker_id}")
+        model.id_status = status
+        model.id_reviewed_by = reviewed_by
+        model.id_reviewed_at = reviewed_at
+        model.id_verified_name = verified_name
+        model.id_number_hash = id_number_hash
+        model.id_rejection_reason = rejection_reason
+        await self._db.flush()
+        return _vetting_to_entity(model)
+
+    async def record_police_clearance_review(
+        self,
+        worker_id: uuid.UUID,
+        *,
+        status: VerificationStatusEnum,
+        reviewed_by: uuid.UUID,
+        reviewed_at: datetime,
+        issued_on: date | None,
+        expires_on: date | None,
+        rejection_reason: str | None,
+    ) -> WorkerVetting:
+        model = await self._db.get(WorkerVettingModel, worker_id)
+        if model is None:
+            raise LookupError(f"no vetting row for worker {worker_id}")
+        model.police_clearance_status = status
+        model.police_clearance_reviewed_by = reviewed_by
+        model.police_clearance_reviewed_at = reviewed_at
+        model.police_clearance_issued_on = issued_on
+        model.police_clearance_expires_on = expires_on
+        model.police_clearance_rejection_reason = rejection_reason
+        await self._db.flush()
+        return _vetting_to_entity(model)
+
+    async def id_number_hash_owner(self, id_number_hash: str) -> uuid.UUID | None:
+        owner: uuid.UUID | None = await self._db.scalar(
+            select(WorkerVettingModel.worker_id).where(
+                WorkerVettingModel.id_number_hash == id_number_hash
+            )
+        )
+        return owner
+
+    async def list_pending(self, *, limit: int, offset: int) -> Sequence[PendingVettingDocument]:
+        pending = VerificationStatusEnum.PENDING
+        rows = (
+            await self._db.execute(
+                select(WorkerVettingModel, PersonModel)
+                .join(PersonModel, PersonModel.id == WorkerVettingModel.worker_id)
+                .where(
+                    or_(
+                        WorkerVettingModel.id_status == pending,
+                        WorkerVettingModel.police_clearance_status == pending,
+                    )
+                )
+            )
+        ).all()
+        documents: list[PendingVettingDocument] = []
+        for vetting, person in rows:
+            if vetting.id_status == pending and vetting.id_photo_url:
+                documents.append(
+                    _pending_document(
+                        vetting, person, "ID", vetting.id_photo_url, vetting.id_submitted_at
+                    )
+                )
+            if vetting.police_clearance_status == pending and vetting.police_clearance_url:
+                documents.append(
+                    _pending_document(
+                        vetting,
+                        person,
+                        "POLICE_CLEARANCE",
+                        vetting.police_clearance_url,
+                        vetting.police_clearance_submitted_at,
+                    )
+                )
+        # Oldest first: whoever has waited longest is reviewed first.
+        documents.sort(key=lambda doc: doc.submitted_at.timestamp() if doc.submitted_at else 0.0)
+        return documents[offset : offset + limit]
+
+
+def _pending_document(
+    vetting: WorkerVettingModel,
+    person: PersonModel,
+    document: str,
+    photo_url: str,
+    submitted_at: datetime | None,
+) -> PendingVettingDocument:
+    return PendingVettingDocument(
+        worker_id=vetting.worker_id,
+        worker_name=person.display_name,
+        worker_phone=person.phone,
+        document=document,
+        photo_url=photo_url,
+        submitted_at=submitted_at,
+        id_status=vetting.id_status,
+        id_verified_name=vetting.id_verified_name,
+    )
+
+
+class SqlAlchemyMediaOwnershipRepository(MediaOwnershipRepository):
+    def __init__(self, db: AsyncSession) -> None:
+        self._db = db
+
+    async def is_owned_image(self, media_id: uuid.UUID, owner_id: uuid.UUID) -> bool:
+        model = await self._db.get(MediaFileModel, media_id)
+        return (
+            model is not None
+            and model.owner_id == owner_id
+            and model.content_type.startswith("image/")
+        )
 
 
 class SqlAlchemyWorkerReferenceRepository(WorkerReferenceRepository):
@@ -354,14 +514,7 @@ class SqlAlchemyWorkerDirectoryRepository(WorkerDirectoryRepository):
             model.worker_id: model for model in vetting_result.scalars().all()
         }
 
-        ratings_result = await self._db.execute(
-            select(ReviewModel.worker_id, func.avg(ReviewModel.rating), func.count())
-            .where(ReviewModel.worker_id.in_(skilled_ids))
-            .group_by(ReviewModel.worker_id)
-        )
-        ratings_by_worker: dict[uuid.UUID, tuple[Decimal | None, int]] = {
-            w_id: (avg, int(cnt)) for w_id, avg, cnt in ratings_result.all()
-        }
+        ratings_by_worker = await worker_rating_stats(self._db, skilled_ids, utcnow())
 
         vector_sim_by_worker: dict[uuid.UUID, float] = {}
         if query_embedding is not None:
@@ -424,7 +577,7 @@ class SqlAlchemyWorkerDirectoryRepository(WorkerDirectoryRepository):
                 travel_km=person.travel_km,
                 travel_means=primary_means,
                 similarity_score=vector_sim_by_worker.get(person.id),
-                has_police_clearance=bool(vetting and vetting.police_clearance_url),
+                has_police_clearance=_is_police_cleared(vetting),
             )
             output.append((item, areas))
         return output
@@ -462,14 +615,9 @@ class SqlAlchemyWorkerDirectoryRepository(WorkerDirectoryRepository):
 
         standing = await self._db.get(StandingModel, worker_id)
         vetting = await self._db.get(WorkerVettingModel, worker_id)
-        rating_row = (
-            await self._db.execute(
-                select(func.avg(ReviewModel.rating), func.count()).where(
-                    ReviewModel.worker_id == worker_id
-                )
-            )
-        ).one()
-        rating_avg, rating_cnt = rating_row[0], int(rating_row[1] or 0)
+        rating_avg, rating_cnt = (
+            await worker_rating_stats(self._db, [worker_id], utcnow())
+        ).get(worker_id, (None, 0))
 
         ref_count = (
             await self._db.scalar(
@@ -537,7 +685,7 @@ class SqlAlchemyWorkerDirectoryRepository(WorkerDirectoryRepository):
             service_areas=service_area_names,
             reference_count=int(ref_count),
             recent_work=recent_work,
-            has_police_clearance=bool(vetting and vetting.police_clearance_url),
+            has_police_clearance=_is_police_cleared(vetting),
         )
         return profile, areas
 

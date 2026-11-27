@@ -70,7 +70,13 @@ export const reviewTagSchema = z.enum([
   "QUALITY_WORK",
   "FAIR_PRICE",
   "RELIABLE",
+  // Worker -> client (two-way reviews, ADR-011).
+  "PAID_ON_TIME",
+  "JOB_AS_DESCRIBED",
+  "RESPECTFUL",
+  "SAFE_WORKPLACE",
 ]);
+export const reviewDirectionSchema = z.enum(["BUYER_TO_WORKER", "WORKER_TO_BUYER"]);
 
 export const tokenSchema = z.object({
   access_token: z.string().min(1),
@@ -287,6 +293,62 @@ export const referenceSchema = z.object({
   created_at: isoDate,
 });
 
+/** One side's review of the other on a completed job (ADR-011). */
+export const reviewSchema = z.object({
+  id: uuid,
+  job_id: uuid,
+  direction: reviewDirectionSchema,
+  rating: z.number().int().min(1).max(5),
+  tags: z.array(reviewTagSchema),
+  comment: z.string().nullable(),
+  created_at: isoDate,
+  published_at: isoDate.nullable(),
+  visible_after: isoDate,
+  had_dispute: z.boolean(),
+  reply: z.string().nullable(),
+  replied_at: isoDate.nullable(),
+});
+
+export const jobReviewsSchema = z.object({
+  job_id: uuid,
+  my_direction: reviewDirectionSchema,
+  window_closes_at: isoDate.nullable(),
+  can_review: z.boolean(),
+  mine: reviewSchema.nullable(),
+  theirs: reviewSchema.nullable(),
+  is_theirs_waiting: z.boolean(),
+});
+
+export const publicReviewSchema = z.object({
+  id: uuid,
+  direction: reviewDirectionSchema,
+  rating: z.number().int().min(1).max(5),
+  tags: z.array(reviewTagSchema),
+  comment: z.string().nullable(),
+  reviewer_name: z.string(),
+  reviewer_suburb: z.string().nullable(),
+  trade: z.string(),
+  created_at: isoDate,
+  had_dispute: z.boolean(),
+  reply: z.string().nullable(),
+  replied_at: isoDate.nullable(),
+});
+
+export const reviewSummarySchema = z.object({
+  count: z.number().int(),
+  average: z.coerce.number().nullable(),
+  score: z.coerce.number().nullable(),
+  is_new: z.boolean(),
+  tag_counts: z.record(z.string(), z.number().int()),
+});
+
+export const reviewPageSchema = z.object({
+  summary: reviewSummarySchema,
+  reviews: z.array(publicReviewSchema),
+});
+
+export const verificationStatusSchema = z.enum(["PENDING", "VERIFIED", "REJECTED"]);
+
 export const workerVettingSchema = z.object({
   worker_id: uuid,
   id_photo_url: z.string().nullable(),
@@ -296,6 +358,16 @@ export const workerVettingSchema = z.object({
   grade: gradeSchema,
   police_clearance_url: z.string().nullable().optional(),
   police_clearance_submitted_at: isoDate.nullable().optional(),
+  // ADR-010: badges follow an OPS review, not the upload.
+  id_status: verificationStatusSchema.nullable().optional(),
+  id_rejection_reason: z.string().nullable().optional(),
+  id_verified_name: z.string().nullable().optional(),
+  police_clearance_status: verificationStatusSchema.nullable().optional(),
+  police_clearance_rejection_reason: z.string().nullable().optional(),
+  /** Plain dates (YYYY-MM-DD). */
+  police_clearance_issued_on: z.string().nullable().optional(),
+  police_clearance_expires_on: z.string().nullable().optional(),
+  has_police_clearance: z.boolean().optional(),
 });
 
 export const vouchSchema = z.object({
@@ -405,6 +477,12 @@ export type ServiceArea = z.infer<typeof serviceAreaSchema>;
 export type Standing = z.infer<typeof standingSchema>;
 export type Reference = z.infer<typeof referenceSchema>;
 export type WorkerVetting = z.infer<typeof workerVettingSchema>;
+export type ReviewDirection = z.infer<typeof reviewDirectionSchema>;
+export type Review = z.infer<typeof reviewSchema>;
+export type JobReviews = z.infer<typeof jobReviewsSchema>;
+export type PublicReview = z.infer<typeof publicReviewSchema>;
+export type ReviewSummary = z.infer<typeof reviewSummarySchema>;
+export type ReviewPage = z.infer<typeof reviewPageSchema>;
 export type Vouch = z.infer<typeof vouchSchema>;
 export type Suburb = z.infer<typeof suburbSchema>;
 export type WorkerWorkRecord = z.infer<typeof workerWorkRecordSchema>;

@@ -13,7 +13,6 @@ from app.shared_kernel.enums import (
     LedgerEntryTypeEnum,
     NeededByEnum,
     PricingModeEnum,
-    ReviewTagEnum,
     TradeEnum,
 )
 from app.shared_kernel.text import strip_tags
@@ -178,17 +177,6 @@ class CompletionCreate(BaseModel):
     @field_validator("client_words")
     @classmethod
     def sanitize_client_words(cls, value: str | None) -> str | None:
-        return strip_tags(value) if value is not None else value
-
-
-class ReviewCreate(BaseModel):
-    rating: int = Field(ge=1, le=5)
-    tags: list[ReviewTagEnum] = Field(default_factory=list, max_length=3)
-    comment: str | None = Field(default=None, max_length=1000)
-
-    @field_validator("comment")
-    @classmethod
-    def sanitize_comment(cls, value: str | None) -> str | None:
         return strip_tags(value) if value is not None else value
 
 

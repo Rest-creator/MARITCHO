@@ -73,7 +73,10 @@ export function ApplicantsScreen({ jobId }: Props) {
           <h1 className="title truncate">{heading}</h1>
           <div className="meta truncate">{subtitle}</div>
         </div>
-        {isOpen && job.data && <ShareJobButton jobId={jobId} job={job.data} />}
+        {isOpen && job.data && (
+          // Icon only: on a phone the title needs the room next to "Edit job".
+          <ShareJobButton jobId={jobId} job={job.data} hasLabel={false} />
+        )}
         {isOpen && (
           <Link
             href={`/employer/jobs/${jobId}/edit`}

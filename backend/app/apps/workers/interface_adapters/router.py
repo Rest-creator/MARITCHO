@@ -3,12 +3,11 @@ from collections.abc import Sequence
 
 from fastapi import APIRouter, Depends, Query, status
 from opentelemetry import trace
-from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.apps.accounts.domain.entities import Person
 from app.apps.accounts.interface_adapters.dependencies import RequireRole
-from app.apps.jobs.infrastructure.review_models import ReviewModel
+from app.apps.reviews.infrastructure.repositories import worker_rating_stats
 from app.apps.workers.domain.entities import (
     ServiceArea,
     Skill,
@@ -68,6 +67,7 @@ from app.apps.workers.interface_adapters.schemas import (
 from app.core.database import get_db_session
 from app.core.pagination import Pagination, pagination_params
 from app.core.telemetry import logger
+from app.shared_kernel.clock import utcnow
 from app.shared_kernel.enums import RoleEnum, TradeEnum
 
 router = APIRouter(prefix="/workers/me", tags=["workers"])
@@ -118,15 +118,9 @@ async def get_my_standing(
     db: AsyncSession = Depends(get_db_session),
 ) -> StandingView:
     view = await use_case.execute(current_user.id)
-    average, count = (
-        await db.execute(
-            select(func.avg(ReviewModel.rating), func.count()).where(
-                ReviewModel.worker_id == current_user.id
-            )
-        )
-    ).one()
-    view.rating_average = average
-    view.rating_count = count
+    view.rating_average, view.rating_count = (
+        await worker_rating_stats(db, [current_user.id], utcnow())
+    ).get(current_user.id, (None, 0))
     return view
 
 
@@ -144,12 +138,18 @@ async def submit_id_photo(
     current_user: Person = Depends(RequireRole([RoleEnum.WORKER])),
     use_case: SubmitIdPhotoUseCase = Depends(get_submit_id_photo_use_case),
 ) -> WorkerVettingView:
-    """Submit (or replace) the worker's ID-photo evidence.
+    """Submit (or replace) the worker's ID photo for review.
 
-    Gates REGISTERED -> IDENTIFIED (ADR-005). Grade is recomputed
-    immediately, same transaction, from all accumulated evidence.
+    Must be the worker's own `/media/{id}` upload; it stays private (owner +
+    OPS). IDENTIFIED (ADR-005) follows an OPS approval, not the upload
+    (ADR-010).
     """
-    return await use_case.execute(current_user.id, payload.id_photo_url)
+    with tracer.start_as_current_span("workers.submit_id_photo") as span:
+        span.set_attribute("worker.id", str(current_user.id))
+        view = await use_case.execute(current_user.id, payload.id_photo_url)
+        span.set_attribute("worker.grade", view.grade.value)
+        logger.info(f"ID photo submitted for review by worker={current_user.id}")
+        return view
 
 
 @router.post("/vetting/police-clearance", response_model=WorkerVettingOut)
@@ -158,7 +158,11 @@ async def submit_police_clearance(
     current_user: Person = Depends(RequireRole([RoleEnum.WORKER])),
     use_case: SubmitPoliceClearanceUseCase = Depends(get_submit_police_clearance_use_case),
 ) -> WorkerVettingView:
-    """Submit (or replace) the worker's Police Clearance certificate image."""
+    """Submit (or replace) the Police Clearance certificate for review.
+
+    Must be the worker's own `/media/{id}` upload; the Police Cleared badge
+    follows an OPS approval (ADR-010).
+    """
     with tracer.start_as_current_span("workers.submit_police_clearance") as span:
         span.set_attribute("worker.id", str(current_user.id))
         view = await use_case.execute(current_user.id, payload.police_clearance_url)

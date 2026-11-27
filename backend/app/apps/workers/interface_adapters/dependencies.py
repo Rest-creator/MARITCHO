@@ -1,3 +1,5 @@
+import os
+
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -14,14 +16,18 @@ from app.apps.workers.domain.services import (
     ListMyServiceAreasUseCase,
     ListMySkillsUseCase,
     ListNearbyWorkersUseCase,
+    ListPendingVettingUseCase,
     RecomputeGradeUseCase,
     RegisterServiceAreaUseCase,
     RegisterSkillUseCase,
+    ReviewIdDocumentUseCase,
+    ReviewPoliceClearanceUseCase,
     SubmitIdPhotoUseCase,
     SubmitPoliceClearanceUseCase,
     VouchForWorkerUseCase,
 )
 from app.apps.workers.infrastructure.repositories import (
+    SqlAlchemyMediaOwnershipRepository,
     SqlAlchemyServiceAreaRepository,
     SqlAlchemySkillRepository,
     SqlAlchemyStandingRepository,
@@ -31,6 +37,7 @@ from app.apps.workers.infrastructure.repositories import (
     SqlAlchemyWorkerVouchRepository,
 )
 from app.core.database import get_db_session
+from app.core.security import SECRET_KEY
 from app.core.unit_of_work import SqlAlchemyUnitOfWork, get_unit_of_work
 
 
@@ -54,6 +61,19 @@ def get_worker_vetting_repository(
     db: AsyncSession = Depends(get_db_session),
 ) -> SqlAlchemyWorkerVettingRepository:
     return SqlAlchemyWorkerVettingRepository(db)
+
+
+def get_media_ownership_repository(
+    db: AsyncSession = Depends(get_db_session),
+) -> SqlAlchemyMediaOwnershipRepository:
+    return SqlAlchemyMediaOwnershipRepository(db)
+
+
+def get_id_number_hash_key() -> bytes:
+    """HMAC key for national ID numbers (ADR-010). Set ID_NUMBER_HASH_KEY in
+    production and never rotate it casually: a new key makes old hashes
+    unmatchable, so duplicate-ID detection would miss earlier accounts."""
+    return os.getenv("ID_NUMBER_HASH_KEY", SECRET_KEY).encode("utf-8")
 
 
 def get_worker_reference_repository(
@@ -136,8 +156,9 @@ def get_submit_id_photo_use_case(
     uow: SqlAlchemyUnitOfWork = Depends(get_unit_of_work),
     recompute_grade: RecomputeGradeUseCase = Depends(get_recompute_grade_use_case),
     view: GetVettingViewUseCase = Depends(get_vetting_view_use_case),
+    media: SqlAlchemyMediaOwnershipRepository = Depends(get_media_ownership_repository),
 ) -> SubmitIdPhotoUseCase:
-    return SubmitIdPhotoUseCase(vetting, standings, uow, recompute_grade, view)
+    return SubmitIdPhotoUseCase(vetting, standings, uow, recompute_grade, view, media)
 
 
 def get_submit_police_clearance_use_case(
@@ -146,8 +167,34 @@ def get_submit_police_clearance_use_case(
     uow: SqlAlchemyUnitOfWork = Depends(get_unit_of_work),
     recompute_grade: RecomputeGradeUseCase = Depends(get_recompute_grade_use_case),
     view: GetVettingViewUseCase = Depends(get_vetting_view_use_case),
+    media: SqlAlchemyMediaOwnershipRepository = Depends(get_media_ownership_repository),
 ) -> SubmitPoliceClearanceUseCase:
-    return SubmitPoliceClearanceUseCase(vetting, standings, uow, recompute_grade, view)
+    return SubmitPoliceClearanceUseCase(vetting, standings, uow, recompute_grade, view, media)
+
+
+def get_list_pending_vetting_use_case(
+    vetting: SqlAlchemyWorkerVettingRepository = Depends(get_worker_vetting_repository),
+) -> ListPendingVettingUseCase:
+    return ListPendingVettingUseCase(vetting)
+
+
+def get_review_id_document_use_case(
+    vetting: SqlAlchemyWorkerVettingRepository = Depends(get_worker_vetting_repository),
+    standings: SqlAlchemyStandingRepository = Depends(get_standing_repository),
+    uow: SqlAlchemyUnitOfWork = Depends(get_unit_of_work),
+    recompute_grade: RecomputeGradeUseCase = Depends(get_recompute_grade_use_case),
+    view: GetVettingViewUseCase = Depends(get_vetting_view_use_case),
+    key: bytes = Depends(get_id_number_hash_key),
+) -> ReviewIdDocumentUseCase:
+    return ReviewIdDocumentUseCase(vetting, standings, uow, recompute_grade, view, key)
+
+
+def get_review_police_clearance_use_case(
+    vetting: SqlAlchemyWorkerVettingRepository = Depends(get_worker_vetting_repository),
+    uow: SqlAlchemyUnitOfWork = Depends(get_unit_of_work),
+    view: GetVettingViewUseCase = Depends(get_vetting_view_use_case),
+) -> ReviewPoliceClearanceUseCase:
+    return ReviewPoliceClearanceUseCase(vetting, uow, view)
 
 
 def get_add_reference_use_case(

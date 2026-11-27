@@ -1,9 +1,11 @@
 import uuid
 from collections.abc import Sequence
+from datetime import date
 from decimal import ROUND_HALF_UP, Decimal
 
 from app.apps.accounts.domain.repositories import PersonRepository
 from app.apps.workers.domain.entities import (
+    PendingVettingDocument,
     ServiceArea,
     Skill,
     StandingView,
@@ -13,7 +15,14 @@ from app.apps.workers.domain.entities import (
     WorkerVettingView,
     WorkerVouch,
 )
+from app.apps.workers.domain.identity import (
+    hash_id_number,
+    media_id_from_url,
+    normalize_zim_id_number,
+    police_clearance_expiry,
+)
 from app.apps.workers.domain.repositories import (
+    MediaOwnershipRepository,
     ServiceAreaRepository,
     SkillRepository,
     StandingRepository,
@@ -38,7 +47,13 @@ from app.shared_kernel.embeddings import (
     rank_skills_by_query,
     relevance_score,
 )
-from app.shared_kernel.enums import DistanceBandEnum, GradeEnum, RoleEnum, TradeEnum
+from app.shared_kernel.enums import (
+    DistanceBandEnum,
+    GradeEnum,
+    RoleEnum,
+    TradeEnum,
+    VerificationStatusEnum,
+)
 from app.shared_kernel.geo import BAND_RANK, classify_distance
 from app.shared_kernel.grading import GRADE_RANK, meets_minimum_grade
 from app.shared_kernel.ports import SuburbLookupPort, WorkerAvailabilityPort, WorkerJobStatsPort
@@ -270,9 +285,8 @@ class RecomputeGradeUseCase:
             return
 
         vetting = await self._vetting.get(worker_id)
-        has_id_photo = vetting is not None and (
-            vetting.id_photo_url is not None or vetting.police_clearance_url is not None
-        )
+        # ADR-010: identity is earned by an OPS-approved ID, not by a photo.
+        has_id_photo = vetting is not None and vetting.is_id_verified
 
         reference_count = await self._references.count_by_worker(worker_id)
         valid_vouch_count = await self._vouches.count_valid_vouches(
@@ -323,12 +337,37 @@ class GetVettingViewUseCase:
             police_clearance_submitted_at=(
                 vetting.police_clearance_submitted_at if vetting else None
             ),
+            id_status=vetting.id_status if vetting else None,
+            id_rejection_reason=vetting.id_rejection_reason if vetting else None,
+            id_verified_name=vetting.id_verified_name if vetting else None,
+            police_clearance_status=vetting.police_clearance_status if vetting else None,
+            police_clearance_rejection_reason=(
+                vetting.police_clearance_rejection_reason if vetting else None
+            ),
+            police_clearance_issued_on=vetting.police_clearance_issued_on if vetting else None,
+            police_clearance_expires_on=vetting.police_clearance_expires_on if vetting else None,
+            has_police_clearance=vetting.is_police_cleared(utcnow().date()) if vetting else False,
         )
 
 
+async def _require_owned_photo(
+    media: MediaOwnershipRepository, worker_id: uuid.UUID, url: str
+) -> str:
+    """ADR-010: an identity document must be the worker's own upload, served
+    privately from /media/{id}, never an arbitrary link."""
+    media_id = media_id_from_url(url)
+    if media_id is None or not await media.is_owned_image(media_id, worker_id):
+        raise ValidationConflictError(
+            "Upload the photo in the app first; only your own uploaded photo can be used."
+        )
+    return f"/media/{media_id}"
+
+
 class SubmitIdPhotoUseCase:
-    """Gates REGISTERED -> IDENTIFIED (ADR-005). Grade is recomputed
-    immediately, same transaction, from all accumulated evidence."""
+    """Submits (or replaces) the ID photo for review (ADR-005, ADR-010). The
+    photo goes to PENDING; IDENTIFIED waits for an OPS approval. Grade is
+    recomputed in the same transaction (a replaced photo loses the grade
+    until it is approved again)."""
 
     def __init__(
         self,
@@ -337,7 +376,9 @@ class SubmitIdPhotoUseCase:
         uow: UnitOfWork,
         recompute_grade: RecomputeGradeUseCase,
         view: GetVettingViewUseCase,
+        media: MediaOwnershipRepository,
     ) -> None:
+        self._media = media
         self._vetting = vetting
         self._standings = standings
         self._uow = uow
@@ -345,7 +386,8 @@ class SubmitIdPhotoUseCase:
         self._view = view
 
     async def execute(self, worker_id: uuid.UUID, id_photo_url: str) -> WorkerVettingView:
-        await self._vetting.upsert_id_photo(worker_id, id_photo_url, utcnow())
+        url = await _require_owned_photo(self._media, worker_id, id_photo_url)
+        await self._vetting.upsert_id_photo(worker_id, url, utcnow())
         await self._standings.ensure(worker_id)
         await self._recompute_grade.execute(worker_id)
         await self._uow.commit()
@@ -355,9 +397,8 @@ class SubmitIdPhotoUseCase:
 class SubmitPoliceClearanceUseCase:
     """Submit (or replace) the worker's Police Clearance certificate photo.
 
-    Optional when joining Maritcho, but a key verification prerequisite for
-    the Police Cleared badge shown to employers. Also satisfies the
-    REGISTERED -> IDENTIFIED identity document floor when submitted.
+    Optional when joining Maritcho. The Police Cleared badge appears only
+    once OPS approves it (ADR-010); it no longer counts as identity.
     """
 
     def __init__(
@@ -367,7 +408,9 @@ class SubmitPoliceClearanceUseCase:
         uow: UnitOfWork,
         recompute_grade: RecomputeGradeUseCase,
         view: GetVettingViewUseCase,
+        media: MediaOwnershipRepository,
     ) -> None:
+        self._media = media
         self._vetting = vetting
         self._standings = standings
         self._uow = uow
@@ -375,9 +418,172 @@ class SubmitPoliceClearanceUseCase:
         self._view = view
 
     async def execute(self, worker_id: uuid.UUID, police_clearance_url: str) -> WorkerVettingView:
-        await self._vetting.upsert_police_clearance(worker_id, police_clearance_url, utcnow())
+        url = await _require_owned_photo(self._media, worker_id, police_clearance_url)
+        await self._vetting.upsert_police_clearance(worker_id, url, utcnow())
         await self._standings.ensure(worker_id)
         await self._recompute_grade.execute(worker_id)
+        await self._uow.commit()
+        return await self._view.execute(worker_id)
+
+
+class ListPendingVettingUseCase:
+    """OPS review queue (ADR-010): documents waiting, oldest first."""
+
+    def __init__(self, vetting: WorkerVettingRepository) -> None:
+        self._vetting = vetting
+
+    async def execute(self, *, limit: int, offset: int) -> Sequence[PendingVettingDocument]:
+        return await self._vetting.list_pending(limit=limit, offset=offset)
+
+
+class ReviewIdDocumentUseCase:
+    """OPS approves or rejects a worker's ID photo (ADR-010).
+
+    Approving records the name as printed and a keyed hash of the ID number
+    (never the number), which must not already verify another account.
+    """
+
+    def __init__(
+        self,
+        vetting: WorkerVettingRepository,
+        standings: StandingRepository,
+        uow: UnitOfWork,
+        recompute_grade: RecomputeGradeUseCase,
+        view: GetVettingViewUseCase,
+        id_number_key: bytes,
+    ) -> None:
+        self._vetting = vetting
+        self._standings = standings
+        self._uow = uow
+        self._recompute_grade = recompute_grade
+        self._view = view
+        self._key = id_number_key
+
+    async def execute(
+        self,
+        *,
+        worker_id: uuid.UUID,
+        reviewer_id: uuid.UUID,
+        approve: bool,
+        verified_name: str | None,
+        id_number: str | None,
+        rejection_reason: str | None,
+    ) -> WorkerVettingView:
+        current = await self._vetting.get(worker_id)
+        if current is None or current.id_photo_url is None:
+            raise NotFoundError("This worker has not submitted an ID photo")
+        if approve:
+            name = (verified_name or "").strip()
+            if not name:
+                raise ValidationConflictError("Enter the name exactly as printed on the ID")
+            normalized = normalize_zim_id_number(id_number or "")
+            if normalized is None:
+                raise ValidationConflictError(
+                    "That ID number doesn't look right. Use the format 08-2047823 Q 29."
+                )
+            number_hash = hash_id_number(normalized, self._key)
+            owner = await self._vetting.id_number_hash_owner(number_hash)
+            if owner is not None and owner != worker_id:
+                raise ConflictError("This ID number already verifies another account")
+            await self._vetting.record_id_review(
+                worker_id,
+                status=VerificationStatusEnum.VERIFIED,
+                reviewed_by=reviewer_id,
+                reviewed_at=utcnow(),
+                verified_name=name,
+                id_number_hash=number_hash,
+                rejection_reason=None,
+            )
+        else:
+            reason = (rejection_reason or "").strip()
+            if not reason:
+                raise ValidationConflictError("Tell the worker why the ID was not accepted")
+            await self._vetting.record_id_review(
+                worker_id,
+                status=VerificationStatusEnum.REJECTED,
+                reviewed_by=reviewer_id,
+                reviewed_at=utcnow(),
+                verified_name=None,
+                id_number_hash=None,
+                rejection_reason=reason,
+            )
+        await self._standings.ensure(worker_id)
+        await self._recompute_grade.execute(worker_id)
+        try:
+            await self._uow.commit()
+        except IntegrityConflictError as error:
+            raise ConflictError("This ID number already verifies another account") from error
+        return await self._view.execute(worker_id)
+
+
+class ReviewPoliceClearanceUseCase:
+    """OPS approves or rejects a Police Clearance certificate (ADR-010).
+
+    Approval needs a verified ID first (so the certificate can be matched
+    against it) and an issue date; the badge lapses 12 months after issue.
+    """
+
+    def __init__(
+        self,
+        vetting: WorkerVettingRepository,
+        uow: UnitOfWork,
+        view: GetVettingViewUseCase,
+    ) -> None:
+        self._vetting = vetting
+        self._uow = uow
+        self._view = view
+
+    async def execute(
+        self,
+        *,
+        worker_id: uuid.UUID,
+        reviewer_id: uuid.UUID,
+        approve: bool,
+        issued_on: date | None,
+        rejection_reason: str | None,
+    ) -> WorkerVettingView:
+        current = await self._vetting.get(worker_id)
+        if current is None or current.police_clearance_url is None:
+            raise NotFoundError("This worker has not submitted a police clearance")
+        today = utcnow().date()
+        if approve:
+            if not current.is_id_verified:
+                raise ConflictError(
+                    "Verify the worker's ID first, so the certificate can be matched to it"
+                )
+            if issued_on is None:
+                raise ValidationConflictError("Enter the date the certificate was issued")
+            if issued_on > today:
+                raise ValidationConflictError("The issue date can't be in the future")
+            expires_on = police_clearance_expiry(issued_on)
+            if expires_on < today:
+                raise ValidationConflictError(
+                    "This certificate is more than a year old; ask the worker for a new one"
+                )
+            await self._vetting.record_police_clearance_review(
+                worker_id,
+                status=VerificationStatusEnum.VERIFIED,
+                reviewed_by=reviewer_id,
+                reviewed_at=utcnow(),
+                issued_on=issued_on,
+                expires_on=expires_on,
+                rejection_reason=None,
+            )
+        else:
+            reason = (rejection_reason or "").strip()
+            if not reason:
+                raise ValidationConflictError(
+                    "Tell the worker why the certificate was not accepted"
+                )
+            await self._vetting.record_police_clearance_review(
+                worker_id,
+                status=VerificationStatusEnum.REJECTED,
+                reviewed_by=reviewer_id,
+                reviewed_at=utcnow(),
+                issued_on=None,
+                expires_on=None,
+                rejection_reason=reason,
+            )
         await self._uow.commit()
         return await self._view.execute(worker_id)
 

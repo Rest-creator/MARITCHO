@@ -49,8 +49,8 @@ const TERMS_SECTIONS: readonly PolicySection[] = [
       "Workers can join Maritcho and browse jobs immediately as Registered tradespeople. To unlock higher trust tiers and verification badges:",
     ],
     bullets: [
-      "National ID check: Submitting a clear photo of a National ID promotes a worker to the ID Checked tier.",
-      "Police Clearance Certificate (Optional to join · Prerequisite for Police Cleared Verification): Uploading a valid Police Clearance image is optional at sign-up, but required to earn the Police Cleared Verified badge shown to employers.",
+      "National ID check: A worker submits a clear photo of their National ID. Once the Maritcho team has checked it, the worker reaches the ID Checked tier.",
+      "Police Clearance Certificate (optional): After the worker's ID is checked, the Maritcho team checks the certificate against it. The Police Cleared badge is shown to employers for 12 months from the certificate's issue date. It means Maritcho checked the certificate; the Zimbabwe Republic Police do not offer an online check.",
       "Client References & Peer Vouches: Contactable client references and vouches from Journeyman or Expert tradespeople unlock Apprentice, Journeyman, and Expert tiers.",
     ],
   },
@@ -59,6 +59,18 @@ const TERMS_SECTIONS: readonly PolicySection[] = [
     paragraphs: [
       "Employers can edit an open job posting (skill, description, location, timing, or pricing mode) at any time before a worker is booked if they need to correct a mistake.",
       "Exact street addresses, landmark directions, and GPS coordinates are kept private on open listings and revealed only to the worker the employer approves.",
+    ],
+  },
+  {
+    heading: "7. Ratings & Reviews",
+    paragraphs: [
+      "After a job is signed off, the employer and the worker can each review the other within 14 days.",
+    ],
+    bullets: [
+      "Each review stays hidden until the other side has reviewed too, or the 14 days pass, so nobody reviews in reply to what the other said.",
+      "Reviews show the reviewer's first name and suburb only. A star rating appears once someone has 3 reviews; before that they are shown as New.",
+      "The person reviewed can post one public reply and can report a review. A reported review stays up until the Maritcho team decides; we remove reviews with threats, insults, personal details, or nothing to do with the job.",
+      "Reviews never change a worker's trust tier, which is earned through ID checks, references and vouches.",
     ],
   },
 ];
@@ -92,7 +104,8 @@ const PRIVACY_SECTIONS: readonly PolicySection[] = [
   {
     heading: "4. Vetting Documents & Police Clearance",
     paragraphs: [
-      "National ID photos and Police Clearance certificate images are used solely to verify identity and display your verification status ('ID checked' and 'Police clearance verified') to prospective employers on Maritcho.",
+      "National ID photos and Police Clearance certificate images are used only to verify your identity. They are kept privately: only you and the Maritcho team can see them, and they are never shown to employers or other workers. Employers see only your verification status ('ID checked' and 'Police Cleared').",
+      "From your ID we keep the name as printed and a coded (hashed) form of the ID number, so one ID can't be used for two accounts. The ID number itself is not stored.",
       "We do not sell or rent your personal information or vetting documents to third parties.",
     ],
   },

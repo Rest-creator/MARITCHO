@@ -190,6 +190,22 @@ test("a job goes from posted to paid", async ({ browser }) => {
     await expect(month).toContainText(`$${PRICE}`);
   });
 
+  await test.step("worker rates the client, and both reviews are then shared", async () => {
+    // ADR-011: the buyer's review stays hidden until the worker reviews too.
+    await worker.getByRole("link", { name: new RegExp(jobText) }).click();
+    await expect(
+      worker.getByRole("heading", { name: "How was the client to work for?" }),
+    ).toBeVisible();
+    await expect(worker.getByText(/has reviewed you\. Leave yours/)).toBeVisible();
+    await worker.getByRole("radio", { name: "5 stars" }).click();
+    await worker.getByRole("button", { name: "Paid on time" }).click();
+    await worker.getByRole("button", { name: "Send review" }).click();
+    await expect(worker.getByText("What the client said")).toBeVisible();
+
+    await buyer.goto(`${jobUrl}/track`);
+    await expect(buyer.getByText(/^What .+ said$/)).toBeVisible();
+  });
+
   await buyerContext.close();
   await workerContext.close();
 });

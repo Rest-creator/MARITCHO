@@ -52,6 +52,19 @@ function uploadedFile(body: Buffer): Buffer {
 test.describe("sign-up (WEB-005)", () => {
   test("signs up with name, phone, and password in one step", async ({ page }) => {
     const unexpected = await stubWorld(page, null, { "POST session": { json: BUYER } });
+    // Like the real BFF, the session exists once sign-up succeeds. Without
+    // this, the employer screen's session refetch gets "signed out" and
+    // bounces to log-in — a race that passed or failed depending on timing.
+    let isSignedIn = false;
+    await page.route("**/api/session", async (route) => {
+      const method = route.request().method();
+      if (method === "POST") isSignedIn = true;
+      if (method === "GET" && isSignedIn) {
+        await route.fulfill({ json: BUYER });
+        return;
+      }
+      await route.fallback();
+    });
     await page.goto("/signup?role=buyer");
     await page.getByLabel("Your full name").fill("Rudo Ncube");
     await page.getByLabel("Phone number").fill("77 412 3089");

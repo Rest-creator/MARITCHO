@@ -13,6 +13,7 @@ import { distanceBandLabel, formatKm, formatMoney, formatRelativeTime } from "@/
 import { tradeLabel } from "@/core/format/trades";
 import { useJobEligibility, useMyOffers, useOpenJobs, useSubmitOffer } from "@/features/jobs/hooks";
 import { counterOfferChips, resolvePricingMode, splitTiming } from "@/features/jobs/job-helpers";
+import { ClientRatingLine } from "@/features/reviews/ClientRatingLine";
 import { ShareJobButton } from "@/features/jobs/ShareJobButton";
 import { parseOfferAmount } from "@/features/worker/money-input";
 
@@ -166,6 +167,8 @@ export function JobDetailScreen({ jobId }: Props) {
             </div>
           </div>
         </section>
+
+        <ClientRatingLine jobId={jobId} />
 
         <div className="banner banner--quiet" style={{ borderRadius: 16 }}>
           <span className="text-emerald" style={{ display: "flex" }}>

@@ -1,7 +1,7 @@
 # ADR 005: Progressive Vetting Tiers Replace Institution-Dependent Checks
 
 ## Status
-Accepted and implemented (migration `c776d5d98df3`; see `docs/backlog.md` `CORE-007`, now `DONE`)
+Accepted and implemented (migration `c776d5d98df3`; see `docs/backlog.md` `CORE-007`, now `DONE`). Step 1 (`REGISTERED` → `IDENTIFIED`) amended by ADR-010: the ID photo must be reviewed and approved by OPS, not just submitted.
 
 ## Context
 A comparative review of Checkatrade's 12-point vetting model (identity verification, credit checks, county court judgment searches, formal trade-body accreditation such as Gas Safe/NICEIC) confirmed most of those checks depend on institutions and public verification APIs that don't exist or aren't queryable in Zimbabwe — there is no open government ID-verification API, and the trades sector is dominated by informal labor with no formal-licensing-body equivalent. The existing `Skill.grade` / `Standing.grade` (`GradeEnum`: `REGISTERED`, `IDENTIFIED`, `APPRENTICE`, `JOURNEYMAN`, `EXPERT`) already models a progression, but per the still-open item from the architecture review, nothing currently sets `Skill.grade` — there is no defined workflow for what evidence promotes a worker from one tier to the next.

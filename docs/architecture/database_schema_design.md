@@ -650,3 +650,57 @@ Migration `7b8c9d0e1f2a_add_police_clearance_and_pricing_mode.py` adds:
 - `JOBS.pricing_mode` (`VARCHAR(20) NOT NULL DEFAULT 'NEGOTIABLE'`): models the employer's chosen pricing mode (`FIXED`, `NEGOTIABLE`, or `AFTER_VISIT`).
 - `PATCH /jobs/{job_id}`: allows the buyer to edit an open (`REQUESTED` or `MATCHED`) job posting (`trade`, `suburb`, `address`, `landmark_narrative`, `latitude`, `longitude`, `problem_description`, `problem_photo_url`, `needed_by`, `pricing_mode`, `budget_amount`) before a worker is booked.
 - `WORKER_VETTING.police_clearance_url` (`VARCHAR(255)`, nullable) and `WORKER_VETTING.police_clearance_submitted_at` (`TIMESTAMP WITH TIME ZONE`, nullable) via `POST /workers/me/vetting/police-clearance`: optional when joining Maritcho, but a verification prerequisite for the `has_police_clearance` ("Police Cleared") badge surfaced on `MatchCandidate`, `WorkerDirectoryItem`, and `WorkerPublicProfile`.
+
+## 18. Reviewed Identity Documents (`8c9d0e1f2a3b`, ADR-010)
+
+Badges used to be granted the moment `WORKER_VETTING.id_photo_url` /
+`police_clearance_url` held any string. Migration
+`8c9d0e1f2a3b_review_identity_documents.py` adds the review result instead:
+
+| Column | Type | Meaning |
+| :--- | :--- | :--- |
+| `id_status`, `police_clearance_status` | `VARCHAR(20)` | `PENDING` / `VERIFIED` / `REJECTED`; null = not submitted |
+| `id_reviewed_at/_by`, `police_clearance_reviewed_at/_by` | `TIMESTAMPTZ`, `UUID` FK→`persons` (`SET NULL`) | Who decided, and when |
+| `id_rejection_reason`, `police_clearance_rejection_reason` | `VARCHAR(255)` | Shown to the worker |
+| `id_verified_name` | `VARCHAR(120)` | Name as printed on the approved ID |
+| `id_number_hash` | `VARCHAR(64)`, `UNIQUE` | HMAC-SHA256 of the normalized ID number (`ID_NUMBER_HASH_KEY`); the number itself is never stored. One national ID verifies one account |
+| `police_clearance_issued_on`, `police_clearance_expires_on` | `DATE` | Badge lapses 365 days after issue |
+
+Rules (`app/apps/workers/domain/services.py`):
+- Submitting accepts only the worker's own `/media/{id}` image (422 otherwise) and resets that document to `PENDING`.
+- `IDENTIFIED` (and `APPRENTICE`) require `id_status = VERIFIED`. A police clearance no longer counts as identity.
+- `has_police_clearance` = `police_clearance_status = VERIFIED` and `police_clearance_expires_on >= today`, on `MatchCandidate`, `WorkerDirectoryItem`, `WorkerPublicProfile` and `GET /workers/me/vetting`.
+- A clearance can be approved only after the ID is verified.
+- OPS endpoints: `GET /ops/vetting/pending`, `POST /ops/vetting/{worker_id}/id`, `POST /ops/vetting/{worker_id}/police-clearance`. Not proxied by the web BFF (ops surfaces stay off the browser proxy); an OPS console is follow-up work.
+
+Data migration: rows that already had a photo become `PENDING`, and
+`standings.grade` values of `IDENTIFIED`/`APPRENTICE` drop to `REGISTERED`
+until a reviewer approves the ID. Vouch-earned grades are unchanged.
+
+## 19. Two-Way, Double-Blind Reviews (`9d0e1f2a3b4c`, ADR-011)
+
+`REVIEWS` gains a direction and the fields for publication, replies and
+moderation. Unique key changes from `(job_id)` to `(job_id, direction)`: one
+review each way per job.
+
+| Column | Meaning |
+| :--- | :--- |
+| `direction` | `BUYER_TO_WORKER` / `WORKER_TO_BUYER` |
+| `author_id`, `subject_id` | Who wrote it, who it is about (`buyer_id`/`worker_id` stay the job's parties) |
+| `visible_after` | Sign-off + 14 days: shown from then even if the other side never reviews |
+| `published_at` | Set on both reviews when the second one arrives |
+| `had_dispute` | The job had a dispute; shown as a label |
+| `reply`, `replied_at` | The subject's one public reply |
+| `reported_at/_by`, `report_reason` | Waiting for OPS; the review stays visible |
+| `hidden_at`, `moderated_by/_at` | OPS removed it: hidden and out of the rating |
+
+Visible = `hidden_at IS NULL AND (published_at IS NOT NULL OR visible_after <= now())`
+(`reviews/infrastructure/models.py::visible_review_clause`). Every rating
+aggregate uses it (`worker_rating_stats`: directory, public profile, matching,
+`GET /workers/me/standing`). `reviewtagenum` gains `PAID_ON_TIME`,
+`JOB_AS_DESCRIBED`, `RESPECTFUL` and `SAFE_WORKPLACE` for worker → employer
+reviews.
+
+Backfill: existing rows were all employer → worker and already public, so
+they get `author_id = buyer_id`, `subject_id = worker_id`, and
+`visible_after = published_at = created_at`.

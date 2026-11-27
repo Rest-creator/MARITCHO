@@ -110,7 +110,9 @@ describe("AccountScreen", () => {
 
     // Police clearance verification section
     expect(screen.getByText("Police Clearance (Verification badge)")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Upload Police Clearance/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Upload certificate/i })).toBeInTheDocument();
+    // ADR-010: an uploaded ID without a review is waiting, not verified.
+    expect(screen.getByText("Waiting for review")).toBeInTheDocument();
 
     // Theme switcher (Dark default & White & Blue light mode)
     const lightThemeBtn = screen.getByRole("button", { name: /White & Blue/i });

@@ -2,17 +2,19 @@ import uuid
 from collections import defaultdict
 from decimal import Decimal
 
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.apps.accounts.infrastructure.models import PersonModel
-from app.apps.jobs.infrastructure.review_models import ReviewModel
+from app.apps.reviews.infrastructure.repositories import worker_rating_stats
+from app.apps.workers.domain.entities import is_police_clearance_current
 from app.apps.workers.infrastructure.models import (
     ServiceAreaModel,
     SkillModel,
     StandingModel,
     WorkerVettingModel,
 )
+from app.shared_kernel.clock import utcnow
 from app.shared_kernel.enums import GradeEnum, TradeEnum
 from app.shared_kernel.ports import WorkerMatchingProfilePort
 from app.shared_kernel.value_objects import (
@@ -82,10 +84,14 @@ class WorkerMatchingProfileAdapter(WorkerMatchingProfilePort):
         vetting_rows = await self._db.execute(
             select(WorkerVettingModel).where(WorkerVettingModel.worker_id.in_(worker_ids))
         )
+        today_now = utcnow()
+        today = today_now.date()
         police_cleared_ids = {
             model.worker_id
             for model in vetting_rows.scalars().all()
-            if model.police_clearance_url
+            if is_police_clearance_current(
+                model.police_clearance_status, model.police_clearance_expires_on, today
+            )
         }
         snapshots: dict[uuid.UUID, WorkerStandingSnapshot] = {}
         for model in result.scalars().all():
@@ -101,12 +107,8 @@ class WorkerMatchingProfileAdapter(WorkerMatchingProfilePort):
                 jobs_completed=model.jobs_completed if model.jobs_completed is not None else 0,
                 has_police_clearance=model.worker_id in police_cleared_ids,
             )
-        ratings = await self._db.execute(
-            select(ReviewModel.worker_id, func.avg(ReviewModel.rating), func.count())
-            .where(ReviewModel.worker_id.in_(worker_ids))
-            .group_by(ReviewModel.worker_id)
-        )
-        for worker_id, average, count in ratings.all():
+        ratings = await worker_rating_stats(self._db, worker_ids, today_now)
+        for worker_id, (average, count) in ratings.items():
             current = snapshots.get(worker_id)
             if current:
                 snapshots[worker_id] = WorkerStandingSnapshot(

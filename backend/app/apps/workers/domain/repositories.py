@@ -1,9 +1,10 @@
 import uuid
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
-from datetime import datetime
+from datetime import date, datetime
 
 from app.apps.workers.domain.entities import (
+    PendingVettingDocument,
     ServiceArea,
     Skill,
     Standing,
@@ -13,7 +14,7 @@ from app.apps.workers.domain.entities import (
     WorkerVetting,
     WorkerVouch,
 )
-from app.shared_kernel.enums import GradeEnum, TradeEnum
+from app.shared_kernel.enums import GradeEnum, TradeEnum, VerificationStatusEnum
 
 
 class SkillRepository(ABC):
@@ -72,6 +73,50 @@ class WorkerVettingRepository(ABC):
         self, worker_id: uuid.UUID, police_clearance_url: str, submitted_at: datetime
     ) -> WorkerVetting:
         """Stages only — does not commit."""
+
+    @abstractmethod
+    async def record_id_review(
+        self,
+        worker_id: uuid.UUID,
+        *,
+        status: VerificationStatusEnum,
+        reviewed_by: uuid.UUID,
+        reviewed_at: datetime,
+        verified_name: str | None,
+        id_number_hash: str | None,
+        rejection_reason: str | None,
+    ) -> WorkerVetting:
+        """Stages only — does not commit. A duplicate id_number_hash surfaces
+        as IntegrityConflictError on commit."""
+
+    @abstractmethod
+    async def record_police_clearance_review(
+        self,
+        worker_id: uuid.UUID,
+        *,
+        status: VerificationStatusEnum,
+        reviewed_by: uuid.UUID,
+        reviewed_at: datetime,
+        issued_on: date | None,
+        expires_on: date | None,
+        rejection_reason: str | None,
+    ) -> WorkerVetting:
+        """Stages only — does not commit."""
+
+    @abstractmethod
+    async def id_number_hash_owner(self, id_number_hash: str) -> uuid.UUID | None:
+        """The worker whose verified ID already has this number, if any."""
+
+    @abstractmethod
+    async def list_pending(self, *, limit: int, offset: int) -> Sequence[PendingVettingDocument]:
+        """Documents waiting for review, oldest submission first."""
+
+
+class MediaOwnershipRepository(ABC):
+    """Port onto the media store, so vetting only accepts real uploads."""
+
+    @abstractmethod
+    async def is_owned_image(self, media_id: uuid.UUID, owner_id: uuid.UUID) -> bool: ...
 
 
 class WorkerReferenceRepository(ABC):

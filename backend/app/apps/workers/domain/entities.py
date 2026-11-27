@@ -1,9 +1,14 @@
 import uuid
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 
-from app.shared_kernel.enums import DistanceBandEnum, GradeEnum, TradeEnum
+from app.shared_kernel.enums import (
+    DistanceBandEnum,
+    GradeEnum,
+    TradeEnum,
+    VerificationStatusEnum,
+)
 
 
 @dataclass
@@ -54,11 +59,60 @@ class StandingView:
 
 @dataclass
 class WorkerVetting:
+    """Identity documents (ADR-005, ADR-010). The photos are private: only the
+    worker and OPS can open them. Badges follow the review status, never the
+    mere presence of a photo."""
+
     worker_id: uuid.UUID
     id_photo_url: str | None = None
     id_submitted_at: datetime | None = None
     police_clearance_url: str | None = None
     police_clearance_submitted_at: datetime | None = None
+    id_status: VerificationStatusEnum | None = None
+    id_reviewed_at: datetime | None = None
+    id_reviewed_by: uuid.UUID | None = None
+    id_rejection_reason: str | None = None
+    id_verified_name: str | None = None
+    police_clearance_status: VerificationStatusEnum | None = None
+    police_clearance_reviewed_at: datetime | None = None
+    police_clearance_reviewed_by: uuid.UUID | None = None
+    police_clearance_rejection_reason: str | None = None
+    police_clearance_issued_on: date | None = None
+    police_clearance_expires_on: date | None = None
+
+    @property
+    def is_id_verified(self) -> bool:
+        return self.id_status == VerificationStatusEnum.VERIFIED
+
+    def is_police_cleared(self, today: date) -> bool:
+        return is_police_clearance_current(
+            self.police_clearance_status, self.police_clearance_expires_on, today
+        )
+
+
+def is_police_clearance_current(
+    status: VerificationStatusEnum | None, expires_on: date | None, today: date
+) -> bool:
+    """The "Police Cleared" badge: reviewed, approved and not yet expired."""
+    return (
+        status == VerificationStatusEnum.VERIFIED
+        and expires_on is not None
+        and expires_on >= today
+    )
+
+
+@dataclass
+class PendingVettingDocument:
+    """One document waiting in the OPS review queue."""
+
+    worker_id: uuid.UUID
+    worker_name: str | None
+    worker_phone: str
+    document: str  # "ID" | "POLICE_CLEARANCE"
+    photo_url: str
+    submitted_at: datetime | None
+    id_status: VerificationStatusEnum | None
+    id_verified_name: str | None
 
 
 @dataclass
@@ -91,6 +145,14 @@ class WorkerVettingView:
     grade: GradeEnum
     police_clearance_url: str | None = None
     police_clearance_submitted_at: datetime | None = None
+    id_status: VerificationStatusEnum | None = None
+    id_rejection_reason: str | None = None
+    id_verified_name: str | None = None
+    police_clearance_status: VerificationStatusEnum | None = None
+    police_clearance_rejection_reason: str | None = None
+    police_clearance_issued_on: date | None = None
+    police_clearance_expires_on: date | None = None
+    has_police_clearance: bool = False
 
 
 @dataclass

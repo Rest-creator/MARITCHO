@@ -1,10 +1,16 @@
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from app.shared_kernel.enums import DistanceBandEnum, GradeEnum, TradeEnum
+from app.shared_kernel.enums import (
+    DistanceBandEnum,
+    GradeEnum,
+    TradeEnum,
+    VerificationStatusEnum,
+)
 from app.shared_kernel.text import strip_tags
 
 
@@ -102,6 +108,42 @@ class WorkerVettingOut(BaseModel):
     grade: GradeEnum
     police_clearance_url: str | None = None
     police_clearance_submitted_at: datetime | None = None
+    # ADR-010 review results. The URLs above are private (owner + OPS).
+    id_status: VerificationStatusEnum | None = None
+    id_rejection_reason: str | None = None
+    id_verified_name: str | None = None
+    police_clearance_status: VerificationStatusEnum | None = None
+    police_clearance_rejection_reason: str | None = None
+    police_clearance_issued_on: date | None = None
+    police_clearance_expires_on: date | None = None
+    has_police_clearance: bool = False
+
+
+class PendingVettingDocumentOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    worker_id: uuid.UUID
+    worker_name: str | None
+    worker_phone: str
+    document: Literal["ID", "POLICE_CLEARANCE"]
+    photo_url: str
+    submitted_at: datetime | None
+    id_status: VerificationStatusEnum | None
+    id_verified_name: str | None
+
+
+class IdReviewCreate(BaseModel):
+    decision: Literal["APPROVE", "REJECT"]
+    verified_name: str | None = Field(default=None, max_length=120)
+    # Typed by the reviewer from the photo; only its keyed hash is stored.
+    id_number: str | None = Field(default=None, max_length=20)
+    rejection_reason: str | None = Field(default=None, max_length=255)
+
+
+class PoliceClearanceReviewCreate(BaseModel):
+    decision: Literal["APPROVE", "REJECT"]
+    issued_on: date | None = None
+    rejection_reason: str | None = Field(default=None, max_length=255)
 
 
 class WorkerWorkRecordOut(BaseModel):

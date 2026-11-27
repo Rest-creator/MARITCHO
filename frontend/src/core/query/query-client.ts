@@ -139,6 +139,7 @@ export function createQueryClient(): QueryClient {
   ]);
   registerReplayable<SubmitReviewInput>(client, mutationKeys.submitReview, submitReview, (v) => [
     queryKeys.job(v.jobId),
+    queryKeys.jobReviews(v.jobId),
     queryKeys.standing,
     queryKeys.screens,
   ]);
