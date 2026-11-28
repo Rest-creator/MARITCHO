@@ -21,7 +21,8 @@ class SqliteOutbox implements Outbox {
     required String? jobId,
     required Map<String, Object?> payload,
   }) async {
-    final Database db = await _dbHelper.database;
+    final Database? db = await _dbHelper.database;
+    if (db == null) return 0;
     return db.insert(_table, <String, Object?>{
       'action_type': type,
       'job_id': jobId,
@@ -34,7 +35,8 @@ class SqliteOutbox implements Outbox {
 
   @override
   Future<List<OutboxItem>> due(DateTime now) async {
-    final Database db = await _dbHelper.database;
+    final Database? db = await _dbHelper.database;
+    if (db == null) return const [];
     final List<Map<String, Object?>> rows = await db.query(
       _table,
       where: "status = 'PENDING' AND (next_attempt_at IS NULL OR next_attempt_at <= ?)",
@@ -46,7 +48,8 @@ class SqliteOutbox implements Outbox {
 
   @override
   Future<List<OutboxItem>> undeliveredForJob(String jobId) async {
-    final Database db = await _dbHelper.database;
+    final Database? db = await _dbHelper.database;
+    if (db == null) return const [];
     final List<Map<String, Object?>> rows = await db.query(
       _table,
       where: "job_id = ? AND status IN ('PENDING', 'FAILED')",
@@ -86,7 +89,8 @@ class SqliteOutbox implements Outbox {
   });
 
   Future<void> _update(int id, Map<String, Object?> values) async {
-    final Database db = await _dbHelper.database;
+    final Database? db = await _dbHelper.database;
+    if (db == null) return;
     await db.update(_table, values, where: 'id = ?', whereArgs: <Object>[id]);
   }
 

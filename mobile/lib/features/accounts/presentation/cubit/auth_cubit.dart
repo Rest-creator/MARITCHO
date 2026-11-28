@@ -7,8 +7,7 @@ import 'package:mobile/features/accounts/data/models/person.dart';
 import 'package:mobile/features/accounts/data/repositories/auth_repository.dart';
 import 'package:mobile/features/accounts/presentation/cubit/auth_state.dart';
 
-/// Sign-up / sign-in: phone number first, then the 6-digit code if one was
-/// sent (WEB-005's flow, through the BFF).
+/// Sign-up & sign-in with phone + password or code through the BFF.
 class AuthCubit extends Cubit<AuthState> {
   final AuthRepository _authRepository;
   String _phone = '';
@@ -16,7 +15,42 @@ class AuthCubit extends Cubit<AuthState> {
 
   AuthCubit(this._authRepository) : super(AuthInitial());
 
-  /// Ask for a code; sign straight in when the backend can't send one.
+  /// Sign in with existing phone and password.
+  Future<void> signIn({required String phone, required String password}) async {
+    emit(AuthLoading());
+    final Result<Person, Failure> result = await _authRepository.signIn(
+      phone: phone,
+      password: password,
+    );
+    if (result.isOk) {
+      emit(AuthSuccess(result.okValue));
+    } else {
+      emit(AuthFailure(result.errorValue.message));
+    }
+  }
+
+  /// Sign up with phone, password, name, and role.
+  Future<void> signUp({
+    required String phone,
+    required String password,
+    required String name,
+    required String role,
+  }) async {
+    emit(AuthLoading());
+    final Result<Person, Failure> result = await _authRepository.signUp(
+      phone: phone,
+      password: password,
+      name: name,
+      role: role,
+    );
+    if (result.isOk) {
+      emit(AuthSuccess(result.okValue));
+    } else {
+      emit(AuthFailure(result.errorValue.message));
+    }
+  }
+
+  /// OTP / Code compatibility start flow.
   Future<void> start({required String phone, required String role}) async {
     _phone = AuthRepository.normalisePhone(phone);
     _role = role;
@@ -50,7 +84,6 @@ class AuthCubit extends Cubit<AuthState> {
     );
   }
 
-  /// Back to the phone-number form.
   void changeNumber() => emit(AuthInitial());
 
   Future<void> _signIn({required String? code}) async {
@@ -72,4 +105,6 @@ class AuthCubit extends Cubit<AuthState> {
       emit(AuthFailure(result.errorValue.message));
     }
   }
+
+  void reset() => emit(AuthInitial());
 }

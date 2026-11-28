@@ -23,6 +23,15 @@ Route<dynamic>? onGenerateRoute(RouteSettings settings) {
     case '/':
       return MaterialPageRoute(builder: (_) => const LandingPage());
     case '/signup':
+      if (settings.arguments is Map<String, dynamic>) {
+        final map = settings.arguments as Map<String, dynamic>;
+        return MaterialPageRoute(
+          builder: (_) => SignUpPage(
+            role: map['role'] as String? ?? 'BUYER',
+            initialIsLogin: map['isLogin'] as bool? ?? false,
+          ),
+        );
+      }
       final role = settings.arguments as String? ?? 'BUYER';
       return MaterialPageRoute(builder: (_) => SignUpPage(role: role));
     case '/shell':

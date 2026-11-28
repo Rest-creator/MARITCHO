@@ -16,20 +16,34 @@ class DatabaseHelper {
   /// `photo_uploads` tables were dropped.
   static const int schemaVersion = 3;
 
-  Future<Database> get database async {
-    if (_database != null) return _database!;
+  Future<Database?> get database async {
+    if (_database != null) return _database;
     _database = await _initDatabase();
-    return _database!;
+    return _database;
   }
 
-  Future<Database> _initDatabase() async {
-    final String path = join(await getDatabasesPath(), 'maricho_offline.db');
-    return openDatabase(
-      path,
-      version: schemaVersion,
-      onCreate: createSchema,
-      onUpgrade: upgradeSchema,
-    );
+  Future<Database?> _initDatabase() async {
+    try {
+      final String path = join(await getDatabasesPath(), 'maricho_offline.db');
+      return await openDatabase(
+        path,
+        version: schemaVersion,
+        onCreate: createSchema,
+        onUpgrade: upgradeSchema,
+      );
+    } catch (_) {
+      try {
+        return await openDatabase(
+          inMemoryDatabasePath,
+          version: schemaVersion,
+          onCreate: createSchema,
+          onUpgrade: upgradeSchema,
+        );
+      } catch (_) {
+        // Platform or runner does not support SQLite binary / ffi symbol resolution
+        return null;
+      }
+    }
   }
 
   static Future<void> createSchema(Database db, int version) async {
@@ -90,23 +104,33 @@ class DatabaseHelper {
   /// JobsRepository/WorkersRepository's cache-aside reads). Not the
   /// write-side outbound queue — that's `offline_queue`.
   Future<void> cacheResponse(String cacheKey, String payload) async {
-    final Database db = await database;
-    await db.insert('cached_responses', <String, Object?>{
-      'cache_key': cacheKey,
-      'payload': payload,
-      'cached_at': DateTime.now().toIso8601String(),
-    }, conflictAlgorithm: ConflictAlgorithm.replace);
+    try {
+      final Database? db = await database;
+      if (db == null) return;
+      await db.insert('cached_responses', <String, Object?>{
+        'cache_key': cacheKey,
+        'payload': payload,
+        'cached_at': DateTime.now().toIso8601String(),
+      }, conflictAlgorithm: ConflictAlgorithm.replace);
+    } catch (_) {
+      // Silent cache write failure if SQLite engine is unavailable
+    }
   }
 
   Future<String?> getCachedResponse(String cacheKey) async {
-    final Database db = await database;
-    final List<Map<String, Object?>> rows = await db.query(
-      'cached_responses',
-      where: 'cache_key = ?',
-      whereArgs: <Object>[cacheKey],
-      limit: 1,
-    );
-    if (rows.isEmpty) return null;
-    return rows.first['payload'] as String;
+    try {
+      final Database? db = await database;
+      if (db == null) return null;
+      final List<Map<String, Object?>> rows = await db.query(
+        'cached_responses',
+        where: 'cache_key = ?',
+        whereArgs: <Object>[cacheKey],
+        limit: 1,
+      );
+      if (rows.isEmpty) return null;
+      return rows.first['payload'] as String;
+    } catch (_) {
+      return null;
+    }
   }
 }

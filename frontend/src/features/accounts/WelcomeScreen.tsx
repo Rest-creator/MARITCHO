@@ -96,9 +96,41 @@ export function WelcomeScreen() {
         </span>
         <span>Every finished job leaves a review you can trust — for both sides.</span>
       </div>
+
+      <div style={{ marginTop: 24, textAlign: "center" }}>
+        <a
+          href="/downloads/maritcho.apk"
+          download="maritcho.apk"
+          className="btn btn--soft"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 10,
+            padding: "12px 24px",
+            fontSize: 14,
+            fontWeight: 600,
+            borderRadius: 14,
+            border: "1px solid var(--color-primary-edge, rgba(0, 171, 227, 0.4))",
+            color: "#ffffff",
+          }}
+        >
+          <Icon name="download" size={18} strokeWidth={2.2} />
+          <span>Download Maritcho Android App</span>
+        </a>
+      </div>
+
       <p
         className="meta meta--secondary"
         style={{ marginTop: 20, textAlign: "center", fontSize: 14 }}
+      >
+        Already have an account?{" "}
+        <Link href="/signup?mode=signin" style={{ fontWeight: 600, color: "var(--color-primary-accent, #00abe3)" }}>
+          Log in
+        </Link>
+      </p>
+      <p
+        className="meta meta--secondary"
+        style={{ marginTop: 8, textAlign: "center", fontSize: 14 }}
       >
         Don&apos;t have an account?{" "}
         <Link href="/signup" style={{ fontWeight: 600 }}>

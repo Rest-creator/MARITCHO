@@ -56,6 +56,21 @@ export function TabBar({ items, ariaLabel }: Props) {
           </Link>
         );
       })}
+
+      <div className="tabbar__footer" style={{ marginTop: "auto", paddingTop: 16 }}>
+        <a
+          href="/downloads/maritcho.apk"
+          download="maritcho.apk"
+          className="tabbar__item tabbar__item--download"
+          title="Download Maritcho Mobile App"
+          aria-label="Download Maritcho Mobile App"
+        >
+          <span className="tabbar__icon">
+            <Icon name="smartphone" size={22} strokeWidth={1.8} />
+          </span>
+          <span>Get Mobile App</span>
+        </a>
+      </div>
     </nav>
   );
 }

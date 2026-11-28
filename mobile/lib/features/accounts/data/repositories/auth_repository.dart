@@ -6,17 +6,13 @@ import 'package:mobile/core/storage/token_storage.dart';
 import 'package:mobile/features/accounts/data/models/code_request.dart';
 import 'package:mobile/features/accounts/data/models/person.dart';
 
-/// Sign-in through the BFF (ADR-009), the same two steps as the website:
-/// ask for a 6-digit code, then sign in with it. While the backend can't
-/// send codes yet, the BFF says so and sign-in goes ahead without one.
+/// Sign-in & sign-up through the BFF (ADR-009 / `frontend/src/app/api/session/route.ts`).
 class AuthRepository {
   final Dio _dio;
   final TokenStorage _tokenStorage;
 
   AuthRepository(this._dio, this._tokenStorage);
 
-  /// Tells the BFF this is the app, so sign-in returns the token in the
-  /// response instead of setting a browser cookie.
   static const Map<String, String> _mobileClient = <String, String>{
     'X-Maricho-Client': 'mobile',
   };
@@ -28,6 +24,7 @@ class AuthRepository {
     return '+$countryCode${digits.replaceFirst(RegExp(r'^0+'), '')}';
   }
 
+  /// Request code (for OTP flows / backward compatibility).
   Future<Result<CodeRequest, Failure>> requestCode({
     required String phone,
   }) async {
@@ -43,20 +40,57 @@ class AuthRepository {
     }
   }
 
+  /// Sign in with an existing account's phone and password.
+  Future<Result<Person, Failure>> signIn({
+    required String phone,
+    required String password,
+  }) async {
+    return _authenticate(
+      payload: <String, Object?>{
+        'mode': 'signin',
+        'phone': normalisePhone(phone),
+        'password': password,
+      },
+    );
+  }
+
+  /// Create a new account with phone, password, name, and role.
+  Future<Result<Person, Failure>> signUp({
+    required String phone,
+    required String password,
+    required String name,
+    required String role,
+  }) async {
+    return _authenticate(
+      payload: <String, Object?>{
+        'mode': 'signup',
+        'phone': normalisePhone(phone),
+        'password': password,
+        'name': name.isEmpty ? 'User' : name,
+        'role': role,
+      },
+    );
+  }
+
+  /// Login compatibility method (used by tests and existing OTP code flows).
   Future<Result<Person, Failure>> login({
     required String phone,
     required String role,
     String? code,
   }) async {
+    return _authenticate(
+      payload: <String, Object?>{'phone': phone, 'role': role, 'code': ?code},
+    );
+  }
+
+  Future<Result<Person, Failure>> _authenticate({
+    required Map<String, Object?> payload,
+  }) async {
     try {
       final Response<Map<String, dynamic>> response = await _dio
           .post<Map<String, dynamic>>(
             '/session',
-            data: <String, Object?>{
-              'phone': phone,
-              'role': role,
-              'code': ?code,
-            },
+            data: payload,
             options: Options(headers: _mobileClient),
           );
       final Map<String, dynamic> body = response.data!;

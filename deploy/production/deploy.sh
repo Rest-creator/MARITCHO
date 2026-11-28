@@ -161,6 +161,19 @@ echo "Deploying $MARICHO_GIT_REF (tag $MARICHO_IMAGE_TAG) on $MARICHO_VPS"
 echo "Pulling from $MARICHO_GIT_URL and building on the VPS"
 echo "=================================================="
 
+# Upload the built release APK to the VPS volume if present locally
+LOCAL_APK="$ROOT_DIR/mobile/build/app/outputs/flutter-apk/app-release.apk"
+if [ -f "$LOCAL_APK" ]; then
+    echo "=================================================="
+    echo "Uploading release APK to VPS"
+    echo "=================================================="
+    scp "${SSH_OPTS[@]}" -q "$LOCAL_APK" "$MARICHO_VPS:/tmp/maritcho.apk"
+    ssh "${SSH_OPTS[@]}" "$MARICHO_VPS" \
+        "docker volume inspect maricho-production_maricho_apk_downloads >/dev/null 2>&1 || docker volume create maricho-production_maricho_apk_downloads; \
+         docker run --rm -v maricho-production_maricho_apk_downloads:/target -v /tmp/maritcho.apk:/source/maritcho.apk alpine sh -c 'cp /source/maritcho.apk /target/maritcho.apk && chmod 644 /target/maritcho.apk'; \
+         rm -f /tmp/maritcho.apk"
+fi
+
 # Deliver the script via scp and execute it from a file, rather than piping
 # it over the same SSH session's stdin (the heredoc approach this replaced):
 # a long-running remote script that itself runs commands attached to stdin

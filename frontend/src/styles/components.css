@@ -829,6 +829,10 @@ a.card:hover {
   display: none;
 }
 
+.tabbar__footer {
+  display: none;
+}
+
 .tabbar__icon {
   position: relative;
   display: inline-flex;
@@ -2357,6 +2361,24 @@ a.list-row:hover {
     font-weight: 700;
     letter-spacing: -0.01em;
     color: var(--text);
+  }
+
+  .tabbar__footer {
+    display: flex;
+    flex-direction: column;
+    margin-top: auto;
+    padding-top: 16px;
+    border-top: 1px solid var(--line-faint);
+  }
+
+  .tabbar__item--download {
+    color: var(--color-primary-accent, #00abe3);
+    background: var(--glass-subtle);
+  }
+
+  .tabbar__item--download:hover {
+    color: #ffffff;
+    background: var(--glass-strong);
   }
 
   .tabbar__item {

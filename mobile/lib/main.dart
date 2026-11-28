@@ -1,8 +1,10 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:sqflite_common_ffi/sqflite_common_ffi.dart';
 
 import 'core/navigation/app_router.dart';
 import 'core/network/api_client.dart';
@@ -23,6 +25,12 @@ import 'features/workers/data/repositories/workers_repository.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // On desktop platforms (Linux, macOS, Windows), initialize FFI databaseFactory
+  if (!kIsWeb && (Platform.isLinux || Platform.isMacOS || Platform.isWindows)) {
+    sqfliteFfiInit();
+    databaseFactory = databaseFactoryFfi;
+  }
 
   final tokenStorage = TokenStorage();
   final dbHelper = DatabaseHelper();

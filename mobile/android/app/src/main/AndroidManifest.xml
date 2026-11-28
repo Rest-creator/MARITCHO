@@ -2,7 +2,7 @@
     <!-- Flutter only adds this to debug/profile builds; release needs it to reach the backend. -->
     <uses-permission android:name="android.permission.INTERNET"/>
     <application
-        android:label="mobile"
+        android:label="Maritcho"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
